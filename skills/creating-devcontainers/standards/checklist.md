@@ -60,3 +60,16 @@ Consolidated checklist for validating DevContainer configurations against all st
 - [ ] `.devcontainer/devcontainer.json` exists
 - [ ] `.devcontainer/post-create.sh` exists
 - [ ] `.devcontainer/post-start.sh` exists
+
+---
+
+## Modular Script System
+
+- [ ] `.devcontainer/lib/run-scripts.sh` exists
+- [ ] `.devcontainer/post-create.d/` directory exists
+- [ ] `.devcontainer/post-start.d/` directory exists
+- [ ] `post-create.d/00-git-safe-directory.sh` exists
+- [ ] `post-create.sh` sources `lib/run-scripts.sh`
+- [ ] `post-start.sh` sources `lib/run-scripts.sh`
+- [ ] All `.d` scripts include shebang (`#!/bin/bash`)
+- [ ] All `.d` scripts enable strict mode (`set -euo pipefail`)

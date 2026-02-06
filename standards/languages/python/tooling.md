@@ -134,7 +134,7 @@ Add to `pyproject.toml`:
 
 ```toml
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_ignores = true

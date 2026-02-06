@@ -61,6 +61,8 @@ Security requirements for DevContainer configurations. Focus on risk rationale a
 **ALWAYS** configure git safe.directory in post-create hook:
 
 ```bash
+# The :-/workspaces default ensures the script works when run manually outside
+# a DevContainer context where containerWorkspaceFolder may not be set.
 git config --global --add safe.directory "${containerWorkspaceFolder:-/workspaces}"
 ```
 

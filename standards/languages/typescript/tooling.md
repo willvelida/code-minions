@@ -48,7 +48,7 @@ pnpm test
 **Installation:**
 
 ```bash
-pnpm add -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+pnpm add -D eslint typescript-eslint
 ```
 
 **Configuration** (`eslint.config.mjs` - flat config):

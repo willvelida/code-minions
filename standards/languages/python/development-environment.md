@@ -114,4 +114,4 @@ To avoid duplicate diagnostics, configure Pylance to defer linting to Ruff with 
 | `editor.defaultFormatter` | `charliermarsh.ruff` | Use Ruff for formatting |
 | `editor.formatOnSave` | `true` | Auto-format on save |
 | `source.fixAll.ruff` | `explicit` | Apply Ruff fixes on save |
-| `source.organizeImports.ruff` | `explicit` | Sort imports on save |
+| `source.organizeImports.ruff` | `explicit` | Organise imports on save |

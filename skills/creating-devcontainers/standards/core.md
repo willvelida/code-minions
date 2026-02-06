@@ -100,8 +100,8 @@ Use the base image with language-specific **features**:
 
 | Script | Purpose | Runs As |
 |--------|---------|---------|
-| `post-create.sh` | One-time setup after container creation | root |
-| `post-start.sh` | Runs each time container starts | vscode user |
+| `post-create.sh` | One-time setup after container creation | remoteUser (vscode by default) |
+| `post-start.sh` | Runs each time container starts | remoteUser (vscode by default) |
 
 ---
 
@@ -140,8 +140,8 @@ Create scripts in the appropriate `.d` directory with a numeric prefix for order
 #!/bin/bash
 set -euo pipefail
 
-# Install project-specific tools
-apt-get update && apt-get install -y jq
+# Install project-specific tools (requires sudo as this runs as vscode user)
+sudo apt-get update && sudo apt-get install -y jq
 ```
 
 **Naming convention:** `NN-descriptive-name.sh` where `NN` is a two-digit number.

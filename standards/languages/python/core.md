@@ -65,7 +65,7 @@ name = "my-project"
 version = "0.1.0"
 description = "A brief description of the project"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "requests>=2.28.0",
 ]

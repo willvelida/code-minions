@@ -52,7 +52,7 @@ When working with a specific language:
 
 Some domain-specific standards are bundled with their skills rather than in this shared standards folder. Skills that bundle their own standards include:
 
-- **DevContainer** — `skills/devcontainer/standards/`
+- **DevContainer** — `skills/creating-devcontainers/standards/`
 - **Decision Records** — `skills/decision-records/standards/`
 
 When working in these domains, load standards from the skill's `standards/` folder instead of looking here.
