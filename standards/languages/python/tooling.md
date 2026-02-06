@@ -72,7 +72,7 @@ Add to `pyproject.toml`:
 
 ```toml
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 src = ["src"]
 
@@ -177,7 +177,7 @@ addopts = "-v --tb=short"
 Add to `.devcontainer/post-start.d/10-sync-pyproject-dependencies.sh`:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Script Name: 10-sync-pyproject-dependencies.sh
 # Description: Sync dependencies if pyproject.toml exists

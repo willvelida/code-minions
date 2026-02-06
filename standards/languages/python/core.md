@@ -140,6 +140,8 @@ def parse_value(value: str) -> int | float | None:
 Avoid `Any` when possible. Valid uses:
 
 ```python
+from typing import Any
+
 # Valid: Truly dynamic data from external sources
 def parse_json_response(response: str) -> dict[str, Any]:
     ...

@@ -54,7 +54,7 @@ Collect from user:
    - `extensions.md`
    - `features.md`
 
-2. **Per language**: Load from `../../standards/languages/<language>/`:
+2. **Per language**: Load from `../../../standards/languages/<language>/`:
    - `development-environment.md`
    - `tooling.md` (for tool configuration guidance)
 

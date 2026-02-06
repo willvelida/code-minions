@@ -137,7 +137,7 @@ Create scripts in the appropriate `.d` directory with a numeric prefix for order
 
 ```bash
 # Example: .devcontainer/post-create.d/10-install-tools.sh
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Install project-specific tools (requires sudo as this runs as vscode user)
@@ -166,7 +166,7 @@ The runner ignores all `*.skip.sh` files.
 
 Each script in a `.d` directory **MUST**:
 
-1. Include shebang: `#!/bin/bash`
+1. Include shebang: `#!/usr/bin/env bash`
 2. Enable strict mode: `set -euo pipefail`
 3. Be executable or invoked via `bash`
 

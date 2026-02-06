@@ -71,5 +71,5 @@ Consolidated checklist for validating DevContainer configurations against all st
 - [ ] `post-create.d/00-git-safe-directory.sh` exists
 - [ ] `post-create.sh` sources `lib/run-scripts.sh`
 - [ ] `post-start.sh` sources `lib/run-scripts.sh`
-- [ ] All `.d` scripts include shebang (`#!/bin/bash`)
+- [ ] All `.d` scripts include shebang (`#!/usr/bin/env bash`)
 - [ ] All `.d` scripts enable strict mode (`set -euo pipefail`)
