@@ -33,7 +33,7 @@ code-minions provides structured knowledge that AI agents can load to perform de
 
 ## Skills
 
-```
+```text
 skills/
 ├── creating-agent-skills/      # Create and review Agent Skills following the open specification
 ├── creating-devcontainers/     # Create and review DevContainer configurations
@@ -46,7 +46,7 @@ skills/
 
 Language standards provide consistent guidelines for development practices.
 
-```
+```text
 standards/
 └── languages/
     ├── bash/                   # Portable shell scripting with ShellCheck and shfmt
