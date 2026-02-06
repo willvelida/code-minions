@@ -94,9 +94,40 @@ BREAKING CHANGE: `login()` now returns a Promise instead of a callback
 
 ## Signed Commits
 
-Sign all commits with the `-s` flag for Developer Certificate of Origin (DCO) compliance:
+All commits **must** be signed in two ways:
+
+### 1. Cryptographic Signature (`-S`)
+
+Sign commits cryptographically using GPG or SSH keys. This verifies the commit author's identity.
 
 ```bash
+# Configure SSH signing (recommended)
+git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_rsa.pub
+git config --global commit.gpgsign true
+
+# Or configure GPG signing
+git config --global commit.gpgsign true
+git config --global user.signingkey YOUR_GPG_KEY_ID
+```
+
+With `commit.gpgsign = true`, all commits are automatically signed.
+
+### 2. Sign-off (`-s`)
+
+Add a `Signed-off-by:` line for Developer Certificate of Origin (DCO) compliance:
+
+```bash
+git commit -s -m "feat(auth): add token refresh endpoint"
+```
+
+### Combined Usage
+
+```bash
+# Both flags together (if gpgsign not set globally)
+git commit -s -S -m "feat(auth): add token refresh endpoint"
+
+# With global gpgsign=true, just use -s
 git commit -s -m "feat(auth): add token refresh endpoint"
 ```
 

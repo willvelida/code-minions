@@ -32,7 +32,8 @@ Consolidated checklist for validating git workflow compliance across all actions
 - [ ] Commit message uses correct type (`feat`, `fix`, `docs`, etc.)
 - [ ] Commit message description is present tense, imperative mood
 - [ ] Commit message description under 72 characters
-- [ ] Commits signed with `-s` flag (DCO compliance)
+- [ ] Commits cryptographically signed (`commit.gpgsign=true` or `-S` flag)
+- [ ] Commits include sign-off (`-s` flag) for DCO compliance
 - [ ] No secrets, credentials, or tokens committed
 
 ---

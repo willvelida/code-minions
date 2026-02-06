@@ -56,8 +56,17 @@ Analyze the staged diff to determine:
 
 ### 5. Execute the Commit
 
+**Important:** All commits must be cryptographically signed. Ensure signing is configured:
+
 ```bash
-# Single-line commit
+# Verify signing is enabled (should return "true")
+git config --global commit.gpgsign
+```
+
+If not configured, see [Commit Messages standard](../standards/commit-messages.md#signed-commits).
+
+```bash
+# Single-line commit (with sign-off)
 git commit -s -m "<type>[scope]: <description>"
 
 # Multi-line commit with body and/or footer
@@ -67,6 +76,8 @@ git commit -s -m "<type>[scope]: <description>
 
 <optional footer: Closes #123, BREAKING CHANGE, etc.>"
 ```
+
+**Note:** With `commit.gpgsign=true` set globally, commits are automatically cryptographically signed. The `-s` flag adds the DCO sign-off line.
 
 ### 6. Push the Commit
 
@@ -91,6 +102,7 @@ test(auth): add unit tests for login endpoint
 - Imperative mood: "fix bug" not "fixes bug"
 - Description under 72 characters
 - Reference issues when applicable: `Closes #123`, `Refs #456`
-- Sign commits with `-s` flag for DCO compliance
+- **Cryptographic signature required** (`commit.gpgsign=true` or `-S` flag)
+- Sign-off with `-s` flag for DCO compliance
 
 See [Commit Messages](../standards/commit-messages.md) for the full standard.
