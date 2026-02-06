@@ -1,0 +1,33 @@
+{
+  // This template provides the required section ordering for devcontainer.json files.
+  // Refer to core.md for detailed configuration requirements.
+  "name": "{CONTAINER_NAME}",
+  // https://github.com/devcontainers/images/tree/main/src/base-ubuntu
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "remoteUser": "vscode",
+  "privileged": false,
+  "shutdownAction": "stopContainer",
+  "init": true,
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "editor.tabSize": 2
+      },
+      "extensions": [
+        // Add extensions per extensions.md and language development-environment.md files
+      ]
+    }
+  },
+
+  "features": {
+    // Add features with explicit versions per features.md
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
+
+  "mounts": []
+}
