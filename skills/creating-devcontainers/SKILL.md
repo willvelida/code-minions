@@ -2,6 +2,7 @@
 name: creating-devcontainers
 description: 'Create and review DevContainer configurations that follow organisational standards. Use when a user asks to set up a dev container, configure a development environment, create a devcontainer.json, add lifecycle hooks, review an existing DevContainer for compliance, or improve container security. Covers base images, features, extensions, lifecycle hooks, and security hardening.'
 license: MIT
+compatibility: 'VS Code with Dev Containers extension (ms-vscode-remote.remote-containers)'
 allowed-tools: Bash
 ---
 

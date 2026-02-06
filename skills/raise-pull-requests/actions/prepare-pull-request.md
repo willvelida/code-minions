@@ -10,7 +10,7 @@ Scope your changes, self-review your diff, and verify readiness before opening a
 
 ## Steps
 
-### 1. Verify PR Scope
+### 1. Verify PR Scope 🛑
 
 Each PR should represent **one logical change**. Before opening, ask:
 
@@ -19,6 +19,8 @@ Each PR should represent **one logical change**. Before opening, ask:
 - Are there unrelated changes mixed in (formatting, refactoring, dependency updates)?
 
 If the answer to any of these is yes, split the work into separate branches and PRs.
+
+**🛑 STOP**: If splitting is needed, confirm the split strategy with the user before proceeding.
 
 See [PR Size](../standards/pr-size.md) for detailed sizing guidelines.
 

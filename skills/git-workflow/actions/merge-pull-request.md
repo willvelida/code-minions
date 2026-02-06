@@ -9,7 +9,7 @@ Merge an approved pull request into the target branch. This is the final step to
 - No unresolved conflicts
 - Branch is up to date with the target branch
 
-## Choose Merge Method
+## Choose Merge Method 🛑
 
 See [Merge Strategy](../standards/merge-strategy.md) for detailed guidance.
 
@@ -18,6 +18,8 @@ See [Merge Strategy](../standards/merge-strategy.md) for detailed guidance.
 | Squash and merge | Default for most feature branches — creates one clean commit |
 | Rebase and merge | When each commit is meaningful and atomic |
 | Merge commit | When you want to preserve the full branch history |
+
+**🛑 STOP**: Confirm the merge method with the user before proceeding. Default to "Squash and merge" if no preference given.
 
 ## Steps
 

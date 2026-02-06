@@ -18,7 +18,9 @@ If you haven't already, push your branch to the remote:
 git push -u origin <branch-name>
 ```
 
-### 2. Open the Pull Request
+### 2. Open the Pull Request 🛑
+
+**🛑 STOP**: Confirm with the user whether to open as a **draft** (for early feedback/WIP) or **ready for review** (complete and tested).
 
 #### Using GitHub CLI
 

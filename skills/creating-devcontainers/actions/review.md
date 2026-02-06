@@ -37,7 +37,7 @@ Detect project technologies to determine applicable language standards.
    - `features.md`
    - `checklist.md`
 
-2. **Per language**: Load from `../../../standards/languages/<language>/`:
+2. **Per language**: Load from `../../standards/languages/<language>/`:
    - `development-environment.md`
 
 ---

@@ -2,7 +2,7 @@
 
 Set up a local development environment by cloning or forking a repository and configuring remotes.
 
-## Choose Setup Method
+## Choose Setup Method 🛑
 
 Determine which setup method to use based on the workflow model:
 
@@ -12,6 +12,8 @@ Determine which setup method to use based on the workflow model:
 | Feature Branch | Clone the central repository |
 | Gitflow | Clone the central repository, create `develop` branch |
 | Forking | Fork on server, then clone your fork |
+
+**🛑 STOP**: Confirm the workflow model with the user before proceeding.
 
 ## Centralized / Feature Branch Setup
 
