@@ -1,4 +1,3 @@
-```markdown
 # Pull Request Compliance Checklist
 
 ## Overview
@@ -87,5 +86,3 @@ Consolidated checklist for validating pull request compliance across all actions
 - [ ] Fixes pushed as new commits (not force-pushed during review)
 - [ ] Resolved conversations marked as resolved
 - [ ] Review re-requested from original reviewers
-
-```

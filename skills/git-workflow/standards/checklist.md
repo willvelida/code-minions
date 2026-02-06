@@ -1,4 +1,3 @@
-```markdown
 # Git Workflow Compliance Checklist
 
 ## Overview
@@ -108,5 +107,3 @@ Consolidated checklist for validating git workflow compliance across all actions
 - [ ] No `git reset --hard` without explicit user request
 - [ ] No `--no-verify` to skip hooks without explicit user request
 - [ ] No git config changes without explicit user request
-
-```
