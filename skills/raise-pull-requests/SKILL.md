@@ -2,6 +2,7 @@
 name: raise-pull-requests
 description: 'Raise high-quality pull requests that are easy to review, provide clear context, and follow team conventions. Use when a user asks to open, write, prepare, or submit a pull request. Covers PR sizing, self-review, writing descriptions, submitting PRs, responding to review feedback, and reviewing others'' PRs. Follows GitHub best practices for collaboration and code review.'
 license: MIT
+compatibility: 'GitHub, GitHub CLI (gh) for PR commands'
 allowed-tools: Bash
 ---
 
@@ -53,6 +54,18 @@ Conventions and guidelines to follow when raising pull requests:
 - [PR Size](standards/pr-size.md) — Guidelines for keeping PRs small and focused
 - [Self-Review Checklist](standards/self-review-checklist.md) — Pre-submission checklist for authors
 - [PR Descriptions](standards/pr-descriptions.md) — Standards for titles, descriptions, and linking issues
+- [Checklist](standards/checklist.md) — Consolidated compliance checklist
+
+## Related Skills
+
+This skill focuses on the **pull request lifecycle** and complements the broader [git-workflow](../git-workflow/SKILL.md) skill:
+
+| Skill | Focus |
+|-------|-------|
+| `raise-pull-requests` | PR preparation, descriptions, submission, responding to reviews |
+| `git-workflow` | Full git workflow including branching, commits, merging, releases |
+
+For git operations like creating branches, committing changes, or merging PRs, see [git-workflow](../git-workflow/SKILL.md).
 
 ## References
 

@@ -2,6 +2,7 @@
 name: git-workflow
 description: 'Execute a complete git workflow for collaborative development. Use when user asks to initialize a repo, create branches, commit changes, sync with upstream, open pull requests, resolve conflicts, merge PRs, create releases, or apply hotfixes. Supports Centralized, Feature Branch, Gitflow, and Forking workflows with conventional commits, branch naming standards, and code review guidelines.'
 license: MIT
+compatibility: 'Git 2.x, GitHub CLI (gh) for PR commands'
 allowed-tools: Bash
 ---
 
@@ -79,6 +80,7 @@ Conventions and guidelines to follow throughout the workflow:
 - [Commit Messages](standards/commit-messages.md) — Conventional commit format and rules
 - [Code Review](standards/code-review.md) — Review checklist and guidelines
 - [Merge Strategy](standards/merge-strategy.md) — When to rebase vs merge
+- [Checklist](standards/checklist.md) — Consolidated compliance checklist
 
 ## Git Safety Protocol
 
