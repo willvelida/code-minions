@@ -28,7 +28,7 @@ code-minions provides structured knowledge that AI agents can load to perform de
 
 ```text
 skills/
-├── create-agent-skill/          # Create and review Agent Skills following the open specification
+├── creating-agent-skill/        # Create and review Agent Skills following the open specification
 ├── creating-devcontainers/     # Create and review DevContainer configurations
 ├── creating-documentation/     # Create and review README files and repository documentation
 ├── developer-mentor/           # Guide users through development concepts without writing code

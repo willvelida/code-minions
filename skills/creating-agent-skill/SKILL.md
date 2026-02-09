@@ -1,5 +1,5 @@
 ---
-name: create-agent-skill
+name: creating-agent-skill
 description: 'Create and review Agent Skills that follow the open Agent Skills specification and best practices. Use when a user asks to create a new skill, build skill instructions, generate a SKILL.md file, review an existing skill for compliance, or improve skill quality. Covers skill structure, naming conventions, progressive disclosure, writing effective descriptions, creating actions and standards, and validation.'
 license: MIT
 allowed-tools: Bash
