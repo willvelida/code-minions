@@ -31,6 +31,7 @@ skills/
 ├── creating-agent-skills/      # Create and review Agent Skills following the open specification
 ├── creating-devcontainers/     # Create and review DevContainer configurations
 ├── creating-documentation/     # Create and review README files and repository documentation
+├── developer-mentor/           # Guide users through development concepts without writing code
 ├── git-workflow/               # Git branching, commits, merges, and repository management
 └── raise-pull-requests/        # PR preparation, submission, and code review
 ```
