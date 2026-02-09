@@ -27,7 +27,7 @@ Use **gerund form** (verb + -ing) for skill names — this clearly describes the
 - `testing-code`
 - `writing-documentation`
 - `creating-devcontainers`
-- `creating-agent-skills`
+- `create-agent-skill`
 
 ### Acceptable Alternatives
 
@@ -49,7 +49,7 @@ Use **gerund form** (verb + -ing) for skill names — this clearly describes the
 
 | Directory | Convention | Examples |
 |-----------|------------|----------|
-| Skill root | Match `name` field exactly | `creating-agent-skills/` |
+| Skill root | Match `name` field exactly | `create-agent-skill/` |
 | Actions | `actions/` | `actions/create.md` |
 | Standards | `standards/` | `standards/naming.md` |
 | Scripts | `scripts/` | `scripts/validate.py` |

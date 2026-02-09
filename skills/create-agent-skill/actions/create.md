@@ -26,16 +26,41 @@ Present two options to the user:
 
 ### Step 2: Gather Skill Requirements
 
-#### Path A: Guided Creation 🛑
+Load `standards/clarifying-questions.md` and use it to guide this step.
 
-Collect from user through conversation:
+#### Path A: Guided Creation
 
-1. **Purpose**: What does this skill help agents do?
-2. **Triggers**: When should an agent use this skill?
-3. **Scope**: What actions/workflows does it cover?
-4. **Resources**: Will it need scripts, references, or assets?
+Ask questions one category at a time. Wait for the user to respond before moving to the next category.
 
-**🛑 STOP**: Wait for user to provide requirements.
+**Round 1: Purpose and Scope 🛑**
+
+1. What task or workflow should this skill help agents perform?
+2. What is out of scope for this skill?
+
+**🛑 STOP**: Wait for the user to respond. If answers are vague, probe deeper per `standards/clarifying-questions.md` before continuing.
+
+**Round 2: Trigger Conditions 🛑**
+
+1. What words or phrases would a user say that should trigger this skill?
+2. Are there situations where this skill should NOT be used?
+
+**🛑 STOP**: Wait for the user to respond. Aim for at least 3 specific trigger keywords.
+
+**Round 3: Actions and Workflows 🛑**
+
+1. What distinct actions or workflows should the skill support?
+2. For each action, what are the high-level steps?
+3. Which steps require user input or decisions?
+
+**🛑 STOP**: Wait for the user to respond. If more than 5 actions are listed, suggest splitting into multiple skills.
+
+**Round 4: Standards, Structure, and Dependencies 🛑**
+
+1. Are there naming conventions, style rules, or formats to follow?
+2. Will the skill need scripts, templates, or reference material?
+3. Does this skill depend on specific tools being available?
+
+**🛑 STOP**: Wait for the user to respond.
 
 #### Path B: Quick Creation 🛑
 
@@ -45,14 +70,47 @@ Collect:
 
 **🛑 STOP**: Wait for user to provide name and description.
 
+After receiving, ask one clarification round:
+1. What should this skill NOT do? (scope boundaries)
+2. Any specific tools or dependencies required?
+
+**🛑 STOP**: Wait for user to respond. Proceed once scope is clear.
+
 **Success Criteria:**
 - [ ] Skill purpose clearly defined
-- [ ] Trigger conditions identified
-- [ ] Scope established
+- [ ] At least 3 trigger keywords identified
+- [ ] Scope boundaries established (in and out)
+- [ ] Actions/workflows listed
+- [ ] Structure complexity determined
 
 ---
 
-### Step 3: Load Standards
+### Step 3: Confirm Requirements 🛑
+
+Summarise your understanding back to the user using this template:
+
+```
+Based on our conversation, here's what I understand:
+
+- **Purpose**: <one-sentence summary>
+- **Triggers**: <keywords and conditions>
+- **Scope**: <what's included> / <what's excluded>
+- **Actions**: <list of actions>
+- **Structure**: <minimal | standard | full>
+- **Dependencies**: <tools, references, or none>
+
+Does this capture your intent? Anything to add or change?
+```
+
+**🛑 STOP**: Wait for user confirmation. If the user requests changes, revisit the relevant questions from Step 2. Do not proceed until the user confirms.
+
+**Success Criteria:**
+- [ ] Summary presented to user
+- [ ] User confirmed requirements are correct
+
+---
+
+### Step 4: Load Standards
 
 Load from this skill's `standards/`:
 - `specification.md` — Core format requirements
@@ -60,13 +118,14 @@ Load from this skill's `standards/`:
 - `descriptions.md` — Writing effective descriptions
 - `structure.md` — Directory structure guidance
 - `instructions.md` — Writing effective instructions
+- `clarifying-questions.md` — Questioning framework (used in Steps 2-3)
 
 **Success Criteria:**
 - [ ] All relevant standards loaded
 
 ---
 
-### Step 4: Generate Skill Name
+### Step 5: Generate Skill Name
 
 Apply naming conventions per `naming.md`:
 
@@ -88,7 +147,7 @@ Apply naming conventions per `naming.md`:
 
 ---
 
-### Step 5: Write Skill Description
+### Step 6: Write Skill Description
 
 Apply guidelines per `descriptions.md`:
 
@@ -115,7 +174,7 @@ Apply guidelines per `descriptions.md`:
 
 ---
 
-### Step 6: Plan Skill Structure
+### Step 7: Plan Skill Structure
 
 Determine directory structure per `structure.md`:
 
@@ -154,7 +213,7 @@ skill-name/
 
 ---
 
-### Step 7: Write SKILL.md Content
+### Step 8: Write SKILL.md Content
 
 Create the main skill file per `specification.md` and `instructions.md`:
 
@@ -190,7 +249,7 @@ Structure the body with:
 
 ---
 
-### Step 8: Create Action Files (If Applicable)
+### Step 9: Create Action Files (If Applicable)
 
 For each action, create a file in `actions/`:
 
@@ -230,7 +289,7 @@ For each action, create a file in `actions/`:
 
 ---
 
-### Step 9: Create Standards Files (If Applicable)
+### Step 10: Create Standards Files (If Applicable)
 
 For each standard, create a file in `standards/`:
 
@@ -268,7 +327,7 @@ For each standard, create a file in `standards/`:
 
 ---
 
-### Step 10: Create Checklist
+### Step 11: Create Checklist
 
 Create `standards/checklist.md` consolidating all validation criteria:
 
@@ -299,7 +358,7 @@ Create `standards/checklist.md` consolidating all validation criteria:
 
 ---
 
-### Step 11: Validate Skill
+### Step 12: Validate Skill
 
 Run validation per `checklist.md`:
 
@@ -318,7 +377,7 @@ skills-ref validate ./skill-name
 
 ---
 
-### Step 12: Present Results 🛑
+### Step 13: Present Results 🛑
 
 Provide:
 
