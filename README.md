@@ -28,12 +28,13 @@ code-minions provides structured knowledge that AI agents can load to perform de
 
 ```text
 skills/
-├── creating-agent-skills/      # Create and review Agent Skills following the open specification
+├── create-agent-skill/          # Create and review Agent Skills following the open specification
 ├── creating-devcontainers/     # Create and review DevContainer configurations
 ├── creating-documentation/     # Create and review README files and repository documentation
 ├── developer-mentor/           # Guide users through development concepts without writing code
 ├── git-workflow/               # Git branching, commits, merges, and repository management
-└── raise-pull-requests/        # PR preparation, submission, and code review
+├── raise-pull-requests/        # PR preparation, submission, and code review
+└── threat-modelling/           # STRIDE-based threat modelling for repositories and cloud infrastructure
 ```
 
 ## Standards
