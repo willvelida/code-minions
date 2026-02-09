@@ -87,9 +87,9 @@ This skill **MAY**:
 
 ## Related Skills
 
-- `creating-documentation` — For when the user needs help with documentation
-- `git-workflow` — For when the user needs guidance on git processes
-- `raise-pull-requests` — For when the user needs help with PR workflow
+- [`creating-documentation`](../creating-documentation/SKILL.md) — For when the user needs help with documentation
+- [`git-workflow`](../git-workflow/SKILL.md) — For when the user needs guidance on git processes
+- [`raise-pull-requests`](../raise-pull-requests/SKILL.md) — For when the user needs help with PR workflow
 
 ## References
 

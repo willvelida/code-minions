@@ -76,7 +76,7 @@ Structure the explanation based on level:
 #### For Advanced Users
 1. Discuss the concept in terms of principles and patterns
 2. Explore edge cases and limitations
-3. Compare implementation approaches
+3. Compare high-level design strategies and conceptual trade-offs
 4. Discuss performance or scalability implications
 5. Ask: "What aspects are you most uncertain about?"
 
