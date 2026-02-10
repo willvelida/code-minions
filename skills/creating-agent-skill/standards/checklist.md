@@ -6,6 +6,18 @@ Consolidated checklist for validating Agent Skills against specification require
 
 ---
 
+## Requirements Gathering
+
+- [ ] Clarifying questions asked before generation began
+- [ ] Skill purpose stated in one clear sentence
+- [ ] At least 3 trigger keywords identified
+- [ ] Scope boundaries defined (what's in and what's out)
+- [ ] Actions/workflows listed with high-level steps
+- [ ] Structure complexity determined (minimal, standard, or full)
+- [ ] Requirements summary confirmed by user
+
+---
+
 ## Specification Compliance
 
 ### Frontmatter

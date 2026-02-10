@@ -1,5 +1,5 @@
 ---
-name: creating-agent-skills
+name: creating-agent-skill
 description: 'Create and review Agent Skills that follow the open Agent Skills specification and best practices. Use when a user asks to create a new skill, build skill instructions, generate a SKILL.md file, review an existing skill for compliance, or improve skill quality. Covers skill structure, naming conventions, progressive disclosure, writing effective descriptions, creating actions and standards, and validation.'
 license: MIT
 allowed-tools: Bash
@@ -31,6 +31,7 @@ This skill bundles the following standards in `standards/`:
 | Descriptions | `descriptions.md` | Writing effective skill descriptions |
 | Structure | `structure.md` | Directory structure and progressive disclosure |
 | Instructions | `instructions.md` | Writing effective skill instructions |
+| Clarifying Questions | `clarifying-questions.md` | Questioning framework for gathering skill requirements |
 | Checklist | `checklist.md` | Consolidated compliance and quality checklist |
 
 ## Principles
