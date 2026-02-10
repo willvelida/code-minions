@@ -56,7 +56,7 @@ The architecture diagram must be a Mermaid diagram embedded in the markdown docu
 
 | Requirement | Details |
 |-------------|---------|
-| Format | Mermaid flowchart (```mermaid code block) |
+| Format | Mermaid flowchart (in a Mermaid fenced code block) |
 | Components | All system components represented as nodes |
 | Data stores | Represented with cylinder notation or labelled clearly |
 | External entities | Visually distinct from internal components |
@@ -122,7 +122,7 @@ A second Mermaid diagram that overlays identified threats on the architecture.
 
 | Requirement | Details |
 |-------------|---------|
-| Format | Mermaid flowchart (```mermaid code block) |
+| Format | Mermaid flowchart (in a Mermaid fenced code block) |
 | Base | The confirmed architecture diagram |
 | Threat annotations | Each threat marked on the affected component or data flow |
 | Colour coding | Threats colour-coded by priority (🔴 Critical, 🟠 High, 🟡 Medium, 🟢 Low) |

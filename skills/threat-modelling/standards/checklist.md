@@ -65,6 +65,7 @@ Consolidated checklist for validating threat model documents against quality req
 
 - [ ] Executive Summary present with key findings counts
 - [ ] Architecture Diagram section present
+- [ ] Threat Model Diagram present and renders correctly
 - [ ] STRIDE Threat Table present with all required columns
 - [ ] Prioritisation Matrix present (by priority and by component)
 - [ ] Recommendations section present

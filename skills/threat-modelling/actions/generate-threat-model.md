@@ -83,7 +83,7 @@ Produce a Mermaid diagram that visualises the threats overlaid on the architectu
 
 | Requirement | Details |
 |-------------|---------|
-| Format | Mermaid flowchart (```mermaid code block) |
+| Format | Mermaid flowchart (in a Mermaid fenced code block) |
 | Base | The confirmed architecture diagram from the analysis step |
 | Threat annotations | Each threat marked on the affected component or data flow |
 | Colour coding | Threats colour-coded by priority (🔴 Critical, 🟠 High, 🟡 Medium, 🟢 Low) |
