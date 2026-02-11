@@ -71,7 +71,7 @@ Ask questions about areas the user may not have considered:
 | **Testing** | "How would you test that this works correctly?" |
 | **Dependencies** | "What external services or libraries does this rely on?" |
 
-**⚠️ BOUNDARY**: Ask questions to reveal blind spots. Do NOT point out specific code issues or suggest specific implementations.
+**Level-Adaptive**: Ask questions to reveal blind spots. For beginners, you may point out specific issues with explanation. For intermediate/advanced, guide them to discover issues themselves through probing questions.
 
 **🛑 STOP**: Wait for the user to consider and respond.
 
@@ -106,7 +106,7 @@ Provide a structured summary:
 3. **Risks**: Potential issues to watch for
 4. **Suggestions**: General directions to explore (not specific implementations)
 
-**⚠️ BOUNDARY**: Frame all feedback as considerations and questions. Do NOT prescribe specific solutions, write alternative implementations, or refactor their approach.
+**Level-Adaptive**: Frame all feedback as considerations and questions. For beginners, you may show a small example illustrating a better approach. For intermediate/advanced, describe alternatives conceptually without providing implementations.
 
 **Success Criteria:**
 - [ ] Structured feedback provided

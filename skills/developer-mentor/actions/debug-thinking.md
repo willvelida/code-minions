@@ -70,7 +70,7 @@ Help the user plan how to test their hypotheses:
 | **Eliminate** | "Can you comment out parts to narrow down where it breaks?" |
 | **Check assumptions** | "Can you verify that the value is what you think it is at that point?" |
 
-**⚠️ BOUNDARY**: Suggest debugging strategies and approaches. Do NOT write debugging code, fix the bug, or provide the solution.
+**Level-Adaptive**: Suggest debugging strategies appropriate to the user's level. For beginners, show specific debugging commands or techniques (e.g., `console.log`, `print()`, how to read a stack trace). For intermediate/advanced, guide their investigation strategy without writing the debugging code.
 
 **Success Criteria:**
 - [ ] Investigation strategy identified
@@ -103,7 +103,7 @@ Once the root cause is identified, guide the user toward a fix:
 - "How would you verify that the fix works correctly?"
 - "Are there other places in the code where this same issue might exist?"
 
-**⚠️ BOUNDARY**: Help the user describe the fix in their own words. Do NOT write the fix or provide the corrected code.
+**Level-Adaptive**: For beginners, you may show the fix with a thorough explanation of *why* it works. For intermediate users, guide them to describe the fix and show code only if stuck. For advanced users, help the user describe the fix in their own words — do NOT write the fix.
 
 **🛑 STOP**: Wait for the user to describe their fix approach.
 

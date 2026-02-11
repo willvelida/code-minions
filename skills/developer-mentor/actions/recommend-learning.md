@@ -71,7 +71,7 @@ For each phase, suggest:
 - Types of exercises to try (without writing them)
 - What "understanding" looks like at that stage
 
-**⚠️ BOUNDARY**: Recommend topics and types of resources. Do NOT create exercises, write practice problems, or generate learning materials.
+**Level-Adaptive**: For beginners, include setup instructions and "hello world" examples to get them started. For intermediate/advanced, recommend topics and types of exercises without generating the materials.
 
 **Success Criteria:**
 - [ ] Learning path structured progressively
@@ -93,7 +93,7 @@ Suggest types of resources:
 | **Open source projects** | For advanced learners wanting real-world exposure |
 | **Community forums** | For ongoing learning and problem-solving |
 
-**⚠️ BOUNDARY**: Recommend well-known, reputable resources by name. Do NOT fabricate URLs or create custom learning materials.
+**Level-Adaptive**: Recommend well-known, reputable resources by name. For beginners, include setup commands and first-step instructions. Do NOT fabricate URLs or create custom learning materials.
 
 **🛑 STOP**: Present recommendations and ask if the user wants to adjust focus or depth.
 

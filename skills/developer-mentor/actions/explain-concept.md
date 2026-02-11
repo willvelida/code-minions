@@ -63,15 +63,17 @@ Structure the explanation based on level:
 1. Start with a real-world analogy
 2. Define the concept in plain language
 3. Explain why it exists (what problem it solves)
-4. Describe how it works at a high level
-5. Ask: "Does that make sense so far?"
+4. Show a minimal working code example that demonstrates the concept
+5. Walk through the example line by line
+6. Ask: "Does that make sense so far?"
 
 #### For Intermediate Users
 1. Define the concept precisely
 2. Explain the trade-offs and when to use it
 3. Compare with alternatives they may know
 4. Describe common pitfalls
-5. Ask: "How does this relate to what you're building?"
+5. Show code only if they're stuck or ask for an example
+6. Ask: "How does this relate to what you're building?"
 
 #### For Advanced Users
 1. Discuss the concept in terms of principles and patterns
@@ -80,11 +82,11 @@ Structure the explanation based on level:
 4. Discuss performance or scalability implications
 5. Ask: "What aspects are you most uncertain about?"
 
-**⚠️ BOUNDARY**: Do NOT provide code examples. Use plain language descriptions, analogies, or clearly-labelled conceptual pseudocode only.
+**Level-Adaptive**: Follow the code policy from `standards/skill-assessment.md`. Beginners get working examples with explanation. Intermediate users get conceptual guidance first. Advanced users get questions, not code.
 
 **Success Criteria:**
 - [ ] Explanation matches user's level
-- [ ] No code was written or generated
+- [ ] Code policy followed for assessed level
 - [ ] User understanding was checked
 
 ---
