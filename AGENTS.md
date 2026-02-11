@@ -1,85 +1,11 @@
-# Code Minions
+# Code minions
 
 ## Purpose
 
-This repository is a toolkit of various different AI-Assisted development capabilities that I use to enhance my development.
+This repository contains various coding agents and skills (minions) that assist me in my software development.
 
-It includes standards, Agent Skills, and Agent configurations that have helped me during my software development.
+## AI-Assisted Development
 
-These agents provides a structured approach to AI-assisted development through specialized agents, skills, and standards. The system emphasizes isolated context for specific tasks, ensuring optimal token usage and focused expertise.
+This repository has agents and skills. All agents in this repository should load the agent instructions:
 
-## Philosophy
-
-- **Specialisation** — Each agent focuses on a specific domain, providing deep expertise
-- **Isolation** — Subagents operate with isolated context, reducing noise and improving accuracy
-- **Skills** — Self-contained capabilities that agents can invoke, bundling actions with relevant standards
-- **Standards** — Codified best practices that ensure consistency across all work
-
-## Structure
-
-```bash
-code-minions/
-├── AGENTS.md                 # This file - system overview and routing
-├── agents/                   # Agent definitions
-├── skills/                   # Self-contained skill packages
-│   ├── creating-agent-skill/ # Skill for creating new agent skills
-│   ├── creating-agents/      # Agent definition creation skill
-│   ├── creating-devcontainers/ # DevContainer creation skill
-│   ├── creating-documentation/ # Documentation creation skill
-│   ├── developer-mentor/     # Developer mentoring skill
-│   ├── git-workflow/         # Git workflow skill
-│   ├── raise-pull-requests/  # Pull request skill
-│   └── threat-modelling/     # Threat modelling skill
-│       ├── SKILL.md          # Skill manifest (each skill follows this structure)
-│       ├── actions/          # Executable actions
-│       └── standards/        # Skill-specific standards
-└── standards/                # Project specific standards
-    └── languages/            # Language-specific standards
-        ├── standards.index.md # Standards registry
-        ├── bash/             # Bash standards
-        ├── python/           # Python standards
-        └── typescript/       # TypeScript standards
-```
-
-## Standards
-
-Project specific standards are documented in `standards/languages/standards.index.md`.
-
-### Reading Standards
-
-1. Start by reading `standards/languages/standards.index.md` to identify relevant standards
-2. The index lists each standards category with its path and structure
-3. Navigate to the specified path and load the applicable files
-4. For language standards, load only the category files relevant to your task (e.g., for DevContainer work, load `development-environment.md`)
-
-### Skill-Bundled Standards
-
-Skills will typically bundle their own generalised standards in `skills/<skill>/standards/`. Each skill will document how it manages precedence across the skill's generalised standards and the project specific standards.
-
-## Routing
-
-When a query matches a specific domain, delegate to the appropriate subagent for isolated, focused processing.
-
-| Domain              | Keywords                                                                                  | Subagent                    | Skill                            |
-|---------------------|-------------------------------------------------------------------------------------------|-----------------------------|----------------------------------|
-| Agent Skills        | agent skill, create skill, SKILL.md, skill specification, review skill                    | `Agent-Skill-Expert`        | `skills/creating-agent-skill/`   |
-| Agents              | agent, agents.md, agent definition, persona, custom agent, copilot agent                  | `Agent-Expert`              | `skills/creating-agents/`        |
-| DevContainer        | devcontainer, dev container, .devcontainer, development container, devcontainer.json       | `DevContainer-Expert`       | `skills/creating-devcontainers/` |
-| Documentation       | README, documentation, CONTRIBUTING, docs, writing, markdown                              | `Documentation-Expert`      | `skills/creating-documentation/` |
-| Developer Mentor    | explain, mentor, teach, concept, learning, design guidance, debug thinking, approach       | `Developer-Mentor`          | `skills/developer-mentor/`       |
-| Git Workflow        | git, branch, commit, merge, rebase, release, hotfix, conventional commit                  | `Git-Workflow-Expert`       | `skills/git-workflow/`           |
-| Pull Requests       | pull request, PR, code review, PR description, submit PR, review feedback                 | `Pull-Request-Expert`       | `skills/raise-pull-requests/`    |
-| Threat Modelling    | threat model, STRIDE, security, attack surface, threat assessment, data flow diagram      | `Threat-Modelling-Expert`   | `skills/threat-modelling/`       |
-
-### How to Route
-
-1. Identify the primary domain of the user's query
-2. Match against the keywords in the routing table
-3. Delegate to the specified subagent
-4. The subagent will load its skill manifest (`SKILL.md`) and relevant standards
-
-### When NOT to Route
-
-- General questions that don't match a specific domain
-- Questions spanning multiple domains (handle at orchestrator level)
-- Simple queries that don't require specialist knowledge
+See [`agents/AGENTS.md`](./agents/AGENTS.md) for agent routing, skills, and standards.
