@@ -1,14 +1,14 @@
 # Create Pull Request
 
+## Purpose
+
 Open a pull request (PR) to propose merging your feature branch into the target branch. PRs enable code review and discussion before integration.
 
-## Prerequisites
+---
 
-- Feature branch with committed changes pushed to remote
-- Branch is synced with the target branch (see [Sync with Upstream](sync-with-upstream.md))
-- All commits follow the [Commit Messages](../standards/commit-messages.md) standard
+## Flow
 
-## Determine Target Branch
+### Step 1: Determine Target Branch
 
 | Workflow | Target branch |
 |---|---|
@@ -18,9 +18,12 @@ Open a pull request (PR) to propose merging your feature branch into the target 
 | Gitflow (hotfix) | `main` and `develop` |
 | Forking | `upstream/main` |
 
-## Steps
+**Success Criteria:**
+- [ ] Correct target branch identified
 
-### 1. Sync Before Opening
+---
+
+### Step 2: Sync Before Opening
 
 ```bash
 git fetch origin
@@ -28,7 +31,13 @@ git rebase origin/<target-branch>
 git push --force-with-lease
 ```
 
-### 2. Open the Pull Request
+**Success Criteria:**
+- [ ] Branch is up to date with the target branch
+- [ ] All commits follow the [Commit Messages](../standards/commit-messages.md) standard
+
+---
+
+### Step 3: Open the Pull Request 🛑
 
 #### Using GitHub CLI
 
@@ -60,29 +69,27 @@ Closes #<issue-number>"
 6. Assign reviewers
 7. Submit
 
-### 3. PR Title Format
+**🛑 STOP**: Confirm the PR title, description, and target branch with the user before submitting.
 
-Follow the same format as commit messages:
+**Success Criteria:**
+- [ ] PR title follows conventional commit format
+- [ ] PR description explains what and why
+- [ ] Related issues referenced
 
-```
-<type>[scope]: <description>
-```
+---
 
-Examples:
-
-```
-feat(auth): add JWT token validation
-fix(api): correct null pointer in user service
-docs(readme): update deployment instructions
-```
-
-### 4. Assign Reviewers
+### Step 4: Assign Reviewers
 
 - Assign at least one reviewer who is familiar with the affected area
 - For critical changes, assign two or more reviewers
 - Tag the team or code owners if configured
 
-### 5. Address Review Feedback
+**Success Criteria:**
+- [ ] At least one reviewer assigned
+
+---
+
+### Step 5: Address Review Feedback
 
 When reviewers request changes:
 
@@ -94,6 +101,12 @@ git push
 ```
 
 Avoid force-pushing during review unless explicitly asked — it makes it harder for reviewers to track incremental changes.
+
+**Success Criteria:**
+- [ ] All review comments addressed
+- [ ] Changes pushed as new commits
+
+---
 
 ## PR Checklist
 

@@ -58,29 +58,29 @@ Each developer has their own server-side fork. Common in open source.
 | Code review | Optional | Required | Required | Required |
 | Best for | Small teams, simple projects | Most teams | Versioned releases | Open source, external contributors |
 
-## Actions
+## Capabilities
 
-Step-by-step procedures for each phase of the workflow:
-
-1. [Initialize Repository](actions/initialize-repository.md) — Clone, set up remotes, or fork
-2. [Create Feature Branch](actions/create-feature-branch.md) — Create and push a feature branch
-3. [Commit Changes](actions/commit-changes.md) — Stage and commit with conventional commits
-4. [Sync with Upstream](actions/sync-with-upstream.md) — Pull and rebase to stay current
-5. [Create Pull Request](actions/create-pull-request.md) — Open a PR for code review
-6. [Resolve Merge Conflicts](actions/resolve-merge-conflicts.md) — Handle conflicts during rebase or merge
-7. [Merge Pull Request](actions/merge-pull-request.md) — Merge an approved PR into the target branch
-8. [Create Release](actions/create-release.md) — Create release branches and tags (Gitflow)
-9. [Create Hotfix](actions/create-hotfix.md) — Create and merge hotfix branches (Gitflow)
+| Capability | Action | Description |
+|------------|--------|-------------|
+| Initialize Repository | `actions/initialize-repository.md` | Clone, set up remotes, or fork |
+| Create Feature Branch | `actions/create-feature-branch.md` | Create and push a feature branch |
+| Commit Changes | `actions/commit-changes.md` | Stage and commit with conventional commits |
+| Sync with Upstream | `actions/sync-with-upstream.md` | Pull and rebase to stay current |
+| Create Pull Request | `actions/create-pull-request.md` | Open a PR for code review |
+| Resolve Merge Conflicts | `actions/resolve-merge-conflicts.md` | Handle conflicts during rebase or merge |
+| Merge Pull Request | `actions/merge-pull-request.md` | Merge an approved PR into the target branch |
+| Create Release | `actions/create-release.md` | Create release branches and tags (Gitflow) |
+| Create Hotfix | `actions/create-hotfix.md` | Create and merge hotfix branches (Gitflow) |
 
 ## Standards
 
-Conventions and guidelines to follow throughout the workflow:
-
-- [Branch Naming](standards/branch-naming.md) — Branch prefix and naming conventions
-- [Commit Messages](standards/commit-messages.md) — Conventional commit format and rules
-- [Code Review](standards/code-review.md) — Review checklist and guidelines
-- [Merge Strategy](standards/merge-strategy.md) — When to rebase vs merge
-- [Checklist](standards/checklist.md) — Consolidated compliance checklist
+| Standard | File | Description |
+|----------|------|-------------|
+| Branch Naming | `standards/branch-naming.md` | Branch prefix and naming conventions |
+| Commit Messages | `standards/commit-messages.md` | Conventional commit format and rules |
+| Code Review | `standards/code-review.md` | Review checklist and guidelines |
+| Merge Strategy | `standards/merge-strategy.md` | When to rebase vs merge |
+| Checklist | `standards/checklist.md` | Consolidated compliance checklist |
 
 ## Git Safety Protocol
 

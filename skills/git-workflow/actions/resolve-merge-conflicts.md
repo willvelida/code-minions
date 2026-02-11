@@ -1,13 +1,14 @@
 # Resolve Merge Conflicts
 
+## Purpose
+
 Handle conflicts that arise during rebase or merge operations. Conflicts occur when changes on different branches modify the same lines of code.
 
-## Prerequisites
+---
 
-- A rebase or merge operation is in progress and has paused due to conflicts
-- Or a PR has been flagged with conflicts by the hosting platform
+## Flow
 
-## Identify Conflicted Files
+### Step 1: Identify Conflicted Files
 
 ```bash
 git status
@@ -22,9 +23,12 @@ Unmerged paths:
     both modified:   src/config.ts
 ```
 
-## Resolve Conflicts
+**Success Criteria:**
+- [ ] All conflicted files identified
 
-### 1. Open Conflicted Files
+---
+
+### Step 2: Open and Resolve Each Conflict
 
 Conflict markers in the file look like:
 
@@ -38,8 +42,6 @@ const timeout = 3000;
 >>>>>>> origin/main
 ```
 
-### 2. Edit to Resolve
-
 Choose one of:
 
 - **Accept current** — keep your version
@@ -49,13 +51,24 @@ Choose one of:
 
 Remove all conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
 
-### 3. Stage the Resolved Files
+**Success Criteria:**
+- [ ] All conflict markers removed
+- [ ] Resolved code is correct and compiles
+
+---
+
+### Step 3: Stage the Resolved Files
 
 ```bash
 git add <resolved-file>
 ```
 
-### 4. Continue the Operation
+**Success Criteria:**
+- [ ] All resolved files staged
+
+---
+
+### Step 4: Continue the Operation 🛑
 
 #### If Rebasing
 
@@ -73,9 +86,7 @@ git commit
 
 Git opens the editor with a pre-filled merge commit message.
 
-## Abort if Needed
-
-If the conflict is too complex or you need to start over:
+**🛑 STOP**: If conflicts are too complex or you need to start over, confirm with the user before aborting:
 
 ```bash
 # Abort a rebase
@@ -86,6 +97,12 @@ git merge --abort
 ```
 
 This restores the branch to its state before the operation began.
+
+**Success Criteria:**
+- [ ] Rebase or merge operation completed
+- [ ] No remaining conflicts
+
+---
 
 ## Tips
 

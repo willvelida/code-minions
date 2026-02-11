@@ -1,13 +1,14 @@
 # Sync with Upstream
 
+## Purpose
+
 Keep your local branch up to date with the remote to minimize merge conflicts and ensure you are building on the latest code.
 
-## Prerequisites
+---
 
-- Repository initialized with remotes configured (see [Initialize Repository](initialize-repository.md))
-- On a feature branch or base branch
+## Flow
 
-## Choose Sync Method
+### Step 1: Choose Sync Method
 
 | Workflow | Remote | Command |
 |---|---|---|
@@ -16,9 +17,12 @@ Keep your local branch up to date with the remote to minimize merge conflicts an
 | Gitflow | `origin` | `git pull --rebase origin develop` |
 | Forking | `upstream` | `git fetch upstream && git rebase upstream/main` |
 
-## Steps
+**Success Criteria:**
+- [ ] Correct sync method identified for the workflow
 
-### 1. Fetch Latest Changes
+---
+
+### Step 2: Fetch Latest Changes
 
 ```bash
 # Standard workflows
@@ -28,7 +32,12 @@ git fetch origin
 git fetch upstream
 ```
 
-### 2. Rebase onto the Base Branch
+**Success Criteria:**
+- [ ] Latest changes fetched from remote
+
+---
+
+### Step 3: Rebase onto the Base Branch
 
 Rebase keeps the commit history linear and avoids unnecessary merge commits.
 
@@ -43,11 +52,13 @@ git rebase origin/develop
 git rebase upstream/main
 ```
 
-### 3. Handle Conflicts (if any)
+**Success Criteria:**
+- [ ] Rebase completed successfully
+- [ ] If conflicts occur, see [Resolve Merge Conflicts](resolve-merge-conflicts.md)
 
-If conflicts occur during rebase, see [Resolve Merge Conflicts](resolve-merge-conflicts.md).
+---
 
-### 4. Force Push After Rebase (feature branches only)
+### Step 4: Force Push After Rebase (Feature Branches Only) 🛑
 
 Rebasing rewrites history, so a force push is needed for branches that have already been pushed:
 
@@ -57,7 +68,13 @@ git push --force-with-lease
 
 Use `--force-with-lease` instead of `--force` to prevent overwriting changes pushed by others.
 
-**NEVER force push to `main`, `master`, or `develop`.**
+**🛑 STOP**: Confirm the branch is a feature branch. **NEVER force push to `main`, `master`, or `develop`.**
+
+**Success Criteria:**
+- [ ] Force push only to a feature branch
+- [ ] Used `--force-with-lease` (not `--force`)
+
+---
 
 ## Sync Your Fork's Default Branch (Forking Workflow)
 

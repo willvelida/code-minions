@@ -1,23 +1,40 @@
 # Create Hotfix
 
+## Purpose
+
 Create an urgent fix that is applied directly to production. Hotfixes branch from `main` and merge back into both `main` and `develop`. This action applies to the **Gitflow Workflow**.
 
-## Prerequisites
+---
+
+## Flow
+
+### Step 1: Confirm Hotfix Need 🛑
+
+**🛑 STOP**: Confirm with the user:
 
 - A critical bug exists in the current production release (`main`)
 - The fix cannot wait for the next scheduled release
 - Repository uses the Gitflow branching model
 
-## Steps
+**Success Criteria:**
+- [ ] Critical issue confirmed
+- [ ] Hotfix approach approved by user
 
-### 1. Sync the `main` Branch
+---
+
+### Step 2: Sync the `main` Branch
 
 ```bash
 git checkout main
 git pull origin main
 ```
 
-### 2. Create the Hotfix Branch
+**Success Criteria:**
+- [ ] On `main` with latest changes
+
+---
+
+### Step 3: Create the Hotfix Branch
 
 ```bash
 git checkout -b hotfix/<version> main
@@ -25,7 +42,13 @@ git checkout -b hotfix/<version> main
 
 Increment the patch version: if current release is `v1.2.0`, the hotfix is `hotfix/1.2.1`.
 
-### 3. Apply the Fix
+**Success Criteria:**
+- [ ] Hotfix branch created from `main`
+- [ ] Patch version incremented correctly
+
+---
+
+### Step 4: Apply the Fix
 
 Make the minimum changes needed to resolve the issue:
 
@@ -37,7 +60,13 @@ git commit -s -m "fix(<scope>): <description of the fix>
 Closes #<issue-number>"
 ```
 
-### 4. Bump the Version
+**Success Criteria:**
+- [ ] Fix is minimal and targeted
+- [ ] Commit follows conventional commit format
+
+---
+
+### Step 5: Bump the Version
 
 ```bash
 # Update version in package.json, setup.py, etc.
@@ -45,13 +74,23 @@ git add package.json
 git commit -s -m "chore(release): bump version to <version>"
 ```
 
-### 5. Push the Hotfix Branch
+**Success Criteria:**
+- [ ] Version number bumped
+
+---
+
+### Step 6: Push the Hotfix Branch
 
 ```bash
 git push -u origin hotfix/<version>
 ```
 
-### 6. Open a Pull Request (optional but recommended)
+**Success Criteria:**
+- [ ] Hotfix branch pushed to remote
+
+---
+
+### Step 7: Open a Pull Request (Optional but Recommended)
 
 Even for urgent fixes, a quick code review catches mistakes:
 
@@ -66,7 +105,14 @@ gh pr create \
 Closes #<issue-number>"
 ```
 
-### 7. Merge into `main`
+**Success Criteria:**
+- [ ] PR opened (or decision to skip confirmed by user)
+
+---
+
+### Step 8: Merge into `main` 🛑
+
+**🛑 STOP**: Confirm with the user before merging into production.
 
 ```bash
 git checkout main
@@ -75,14 +121,24 @@ git merge --no-ff hotfix/<version>
 git push origin main
 ```
 
-### 8. Tag the Hotfix Release
+**Success Criteria:**
+- [ ] Hotfix merged into `main`
+
+---
+
+### Step 9: Tag the Hotfix Release
 
 ```bash
 git tag -a v<version> -m "Hotfix v<version>"
 git push origin v<version>
 ```
 
-### 9. Back-Merge into `develop`
+**Success Criteria:**
+- [ ] Hotfix tagged with `v<version>`
+
+---
+
+### Step 10: Back-Merge into `develop`
 
 ```bash
 git checkout develop
@@ -99,12 +155,22 @@ git merge --no-ff hotfix/<version>
 git push origin release/<release-version>
 ```
 
-### 10. Delete the Hotfix Branch
+**Success Criteria:**
+- [ ] Hotfix back-merged into `develop` (or active release branch)
+
+---
+
+### Step 11: Delete the Hotfix Branch
 
 ```bash
 git branch -d hotfix/<version>
 git push origin --delete hotfix/<version>
 ```
+
+**Success Criteria:**
+- [ ] Hotfix branch deleted (local and remote)
+
+---
 
 ## Hotfix Checklist
 
