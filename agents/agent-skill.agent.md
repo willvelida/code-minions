@@ -1,5 +1,5 @@
 ---
-name: agent-skill-expert
+name: agent-skill-agent
 description: Specialist in the Agent Skills specification who creates and reviews well-structured, concise skills
 ---
 

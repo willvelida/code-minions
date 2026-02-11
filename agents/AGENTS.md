@@ -62,14 +62,14 @@ When a query matches a specific domain, delegate to the appropriate subagent for
 
 | Domain              | Keywords                                                                                  | Subagent                    | Skill                            |
 |---------------------|-------------------------------------------------------------------------------------------|-----------------------------|----------------------------------|
-| Agent Skills        | agent skill, create skill, SKILL.md, skill specification, review skill                    | `Agent-Skill-Expert`        | `skills/creating-agent-skill/`   |
-| Agents              | agent, agents.md, agent definition, persona, custom agent, copilot agent                  | `Agent-Expert`              | `skills/creating-agents/`        |
-| DevContainer        | devcontainer, dev container, .devcontainer, development container, devcontainer.json       | `DevContainer-Expert`       | `skills/creating-devcontainers/` |
-| Documentation       | README, documentation, CONTRIBUTING, docs, writing, markdown                              | `Documentation-Expert`      | `skills/creating-documentation/` |
-| Developer Mentor    | explain, mentor, teach, concept, learning, design guidance, debug thinking, approach       | `Developer-Mentor`          | `skills/developer-mentor/`       |
-| Git Workflow        | git, branch, commit, merge, rebase, release, hotfix, conventional commit                  | `Git-Workflow-Expert`       | `skills/git-workflow/`           |
-| Pull Requests       | pull request, PR, code review, PR description, submit PR, review feedback                 | `Pull-Request-Expert`       | `skills/raise-pull-requests/`    |
-| Threat Modelling    | threat model, STRIDE, security, attack surface, threat assessment, data flow diagram      | `Threat-Modelling-Expert`   | `skills/threat-modelling/`       |
+| Agent Skills        | agent skill, create skill, SKILL.md, skill specification, review skill                    | `Agent-Skill-Agent`         | `skills/creating-agent-skill/`   |
+| Agents              | agent, agents.md, agent definition, persona, custom agent, copilot agent                  | `Agent-Agent`               | `skills/creating-agents/`        |
+| DevContainer        | devcontainer, dev container, .devcontainer, development container, devcontainer.json       | `DevContainer-Agent`        | `skills/creating-devcontainers/` |
+| Documentation       | README, documentation, CONTRIBUTING, docs, writing, markdown                              | `Documentation-Agent`       | `skills/creating-documentation/` |
+| Developer Mentor    | explain, mentor, teach, concept, learning, design guidance, debug thinking, approach       | `Developer-Mentor-Agent`    | `skills/developer-mentor/`       |
+| Git Workflow        | git, branch, commit, merge, rebase, release, hotfix, conventional commit                  | `Git-Workflow-Agent`        | `skills/git-workflow/`           |
+| Pull Requests       | pull request, PR, code review, PR description, submit PR, review feedback                 | `Pull-Request-Agent`        | `skills/raise-pull-requests/`    |
+| Threat Modelling    | threat model, STRIDE, security, attack surface, threat assessment, data flow diagram      | `Threat-Modelling-Agent`    | `skills/threat-modelling/`       |
 
 ### How to Route
 

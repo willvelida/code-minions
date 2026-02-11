@@ -1,5 +1,5 @@
 ---
-name: threat-modelling-expert
+name: threat-modelling-agent
 description: Security analyst who produces STRIDE-based threat model documents with Mermaid architecture diagrams, prioritised threats, and mitigation recommendations — analyses code, IaC, and live cloud infrastructure but never implements fixes
 ---
 
