@@ -1,15 +1,14 @@
 # Commit Changes
 
+## Purpose
+
 Stage and commit changes using the Conventional Commits specification. Each commit should represent one logical change.
 
-## Prerequisites
+---
 
-- On a feature branch (see [Create Feature Branch](create-feature-branch.md))
-- Changes exist in the working tree
+## Flow
 
-## Steps
-
-### 1. Review Changes
+### Step 1: Review Changes
 
 ```bash
 # Check which files have changed
@@ -19,7 +18,12 @@ git status --porcelain
 git diff
 ```
 
-### 2. Stage Files
+**Success Criteria:**
+- [ ] Changes reviewed and understood
+
+---
+
+### Step 2: Stage Files
 
 Stage only the files related to one logical change:
 
@@ -40,13 +44,27 @@ git add -p
 
 **Never stage secrets**: `.env`, credentials, private keys, or tokens.
 
-### 3. Verify Staged Changes
+**Success Criteria:**
+- [ ] Only related files staged
+- [ ] No secrets or sensitive files staged
+
+---
+
+### Step 3: Verify Staged Changes 🛑
 
 ```bash
 git diff --staged
 ```
 
-### 4. Generate the Commit Message
+**🛑 STOP**: Review the staged diff. Confirm all staged changes are intentional and belong to one logical change.
+
+**Success Criteria:**
+- [ ] Staged diff reviewed
+- [ ] All changes belong to one logical unit
+
+---
+
+### Step 4: Generate the Commit Message
 
 Analyze the staged diff to determine:
 
@@ -54,7 +72,13 @@ Analyze the staged diff to determine:
 - **Scope**: What module or area is affected
 - **Description**: One-line summary in present tense, imperative mood, under 72 characters
 
-### 5. Execute the Commit
+**Success Criteria:**
+- [ ] Type correctly identified
+- [ ] Description is present tense, imperative mood, under 72 characters
+
+---
+
+### Step 5: Execute the Commit
 
 **Important:** All commits must be cryptographically signed. Ensure signing is configured:
 
@@ -79,11 +103,23 @@ git commit -s -m "<type>[scope]: <description>
 
 **Note:** With `commit.gpgsign=true` set globally, commits are automatically cryptographically signed. The `-s` flag adds the DCO sign-off line.
 
-### 6. Push the Commit
+**Success Criteria:**
+- [ ] Commit message follows conventional commit format
+- [ ] Commit is signed and has sign-off
+- [ ] No hook errors
+
+---
+
+### Step 6: Push the Commit
 
 ```bash
 git push
 ```
+
+**Success Criteria:**
+- [ ] Commit pushed to remote
+
+---
 
 ## Commit Message Quick Reference
 

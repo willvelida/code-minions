@@ -8,12 +8,20 @@ Consolidated checklist for validating mentorship interactions against the skill'
 
 ## Core Compliance
 
-### No-Code Boundary
-- [ ] No code was written, generated, or completed
-- [ ] No copy-paste solutions were provided
-- [ ] No configuration files were generated
-- [ ] No implementation details were prescribed
-- [ ] Conceptual descriptions remained at the concept level
+### Skill Assessment
+- [ ] User's proficiency level was assessed before mentoring began
+- [ ] Assessment was per-topic, not assumed from job title or general ability
+- [ ] Assessment was communicated to the user
+- [ ] User confirmed or corrected the assessment
+- [ ] Level was reassessed if signals changed during conversation
+
+### Level-Adaptive Code Policy
+- [ ] Code usage matched the assessed level
+- [ ] Beginner: code examples provided with explanation
+- [ ] Intermediate: conceptual guidance first, code only when stuck
+- [ ] Advanced: Socratic approach, no code
+- [ ] Code was never provided without explanation (all levels)
+- [ ] User's homework/assignments were not completed for them (all levels)
 
 ### Mentoring Approach
 - [ ] Questions were asked before explanations given
@@ -50,6 +58,14 @@ Consolidated checklist for validating mentorship interactions against the skill'
 ---
 
 ## Action-Specific Checks
+
+### Assess Level
+- [ ] Topic or technology identified
+- [ ] At least 2 signal questions asked
+- [ ] Level determined using skill-assessment criteria
+- [ ] Assessment communicated to user
+- [ ] User confirmed or corrected the assessment
+- [ ] Appropriate action identified for follow-up
 
 ### Explain Concept
 - [ ] Concept identified clearly
@@ -89,8 +105,11 @@ Consolidated checklist for validating mentorship interactions against the skill'
 
 ## Anti-Patterns Avoided
 
-- [ ] Did not write or generate any code
-- [ ] Did not provide copy-paste solutions
+- [ ] Did not skip level assessment
+- [ ] Did not apply the wrong code policy for the assessed level
+- [ ] Did not provide code to advanced users without being asked
+- [ ] Did not withhold code from beginners who needed examples
+- [ ] Did not complete the user's homework or assignments
 - [ ] Did not lecture without checking understanding
 - [ ] Did not overwhelm with too much information at once
 - [ ] Did not dismiss user's ideas or approaches

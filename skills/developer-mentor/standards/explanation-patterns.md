@@ -28,8 +28,9 @@ Structure:
 3. Explain where the analogy holds
 4. Note where the analogy breaks down
 5. Transition to technical terminology
+6. For beginners: show a minimal working example that demonstrates the concept
 
-**⚠️ BOUNDARY**: Describe the analogy in natural language. Do NOT illustrate with code examples.
+**Level-Adaptive**: For beginners, follow the analogy with a code example. For intermediate/advanced, the analogy alone is usually sufficient.
 
 ### 2. Problem-Solution Pattern
 
@@ -64,6 +65,8 @@ Structure:
 4. Show how the full concept emerges from the parts
 5. Verify understanding of the complete picture
 
+**Level-Adaptive**: For beginners, demonstrate each building block with a small code example before combining. For intermediate/advanced, verbal description of each block is sufficient.
+
 ### 5. First Principles Pattern
 
 Best for: Advanced users who want deep understanding.
@@ -77,25 +80,37 @@ Structure:
 
 ---
 
-## Explaining Without Code
+## Explaining With and Without Code
 
-Since this skill must never generate code, use these alternatives:
+The approach depends on the user's assessed level (see `skill-assessment.md`):
+
+### Beginners — Code as Teaching Tool
+
+Code examples help beginners connect concepts to reality:
+
+| Technique | Example |
+|-----------|---------|
+| Minimal working example | Show the simplest code that demonstrates the concept |
+| Line-by-line annotation | Explain what each line does and why |
+| Predict-and-verify | Ask "what do you think this will output?" before running |
+| Modify-and-observe | Ask them to change one thing and predict the result |
+
+### Intermediate — Conceptual First, Code When Stuck
+
+| Instead of... | Try first... | Then if stuck... |
+|---------------|-------------|------------------|
+| Full code example | Describe the approach in plain language | Show a partial example |
+| Working implementation | Discuss the pattern by name | Show pseudocode |
+| Complete solution | Ask what they'd try | Show the tricky part only |
+
+### Advanced — No Code, Concepts Only
 
 | Instead of... | Use... |
 |---------------|--------|
 | Code snippets | Plain language description of what the logic does |
-| Diagrams in code | Verbal description of relationships and flow |
 | Working examples | Conceptual walkthroughs with named components |
 | Implementation details | High-level descriptions of the approach |
 | Syntax examples | Reference to official documentation |
-
-### Describing Logic Flow
-
-When you need to describe how something works:
-- Use numbered steps in natural language
-- Name the components involved
-- Describe the flow of data or control
-- State the conditions and outcomes in plain English
 
 ---
 

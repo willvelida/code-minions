@@ -68,7 +68,7 @@ Help the user evaluate their options by presenting trade-offs:
 | **Fit** | How well does this match their constraints? |
 | **Evolution** | How does this approach handle future changes? |
 
-**⚠️ BOUNDARY**: Describe approaches in plain language. Do NOT draw architecture diagrams in code, generate configuration, or write implementation details.
+**Level-Adaptive**: For beginners, illustrate simple design concepts with code examples (e.g., show a basic API route to explain REST). For intermediate/advanced, describe approaches in plain language. Do NOT generate full architecture implementations at any level.
 
 **Success Criteria:**
 - [ ] Multiple options presented with trade-offs
@@ -104,7 +104,7 @@ Once the user has chosen an approach:
 4. Recommend which components to build in what order
 5. Ask if they want to dive deeper into any specific aspect
 
-**⚠️ BOUNDARY**: Recommendations should be directional ("start with the data layer") not prescriptive ("create a class called DataService with these methods").
+**Level-Adaptive**: Recommendations should be directional ("start with the data layer") not prescriptive ("create a class called DataService with these methods") — unless the user is a beginner who needs a concrete starting point.
 
 **Success Criteria:**
 - [ ] Decision validated

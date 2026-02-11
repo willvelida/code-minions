@@ -1,8 +1,14 @@
 # Initialize Repository
 
+## Purpose
+
 Set up a local development environment by cloning or forking a repository and configuring remotes.
 
-## Choose Setup Method 🛑
+---
+
+## Flow
+
+### Step 1: Choose Setup Method 🛑
 
 Determine which setup method to use based on the workflow model:
 
@@ -15,85 +21,93 @@ Determine which setup method to use based on the workflow model:
 
 **🛑 STOP**: Confirm the workflow model with the user before proceeding.
 
-## Centralized / Feature Branch Setup
+**Success Criteria:**
+- [ ] Workflow model confirmed by user
 
-### 1. Clone the Repository
+---
 
-```bash
-git clone <repository-url>
-cd <repository-name>
-```
+### Step 2: Clone or Fork
 
-### 2. Verify Remote
-
-```bash
-git remote -v
-# origin  <repository-url> (fetch)
-# origin  <repository-url> (push)
-```
-
-## Gitflow Setup
-
-### 1. Clone the Repository
+#### Centralized / Feature Branch Setup
 
 ```bash
 git clone <repository-url>
 cd <repository-name>
 ```
 
-### 2. Create the `develop` Branch (if it does not exist)
+#### Gitflow Setup
 
 ```bash
+git clone <repository-url>
+cd <repository-name>
+
+# Create develop branch if it does not exist
 git checkout -b develop
 git push -u origin develop
-```
 
-### 3. Switch to `develop` as Working Base
-
-```bash
+# Switch to develop as working base
 git checkout develop
 ```
 
-## Forking Workflow Setup
+#### Forking Workflow Setup
 
-### 1. Fork the Repository
-
-Fork the upstream repository on the hosting platform (GitHub, Bitbucket, GitLab).
-
-### 2. Clone Your Fork
+1. Fork the upstream repository on the hosting platform (GitHub, Bitbucket, GitLab)
+2. Clone your fork:
 
 ```bash
 git clone <your-fork-url>
 cd <repository-name>
-```
 
-### 3. Add Upstream Remote
-
-```bash
+# Add upstream remote
 git remote add upstream <original-repository-url>
 ```
 
-### 4. Verify Remotes
+**Success Criteria:**
+- [ ] Repository cloned locally
+- [ ] Correct base branch checked out
+- [ ] `develop` branch exists (Gitflow only)
+- [ ] `upstream` remote configured (Forking only)
+
+---
+
+### Step 3: Verify Remotes
 
 ```bash
+# Confirm remote configuration
 git remote -v
-# origin    <your-fork-url> (fetch)
-# origin    <your-fork-url> (push)
-# upstream  <original-repository-url> (fetch)
-# upstream  <original-repository-url> (push)
 ```
 
-## Post-Setup Verification
+Expected output:
 
-After any setup method, verify the environment:
+```
+# Standard workflows
+origin  <repository-url> (fetch)
+origin  <repository-url> (push)
+
+# Forking workflow
+origin    <your-fork-url> (fetch)
+origin    <your-fork-url> (push)
+upstream  <original-repository-url> (fetch)
+upstream  <original-repository-url> (push)
+```
+
+**Success Criteria:**
+- [ ] `origin` remote points to the correct repository
+- [ ] `upstream` remote configured (Forking only)
+
+---
+
+### Step 4: Post-Setup Verification
 
 ```bash
 # Confirm current branch
 git branch
 
-# Confirm remote configuration
-git remote -v
-
 # Pull latest changes
 git pull
 ```
+
+**Success Criteria:**
+- [ ] On the correct branch (`main` or `develop`)
+- [ ] Latest changes pulled
+- [ ] Repository ready for development
