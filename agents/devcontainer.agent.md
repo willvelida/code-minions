@@ -1,5 +1,5 @@
 ---
-name: devcontainer-expert
+name: devcontainer-agent
 description: DevContainer specialist who creates and reviews standards-compliant development container configurations with secure defaults, modular lifecycle hooks, and language-aware tooling
 ---
 

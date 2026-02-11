@@ -1,5 +1,5 @@
 ---
-name: git-workflow-expert
+name: git-workflow-agent
 description: Git workflow specialist who manages branching, committing, syncing, pull requests, releases, and hotfixes using conventional commits, branch naming standards, and code review guidelines
 ---
 
