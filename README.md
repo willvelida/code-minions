@@ -24,6 +24,67 @@ code-minions provides structured knowledge that AI agents can load to perform de
 - **Skills** — Step-by-step procedures for common workflows (git operations, documentation, DevContainers)
 - **Standards** — Language-specific guidelines for consistent code quality
 
+## CLI
+
+code-minions includes a CLI tool that installs agents, skills, and standards into your own repositories.
+
+### Installation
+
+#### From source (requires Go 1.25+)
+
+```bash
+go install github.com/willvelida/code-minions/cmd/code-minions@latest
+```
+
+#### From GitHub Releases
+
+Download a pre-built binary from the [Releases page](https://github.com/willvelida/code-minions/releases).
+
+#### Linux and macOS (via install script)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/willvelida/code-minions/main/install.sh | bash
+```
+
+### Usage
+
+```bash
+# Install everything into the current directory
+code-minions install
+
+# Install only specific skills
+code-minions install --skills git-workflow,threat-modelling
+
+# Install only agents
+code-minions install --agents
+
+# Install only language standards
+code-minions install --standards python,typescript
+
+# Preview what would be installed without writing files
+code-minions install --dry-run
+
+# Overwrite existing files
+code-minions install --force
+
+# List available agents, skills, and standards
+code-minions list
+
+# Print version
+code-minions version
+```
+
+### Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--skills` | string | all | Comma-separated list of skills to install |
+| `--standards` | string | all | Comma-separated list of language standards |
+| `--agents` | bool | false | Install only agents |
+| `--target` | string | `.` | Target directory for installation |
+| `--dry-run` | bool | false | Show what would be installed without writing files |
+| `--force` | bool | false | Overwrite existing files |
+
 ## Skills
 
 ```text
@@ -57,9 +118,9 @@ Each language includes standards for:
 
 See the [standards index](standards/languages/standards.index.md) for details. Additional languages will be added over time.
 
-## Usage
+## Loading Skills Directly
 
-Load skills and standards into your AI agent's context as needed:
+Load skills and standards into your AI agent's context without the CLI:
 
 1. **Load a skill** — Read the `SKILL.md` file to understand capabilities
 2. **Execute an action** — Follow the procedure in `actions/<action>.md`
