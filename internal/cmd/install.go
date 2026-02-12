@@ -114,7 +114,10 @@ func buildDirList(content fs.FS, includeAgents bool, skillsFlag string, standard
 
 			// Validate skill exists in embedded FS
 			if _, err := fs.Stat(content, dirPath); err != nil {
-				available, _ := listSubDirs(content, "skills")
+				available, err := listSubDirs(content, "skills")
+				if err != nil {
+					return nil, fmt.Errorf("skill %q not found", skill)
+				}
 				return nil, fmt.Errorf("skill %q not found\n\nAvailable skills:\n  %s",
 					skill, strings.Join(available, "\n  "))
 			}
@@ -125,6 +128,7 @@ func buildDirList(content fs.FS, includeAgents bool, skillsFlag string, standard
 
 	// Standards filtering
 	if standardsFlag != "" {
+		standardsAdded := 0
 		standards := strings.Split(standardsFlag, ",")
 		for _, std := range standards {
 			std = strings.TrimSpace(std)
@@ -135,16 +139,23 @@ func buildDirList(content fs.FS, includeAgents bool, skillsFlag string, standard
 
 			// Validate standard exists in embedded FS
 			if _, err := fs.Stat(content, dirPath); err != nil {
-				available, _ := listSubDirs(content, "standards/languages")
+				available, err := listSubDirs(content, "standards/languages")
+				if err != nil {
+					return nil, fmt.Errorf("standard %q not found", std)
+				}
 				return nil, fmt.Errorf("standard %q not found\n\nAvailable standards:\n  %s",
 					std, strings.Join(available, "\n  "))
 			}
 
 			dirs = append(dirs, dirPath)
+			standardsAdded++
 		}
 
 		// Always include the standards index when installing standards
-		dirs = append(dirs, "standards/languages/standards.index.md")
+		if standardsAdded > 0 {
+			dirs = append(dirs, "standards/languages/standards.index.md")
+		}
+
 	}
 
 	// De-duplicate dirs

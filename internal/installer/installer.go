@@ -64,6 +64,7 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 				return nil
 			}
 
+			os.MkdirAll(filepath.Dir(targetPath), 0755)
 			if err := os.WriteFile(targetPath, data, 0644); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("failed to write %s: %v", targetPath, err))
 			} else {
