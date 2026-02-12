@@ -15,18 +15,18 @@
  ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 ```
 
-A collection of reusable skills and standards for AI coding agents to enhance developer workflows.
+A collection of reusable skills and standards for AI coding agents to enhance AI-assisted development.
 
 ## Overview
 
 code-minions provides structured knowledge that AI agents can load to perform development tasks consistently and effectively. It includes:
 
-- **Skills** — Step-by-step procedures for common workflows (git operations, documentation, DevContainers)
+- **Packages** — Bundled agents and skills for common workflows (git operations, documentation, DevContainers)
 - **Standards** — Language-specific guidelines for consistent code quality
 
 ## CLI
 
-code-minions includes a CLI tool that installs agents, skills, and standards into your own repositories.
+code-minions includes a CLI tool that installs packages (made up of Agents and Agent Skills) and standards into your own repositories.
 
 ### Installation
 
@@ -49,17 +49,20 @@ curl -fsSL https://raw.githubusercontent.com/willvelida/code-minions/main/instal
 ### Usage
 
 ```bash
-# Install everything into the current directory
+# Install everything (all packages + all standards)
 code-minions install
 
-# Install only specific skills
-code-minions install --skills git-workflow,threat-modelling
+# Install a specific package (agent + skill)
+code-minions install --package threat-modelling
 
-# Install only agents
-code-minions install --agents
+# Install multiple packages
+code-minions install --package threat-modelling,git-workflow
 
 # Install only language standards
 code-minions install --standards python,typescript
+
+# Install a package and standards together
+code-minions install --package git-workflow --standards bash
 
 # Preview what would be installed without writing files
 code-minions install --dry-run
@@ -67,7 +70,7 @@ code-minions install --dry-run
 # Overwrite existing files
 code-minions install --force
 
-# List available agents, skills, and standards
+# List available packages and standards
 code-minions list
 
 # Print version
@@ -78,18 +81,20 @@ code-minions version
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--skills` | string | all | Comma-separated list of skills to install |
+| `--package` | string | all | Comma-separated list of packages to install |
 | `--standards` | string | all | Comma-separated list of language standards |
-| `--agents` | bool | false | Include agents in the installation |
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
 
-## Skills
+## Packages
+
+Each package bundles an agent and its corresponding skill into a single installable unit.
 
 ```text
-skills/
-├── creating-agent-skill/        # Create and review Agent Skills following the open specification
+packages/
+├── creating-agent-skill/       # Create and review Agent Skills following the open specification
+├── creating-agents/            # Create and review agent definition files
 ├── creating-devcontainers/     # Create and review DevContainer configurations
 ├── creating-documentation/     # Create and review README files and repository documentation
 ├── developer-mentor/           # Guide users through development concepts without writing code
@@ -117,14 +122,6 @@ Each language includes standards for:
 - **Development Environment** — DevContainer and VS Code setup
 
 See the [standards index](standards/languages/standards.index.md) for details. Additional languages will be added over time.
-
-## Loading Skills Directly
-
-Load skills and standards into your AI agent's context without the CLI:
-
-1. **Load a skill** — Read the `SKILL.md` file to understand capabilities
-2. **Execute an action** — Follow the procedure in `actions/<action>.md`
-3. **Apply standards** — Load relevant standards from `standards/` for consistency
 
 ## Contributing
 
