@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Installer copies embedded content to a target directory
@@ -34,6 +35,14 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 
 			targetPath := filepath.Join(i.Target, path)
 
+			// Ensure the resolved path stays within the target directory
+			absTarget, _ := filepath.Abs(i.Target)
+			absPath, _ := filepath.Abs(targetPath)
+			if !strings.HasPrefix(absPath, absTarget) {
+				result.Errors = append(result.Errors, fmt.Sprintf("path %s escapes target directory", path))
+				return nil
+			}
+
 			// Create directories
 			if d.IsDir() {
 				if !i.DryRun {
@@ -48,6 +57,9 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			if !i.Force {
 				if _, err := os.Stat(targetPath); err == nil {
 					result.Skipped = append(result.Skipped, path)
+					return nil
+				} else if !os.IsNotExist(err) {
+					result.Errors = append(result.Errors, fmt.Sprintf("failed to stat %s: %v", targetPath, err))
 					return nil
 				}
 			}
@@ -64,7 +76,11 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 				return nil
 			}
 
-			os.MkdirAll(filepath.Dir(targetPath), 0755)
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to create directory for %s: %v", targetPath, err))
+				return nil
+			}
+
 			if err := os.WriteFile(targetPath, data, 0644); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("failed to write %s: %v", targetPath, err))
 			} else {
