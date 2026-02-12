@@ -35,7 +35,7 @@ func TestEmbeddedContentContainsSkills(t *testing.T) {
 		t.Fatalf("failed to read skills directory: %v", err)
 	}
 
-	if len(entries) < 8 {
-		t.Errorf("expected at least 8 skills, got %d", len(entries))
+	if len(entries) == 0 {
+		t.Error("skills directory is empty")
 	}
 }

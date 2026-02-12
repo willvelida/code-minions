@@ -170,6 +170,8 @@ func TestInstallInvalidDirReturnsError(t *testing.T) {
 		DryRun:  false,
 	}
 
+	// Install returns nil error because the walk callback captures errors
+	// into result.Errors rather than propagating them (soft error approach).
 	result, err := inst.Install([]string{"nonexistent"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

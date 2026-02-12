@@ -84,7 +84,7 @@ func readSkillDescription(content fs.FS, skillDir string) string {
 
 		if line == "---" {
 			if inFrontmatter {
-				return "" // End of formatter, no description found
+				return "" // End of frontmatter, no description found
 			}
 			inFrontmatter = true
 			continue

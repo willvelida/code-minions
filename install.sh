@@ -16,7 +16,7 @@ case "$ARCH" in
 esac
 
 # Get latest version
-VERSION="$(curl -sL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)"
+VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)"
 if [ -z "$VERSION" ]; then
   echo "Error: Could not determine latest version"
   exit 1
@@ -31,7 +31,7 @@ URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE}"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-curl -sL "$URL" -o "${TMPDIR}/${ARCHIVE}"
+curl -fsSL "$URL" -o "${TMPDIR}/${ARCHIVE}"
 tar -xzf "${TMPDIR}/${ARCHIVE}" -C "$TMPDIR"
 
 # Install

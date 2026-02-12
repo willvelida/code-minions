@@ -10,7 +10,7 @@ func TestBuildDirList(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		agentsOnly    bool
+		includeAgents bool
 		skillsFlag    string
 		standardsFlag string
 		expectDirs    []string
@@ -21,9 +21,9 @@ func TestBuildDirList(t *testing.T) {
 			expectDirs: []string{"agents", "skills", "standards"},
 		},
 		{
-			name:       "agents only",
-			agentsOnly: true,
-			expectDirs: []string{"agents"},
+			name:          "agents only",
+			includeAgents: true,
+			expectDirs:    []string{"agents"},
 		},
 		{
 			name:       "single skill",
@@ -44,7 +44,7 @@ func TestBuildDirList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dirs, err := buildDirList(content, tt.agentsOnly, tt.skillsFlag, tt.standardsFlag)
+			dirs, err := buildDirList(content, tt.includeAgents, tt.skillsFlag, tt.standardsFlag)
 
 			if tt.expectError {
 				if err == nil {
