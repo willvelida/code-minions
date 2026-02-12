@@ -15,6 +15,7 @@ type Installer struct {
 	Force       bool
 	DryRun      bool
 	StripPrefix string
+	PathMapper  func(path string) string // Optional: transforms output paths (e.g. for assistant-specific layouts)
 }
 
 // Result tracks what happened during installation
@@ -46,6 +47,12 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 					outputPath = strings.TrimPrefix(outputPath, "/")
 				}
 			}
+
+			// Apply optional path mapping (e.g. agents/ → .github/agents/ for Copilot)
+			if i.PathMapper != nil {
+				outputPath = i.PathMapper(outputPath)
+			}
+
 			targetPath := filepath.Join(i.Target, outputPath)
 
 			// Ensure the resolved path stays within the target directory

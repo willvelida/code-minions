@@ -8,6 +8,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
 )
 
@@ -21,6 +22,17 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			force, _ := cmd.Flags().GetBool("force")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			standardsFlag, _ := cmd.Flags().GetString("standards")
+			forFlag, _ := cmd.Flags().GetString("for")
+
+			// If --for is set, look up the assistant config and build a path mapper
+			var pathMapper func(string) string
+			if forFlag != "" {
+				cfg, err := assistant.Get(forFlag)
+				if err != nil {
+					return err
+				}
+				pathMapper = cfg.NewPathMapper()
+			}
 
 			// Build the list of directories to install
 			dirs, err := buildDirList(content, packageFlag, standardsFlag)
@@ -53,6 +65,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 					Force:       force,
 					DryRun:      dryRun,
 					StripPrefix: pkgDir,
+					PathMapper:  pathMapper,
 				}
 				result, err := inst.Install([]string{pkgDir})
 				if err != nil {
@@ -66,10 +79,11 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			// Install standards
 			if len(standardDirs) > 0 {
 				inst := &installer.Installer{
-					Content: content,
-					Target:  target,
-					Force:   force,
-					DryRun:  dryRun,
+					Content:    content,
+					Target:     target,
+					Force:      force,
+					DryRun:     dryRun,
+					PathMapper: pathMapper,
 				}
 				result, err := inst.Install(standardDirs)
 				if err != nil {
@@ -116,6 +130,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 	cmd.Flags().String("target", ".", "Target directory for installation")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to install all)")
 	cmd.Flags().String("standards", "", "Comma-separated list of language standards to install")
+	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
 

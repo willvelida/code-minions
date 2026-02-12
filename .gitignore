@@ -42,3 +42,6 @@ Thumbs.db
 # Project-specific
 # GitHub Copilot agents (managed in agents/ instead)
 .github/agents/
+
+# Internal docs (research, plans, notes)
+docs/
