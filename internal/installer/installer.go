@@ -36,9 +36,22 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			targetPath := filepath.Join(i.Target, path)
 
 			// Ensure the resolved path stays within the target directory
-			absTarget, _ := filepath.Abs(i.Target)
-			absPath, _ := filepath.Abs(targetPath)
-			if !strings.HasPrefix(absPath, absTarget) {
+			absTarget, err := filepath.Abs(i.Target)
+			if err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to resolve target directory: %v", err))
+				return nil
+			}
+			absPath, err := filepath.Abs(targetPath)
+			if err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to resolve path %s: %v", path, err))
+				return nil
+			}
+			relPath, err := filepath.Rel(absTarget, absPath)
+			if err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to compute relative path for %s: %v", path, err))
+				return nil
+			}
+			if relPath == ".." || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) {
 				result.Errors = append(result.Errors, fmt.Sprintf("path %s escapes target directory", path))
 				return nil
 			}

@@ -80,8 +80,8 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 	}
 
 	cmd.Flags().String("target", ".", "Target directory for installation")
-	cmd.Flags().String("skills", "", "Comma-separated list of skills to install (default: all)")
-	cmd.Flags().String("standards", "", "Comma-separated list of language standards to install (default: all)")
+	cmd.Flags().String("skills", "", "Comma-separated list of skills to install (omit to install all, unless other flags are set)")
+	cmd.Flags().String("standards", "", "Comma-separated list of language standards to install (omit to install all, unless other flags are set)")
 	cmd.Flags().Bool("agents", false, "Include agents in the installation")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
