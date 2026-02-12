@@ -420,3 +420,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+# Go build output
+*.exe
+coverage.out
