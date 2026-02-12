@@ -8,6 +8,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/willvelida/code-minions/internal/assistant"
 )
 
 func newListCommand(content fs.FS) *cobra.Command {
@@ -48,6 +49,16 @@ func newListCommand(content fs.FS) *cobra.Command {
 				if entry.IsDir() {
 					cyan.Printf("  %s\n", entry.Name())
 				}
+			}
+
+			// List assistants (for --for flag)
+			bold.Println("\nAssistants (use with --for)")
+			dim.Println(strings.Repeat("-", 40))
+			for _, name := range assistant.List() {
+				cfg, _ := assistant.Get(name)
+				cyan.Printf("  %-15s", name)
+				dim.Printf("  %s", cfg.Description)
+				fmt.Println()
 			}
 
 			fmt.Println()

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/fstest"
 )
@@ -72,5 +74,124 @@ func testContentFS() fstest.MapFS {
 		"packages/developer-mentor/skills/developer-mentor/SKILL.md": &fstest.MapFile{Data: []byte("# Mentor")},
 		"standards/languages/python/core.md":                         &fstest.MapFile{Data: []byte("# Python")},
 		"standards/languages/typescript/core.md":                     &fstest.MapFile{Data: []byte("# TS")},
+	}
+}
+
+// TestInstallForCopilotRemapsPaths verifies that --for copilot places
+// agent files in .github/agents/ while keeping skills and standards
+// in their default locations.
+func TestInstallForCopilotRemapsPaths(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "copilot",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Agent file should be in .github/agents/ (remapped from agents/)
+	copilotAgent := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(copilotAgent); os.IsNotExist(err) {
+		t.Errorf("expected agent at Copilot path: %s", copilotAgent)
+	}
+
+	// Skills should stay at skills/ (Copilot uses project-root skills/)
+	skillFile := filepath.Join(target, "skills", "git-workflow", "SKILL.md")
+	if _, err := os.Stat(skillFile); os.IsNotExist(err) {
+		t.Errorf("expected skill at default path: %s", skillFile)
+	}
+
+	// Agent should NOT be at the old agents/ path
+	oldAgent := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(oldAgent); !os.IsNotExist(err) {
+		t.Errorf("agent should NOT exist at old path: %s", oldAgent)
+	}
+}
+
+// TestInstallForClaudeRemapsPaths verifies that --for claude places
+// agent files in .claude/agents/ and skills in .claude/skills/.
+func TestInstallForClaudeRemapsPaths(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "claude",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Agent should be in .claude/agents/
+	claudeAgent := filepath.Join(target, ".claude", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(claudeAgent); os.IsNotExist(err) {
+		t.Errorf("expected agent at Claude path: %s", claudeAgent)
+	}
+
+	// Skills should be in .claude/skills/
+	claudeSkill := filepath.Join(target, ".claude", "skills", "git-workflow", "SKILL.md")
+	if _, err := os.Stat(claudeSkill); os.IsNotExist(err) {
+		t.Errorf("expected skill at Claude path: %s", claudeSkill)
+	}
+}
+
+// TestInstallForUnknownAssistantReturnsError verifies that --for
+// with an invalid assistant name returns a helpful error.
+func TestInstallForUnknownAssistantReturnsError(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "vscode",
+		"--target", target,
+	})
+
+	// Silence Cobra's default error printing so it doesn't clutter test output
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown assistant, got nil")
+	}
+}
+
+// TestInstallWithoutForPreservesBehaviour verifies that omitting
+// --for produces the same output as before (no path remapping).
+func TestInstallWithoutForPreservesBehaviour(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Without --for, agent lands in agents/ (the generic location)
+	genericAgent := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(genericAgent); os.IsNotExist(err) {
+		t.Errorf("expected agent at generic path: %s", genericAgent)
+	}
+
+	// Skills in skills/
+	genericSkill := filepath.Join(target, "skills", "git-workflow", "SKILL.md")
+	if _, err := os.Stat(genericSkill); os.IsNotExist(err) {
+		t.Errorf("expected skill at generic path: %s", genericSkill)
 	}
 }

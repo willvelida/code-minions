@@ -70,7 +70,12 @@ code-minions install --dry-run
 # Overwrite existing files
 code-minions install --force
 
-# List available packages and standards
+# Install for a specific coding assistant
+code-minions install --package developer-mentor --for copilot
+code-minions install --package developer-mentor --for claude
+code-minions install --package developer-mentor --for opencode
+
+# List available packages, standards, and assistants
 code-minions list
 
 # Print version
@@ -83,6 +88,7 @@ code-minions version
 |------|------|---------|-------------|
 | `--package` | string | all | Comma-separated list of packages to install |
 | `--standards` | string | all | Comma-separated list of language standards |
+| `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) |
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
@@ -102,6 +108,18 @@ packages/
 ├── raise-pull-requests/        # PR preparation, submission, and code review
 └── threat-modelling/           # STRIDE-based threat modelling for repositories and cloud infrastructure
 ```
+
+## Coding Assistants
+
+Use the `--for` flag to install packages into the directories expected by your coding assistant:
+
+| Assistant | `--for` value | Agents placed in | Skills placed in |
+|-----------|--------------|------------------|------------------|
+| GitHub Copilot | `copilot` | `.github/agents/` | `skills/` |
+| Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` |
+| OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` |
+
+Without `--for`, files are installed to generic locations (`agents/`, `skills/`, `standards/`). Standards are always placed in `standards/` regardless of the assistant.
 
 ## Standards
 

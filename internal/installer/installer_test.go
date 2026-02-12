@@ -3,6 +3,7 @@ package installer
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -222,6 +223,75 @@ func TestInstallStripPrefixRemovesPackageDir(t *testing.T) {
 	skillPath := filepath.Join(target, "skills", "my-pkg", "SKILL.md")
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
 		t.Errorf("expected file to exist: %s", skillPath)
+	}
+}
+
+func TestInstallNilPathMapperPreservesBehaviour(t *testing.T) {
+	target := t.TempDir()
+
+	inst := &Installer{
+		Content:    testFS(),
+		Target:     target,
+		Force:      false,
+		DryRun:     false,
+		PathMapper: nil, // Explicitly nil — should behave exactly like before
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Copied) != 2 {
+		t.Errorf("copied count: got %d, want 2", len(result.Copied))
+	}
+
+	// Files should land in their original paths (agents/)
+	agentPath := filepath.Join(target, "agents", "my-agent.agent.md")
+	if _, err := os.Stat(agentPath); os.IsNotExist(err) {
+		t.Errorf("expected file to exist at original path: %s", agentPath)
+	}
+}
+
+func TestInstallPathMapperRemapsPaths(t *testing.T) {
+	target := t.TempDir()
+
+	// A PathMapper that moves agents/ to .github/agents/
+	// This simulates what the Copilot assistant config would do
+	mapper := func(path string) string {
+		if strings.HasPrefix(path, "agents/") {
+			return ".github/agents/" + strings.TrimPrefix(path, "agents/")
+		}
+		return path
+	}
+
+	inst := &Installer{
+		Content:    testFS(),
+		Target:     target,
+		Force:      false,
+		DryRun:     false,
+		PathMapper: mapper,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Copied) != 2 {
+		t.Errorf("copied count: got %d, want 2", len(result.Copied))
+	}
+
+	// Files should land in the REMAPPED path (.github/agents/), not agents/
+	remappedPath := filepath.Join(target, ".github", "agents", "my-agent.agent.md")
+	if _, err := os.Stat(remappedPath); os.IsNotExist(err) {
+		t.Errorf("expected file at remapped path: %s", remappedPath)
+	}
+
+	// The original agents/ path should NOT exist
+	originalPath := filepath.Join(target, "agents", "my-agent.agent.md")
+	if _, err := os.Stat(originalPath); !os.IsNotExist(err) {
+		t.Errorf("file should NOT exist at original path: %s", originalPath)
 	}
 }
 
