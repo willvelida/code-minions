@@ -147,7 +147,17 @@ func buildDirList(content fs.FS, includeAgents bool, skillsFlag string, standard
 		dirs = append(dirs, "standards/languages/standards.index.md")
 	}
 
-	return dirs, nil
+	// De-duplicate dirs
+	seen := make(map[string]bool)
+	unique := dirs[:0]
+	for _, d := range dirs {
+		if !seen[d] {
+			seen[d] = true
+			unique = append(unique, d)
+		}
+	}
+
+	return unique, nil
 }
 
 func listSubDirs(content fs.FS, dir string) ([]string, error) {

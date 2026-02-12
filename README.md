@@ -43,7 +43,7 @@ Download a pre-built binary from the [Releases page](https://github.com/willveli
 #### Linux and macOS (via install script)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/willvelida/code-minions/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/willvelida/code-minions/main/install.sh | bash
 ```
 
 ### Usage
@@ -80,7 +80,7 @@ code-minions version
 |------|------|---------|-------------|
 | `--skills` | string | all | Comma-separated list of skills to install |
 | `--standards` | string | all | Comma-separated list of language standards |
-| `--agents` | bool | false | Install only agents |
+| `--agents` | bool | false | Include agents in the installation |
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |

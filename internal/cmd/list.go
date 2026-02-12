@@ -102,5 +102,9 @@ func readSkillDescription(content fs.FS, skillDir string) string {
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		return ""
+	}
+
 	return ""
 }
