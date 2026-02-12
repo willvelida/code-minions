@@ -181,7 +181,6 @@ func buildDirList(content fs.FS, packageFlag string, standardsFlag string) ([]st
 
 	// Standards filtering
 	if standardsFlag != "" {
-		standardsAdded := 0
 		standards := strings.Split(standardsFlag, ",")
 		for _, std := range standards {
 			std = strings.TrimSpace(std)
@@ -201,12 +200,6 @@ func buildDirList(content fs.FS, packageFlag string, standardsFlag string) ([]st
 			}
 
 			dirs = append(dirs, dirPath)
-			standardsAdded++
-		}
-
-		// Always include the standards index when installing standards
-		if standardsAdded > 0 {
-			dirs = append(dirs, "standards/languages/standards.index.md")
 		}
 
 	}

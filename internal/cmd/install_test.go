@@ -29,7 +29,7 @@ func TestBuildDirList(t *testing.T) {
 		{
 			name:          "single standard",
 			standardsFlag: "python",
-			expectDirs:    []string{"standards/languages/python", "standards/languages/standards.index.md"},
+			expectDirs:    []string{"standards/languages/python"},
 		},
 		{
 			name:        "invalid package returns error",
