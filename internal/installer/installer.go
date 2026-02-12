@@ -36,7 +36,15 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 
 			outputPath := path
 			if i.StripPrefix != "" {
-				outputPath = strings.TrimPrefix(path, i.StripPrefix+"/")
+				// Root entry is the package dir itself — skip it
+				if path == i.StripPrefix {
+					return nil
+				}
+				// For children, strip the prefix + leading slash
+				if strings.HasPrefix(path, i.StripPrefix) {
+					outputPath = strings.TrimPrefix(path, i.StripPrefix)
+					outputPath = strings.TrimPrefix(outputPath, "/")
+				}
 			}
 			targetPath := filepath.Join(i.Target, outputPath)
 
