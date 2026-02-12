@@ -130,3 +130,4 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 
 	return result, nil
 }
+
