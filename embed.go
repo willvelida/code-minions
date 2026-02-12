@@ -2,5 +2,5 @@ package codeminions
 
 import "embed"
 
-//go:embed agents skills standards
+//go:embed packages standards
 var Content embed.FS

@@ -10,25 +10,19 @@ func TestBuildDirList(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		includeAgents bool
-		skillsFlag    string
+		packageFlag   string
 		standardsFlag string
 		expectDirs    []string
 		expectError   bool
 	}{
 		{
 			name:       "no flag installs everything",
-			expectDirs: []string{"agents", "skills", "standards"},
+			expectDirs: []string{"packages/developer-mentor", "packages/git-workflow", "standards"},
 		},
 		{
-			name:          "agents only",
-			includeAgents: true,
-			expectDirs:    []string{"agents"},
-		},
-		{
-			name:       "single skill",
-			skillsFlag: "git-workflow",
-			expectDirs: []string{"skills/git-workflow"},
+			name:        "single package",
+			packageFlag: "git-workflow",
+			expectDirs:  []string{"packages/git-workflow"},
 		},
 		{
 			name:          "single standard",
@@ -36,15 +30,15 @@ func TestBuildDirList(t *testing.T) {
 			expectDirs:    []string{"standards/languages/python", "standards/languages/standards.index.md"},
 		},
 		{
-			name:        "invalid skill returns error",
-			skillsFlag:  "nonexistent",
+			name:        "invalid package returns error",
+			packageFlag: "nonexistent",
 			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dirs, err := buildDirList(content, tt.includeAgents, tt.skillsFlag, tt.standardsFlag)
+			dirs, err := buildDirList(content, tt.packageFlag, tt.standardsFlag)
 
 			if tt.expectError {
 				if err == nil {
@@ -72,10 +66,11 @@ func TestBuildDirList(t *testing.T) {
 
 func testContentFS() fstest.MapFS {
 	return fstest.MapFS{
-		"agents/AGENTS.md":                       &fstest.MapFile{Data: []byte("# Agents")},
-		"skills/git-workflow/SKILL.md":           &fstest.MapFile{Data: []byte("# Git")},
-		"skills/developer-mentor/SKILL.md":       &fstest.MapFile{Data: []byte("# Mentor")},
-		"standards/languages/python/core.md":     &fstest.MapFile{Data: []byte("# Python")},
-		"standards/languages/typescript/core.md": &fstest.MapFile{Data: []byte("# TS")},
+		"packages/git-workflow/agents/git-workflow.agent.md":         &fstest.MapFile{Data: []byte("# Git Agent")},
+		"packages/git-workflow/skills/git-workflow/SKILL.md":         &fstest.MapFile{Data: []byte("# Git")},
+		"packages/developer-mentor/agents/developer-mentor.agent.md": &fstest.MapFile{Data: []byte("# Mentor Agent")},
+		"packages/developer-mentor/skills/developer-mentor/SKILL.md": &fstest.MapFile{Data: []byte("# Mentor")},
+		"standards/languages/python/core.md":                         &fstest.MapFile{Data: []byte("# Python")},
+		"standards/languages/typescript/core.md":                     &fstest.MapFile{Data: []byte("# TS")},
 	}
 }
