@@ -10,10 +10,11 @@ import (
 
 // Installer copies embedded content to a target directory
 type Installer struct {
-	Content fs.FS
-	Target  string
-	Force   bool
-	DryRun  bool
+	Content     fs.FS
+	Target      string
+	Force       bool
+	DryRun      bool
+	StripPrefix string
 }
 
 // Result tracks what happened during installation
@@ -33,7 +34,19 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 				return nil
 			}
 
-			targetPath := filepath.Join(i.Target, path)
+			outputPath := path
+			if i.StripPrefix != "" {
+				// Root entry is the package dir itself — skip it
+				if path == i.StripPrefix {
+					return nil
+				}
+				// For children, strip the prefix + leading slash
+				if strings.HasPrefix(path, i.StripPrefix) {
+					outputPath = strings.TrimPrefix(path, i.StripPrefix)
+					outputPath = strings.TrimPrefix(outputPath, "/")
+				}
+			}
+			targetPath := filepath.Join(i.Target, outputPath)
 
 			// Ensure the resolved path stays within the target directory
 			absTarget, err := filepath.Abs(i.Target)
@@ -69,7 +82,7 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			// Handle files
 			if !i.Force {
 				if _, err := os.Stat(targetPath); err == nil {
-					result.Skipped = append(result.Skipped, path)
+					result.Skipped = append(result.Skipped, outputPath)
 					return nil
 				} else if !os.IsNotExist(err) {
 					result.Errors = append(result.Errors, fmt.Sprintf("failed to stat %s: %v", targetPath, err))
@@ -78,14 +91,14 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			}
 
 			if i.DryRun {
-				result.Copied = append(result.Copied, path)
+				result.Copied = append(result.Copied, outputPath)
 				return nil
 			}
 
 			// Read from embedded FS and write to target
 			data, err := fs.ReadFile(i.Content, path)
 			if err != nil {
-				result.Errors = append(result.Errors, fmt.Sprintf("failed to read %s: %v", path, err))
+				result.Errors = append(result.Errors, fmt.Sprintf("failed to read %s: %v", outputPath, err))
 				return nil
 			}
 
@@ -97,7 +110,7 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			if err := os.WriteFile(targetPath, data, 0644); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("failed to write %s: %v", targetPath, err))
 			} else {
-				result.Copied = append(result.Copied, path)
+				result.Copied = append(result.Copied, outputPath)
 			}
 
 			return nil

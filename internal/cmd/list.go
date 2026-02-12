@@ -13,35 +13,22 @@ import (
 func newListCommand(content fs.FS) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
-		Short: "List available agents, skills, and standards",
+		Short: "List available packages and standards",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bold := color.New(color.Bold)
 			cyan := color.New(color.FgCyan)
 			dim := color.New(color.Faint)
 
-			// List agents
-			bold.Println("\nAgents")
+			// List packages
+			bold.Println("\nPackages")
 			dim.Println(strings.Repeat("-", 40))
-			agents, err := fs.ReadDir(content, "agents")
+			packages, err := fs.ReadDir(content, "packages")
 			if err != nil {
-				return fmt.Errorf("failed to read agents: %w", err)
+				return fmt.Errorf("failed to read packages: %w", err)
 			}
-			for _, entry := range agents {
-				if !entry.IsDir() {
-					cyan.Printf("  %s\n", entry.Name())
-				}
-			}
-
-			// List skills
-			bold.Println("\nSkills")
-			dim.Println(strings.Repeat("-", 40))
-			skills, err := fs.ReadDir(content, "skills")
-			if err != nil {
-				return fmt.Errorf("failed to read skills: %w", err)
-			}
-			for _, entry := range skills {
+			for _, entry := range packages {
 				if entry.IsDir() {
-					desc := readSkillDescription(content, "skills/"+entry.Name())
+					desc := readSkillDescription(content, "packages/"+entry.Name()+"/skills/"+entry.Name())
 					cyan.Printf("  %-30s", entry.Name())
 					if desc != "" {
 						dim.Printf("  %s", desc)

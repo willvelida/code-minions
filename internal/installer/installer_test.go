@@ -182,6 +182,49 @@ func TestInstallInvalidDirReturnsError(t *testing.T) {
 	}
 }
 
+func TestInstallStripPrefixRemovesPackageDir(t *testing.T) {
+	target := t.TempDir()
+
+	content := fstest.MapFS{
+		"packages/my-pkg/agents/agent.md":        &fstest.MapFile{Data: []byte("# Agent")},
+		"packages/my-pkg/skills/my-pkg/SKILL.md": &fstest.MapFile{Data: []byte("# Skill")},
+	}
+
+	inst := &Installer{
+		Content:     content,
+		Target:      target,
+		Force:       false,
+		DryRun:      false,
+		StripPrefix: "packages/my-pkg",
+	}
+
+	result, err := inst.Install([]string{"packages/my-pkg"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Copied) != 2 {
+		t.Errorf("copied count: got %d, want 2", len(result.Copied))
+	}
+
+	// The package wrapper directory should NOT exist in the output
+	pkgDir := filepath.Join(target, "packages")
+	if _, err := os.Stat(pkgDir); !os.IsNotExist(err) {
+		t.Errorf("packages/ directory should not exist in target, but it does")
+	}
+
+	// The stripped paths SHOULD exist
+	agentPath := filepath.Join(target, "agents", "agent.md")
+	if _, err := os.Stat(agentPath); os.IsNotExist(err) {
+		t.Errorf("expected file to exist: %s", agentPath)
+	}
+
+	skillPath := filepath.Join(target, "skills", "my-pkg", "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+		t.Errorf("expected file to exist: %s", skillPath)
+	}
+}
+
 func testFS() fstest.MapFS {
 	return fstest.MapFS{
 		"agents/AGENTS.md":                  &fstest.MapFile{Data: []byte("# Agents")},

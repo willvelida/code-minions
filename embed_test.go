@@ -5,37 +5,52 @@ import (
 	"testing"
 )
 
-func TestEmbeddedContentContainsAgents(t *testing.T) {
-	entries, err := fs.ReadDir(Content, "agents")
+func TestEmbeddedContentContainsPackages(t *testing.T) {
+	entries, err := fs.ReadDir(Content, "packages")
 	if err != nil {
-		t.Fatalf("failed to read agents directory: %v", err)
+		t.Fatalf("failed to read packages directory: %v", err)
 	}
 
 	if len(entries) == 0 {
-		t.Fatal("agents directory is empty")
+		t.Fatal("packages directory is empty")
 	}
 
-	// Check that AGENTS.md exists
-	found := false
-	for _, entry := range entries {
-		if entry.Name() == "AGENTS.md" {
-			found = true
-			break
+	// Verify a known package exists and has the expected structure
+	expectedPackages := []string{
+		"threat-modelling",
+		"developer-mentor",
+		"git-workflow",
+	}
+
+	for _, pkg := range expectedPackages {
+		// Check the package directory exists
+		_, err := fs.Stat(Content, "packages/"+pkg)
+		if err != nil {
+			t.Errorf("expected package %q not found: %v", pkg, err)
+			continue
 		}
-	}
 
-	if !found {
-		t.Error("AGENTS.md not found in embedded agents directory")
+		// Check it has an agents subdirectory
+		_, err = fs.ReadDir(Content, "packages/"+pkg+"/agents")
+		if err != nil {
+			t.Errorf("package %q missing agents/ directory: %v", pkg, err)
+		}
+
+		// Check it has a skills subdirectory
+		_, err = fs.ReadDir(Content, "packages/"+pkg+"/skills")
+		if err != nil {
+			t.Errorf("package %q missing skills/ directory: %v", pkg, err)
+		}
 	}
 }
 
-func TestEmbeddedContentContainsSkills(t *testing.T) {
-	entries, err := fs.ReadDir(Content, "skills")
+func TestEmbeddedContentContainsStandards(t *testing.T) {
+	entries, err := fs.ReadDir(Content, "standards")
 	if err != nil {
-		t.Fatalf("failed to read skills directory: %v", err)
+		t.Fatalf("failed to read standards directory: %v", err)
 	}
 
 	if len(entries) == 0 {
-		t.Error("skills directory is empty")
+		t.Error("standards directory is empty")
 	}
 }
