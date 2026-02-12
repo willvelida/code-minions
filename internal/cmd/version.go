@@ -7,8 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var readBuildInfo = debug.ReadBuildInfo
+
 func getVersion() string {
-	info, ok := debug.ReadBuildInfo()
+	info, ok := readBuildInfo()
 	if !ok {
 		return "dev"
 	}
