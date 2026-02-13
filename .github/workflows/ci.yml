@@ -60,7 +60,6 @@ jobs:
       - name: Lint install.sh with ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
-          scandir: .
           additional_files: install.sh
 
       - name: Lint install.ps1 with PSScriptAnalyzer

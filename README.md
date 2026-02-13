@@ -52,6 +52,14 @@ curl -fsSL https://raw.githubusercontent.com/willvelida/code-minions/main/instal
 powershell -Command "iwr -useb https://raw.githubusercontent.com/willvelida/code-minions/main/install.ps1 | iex"
 ```
 
+> **Security note:** The command above downloads and executes a remote script. To inspect it first:
+>
+> ```powershell
+> Invoke-WebRequest -Uri "https://raw.githubusercontent.com/willvelida/code-minions/main/install.ps1" -OutFile "install.ps1"
+> # Review install.ps1, then run:
+> .\install.ps1
+> ```
+
 #### Windows (via Winget)
 
 > **Note:** Winget availability depends on the package being approved in the [winget-pkgs](https://github.com/microsoft/winget-pkgs) repository. If the command below doesn't find the package yet, use the PowerShell install script above.

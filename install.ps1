@@ -34,7 +34,7 @@ if ($policy -eq 'Restricted' -or $policy -eq 'AllSigned') {
 }
 
 # Support TLS 1.2 for older PowerShell versions
-[Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Set up GitHub authentication if available
 if ($Env:GITHUB_USER) {
@@ -76,7 +76,8 @@ if ($releases.Count -eq 0) {
 if (!$Version) {
     $release = $releases | Where-Object { $_.tag_name -notlike "*rc*" } | Select-Object -First 1
 } else {
-    $release = $releases | Where-Object { $_.tag_name -eq "v$Version" } | Select-Object -First 1
+    $versionTag = if ($Version -like 'v*') { $Version } else { "v$Version" }
+    $release = $releases | Where-Object { $_.tag_name -eq $versionTag } | Select-Object -First 1
 }
 
 if (!$release) {
@@ -133,7 +134,10 @@ if ($checksumAsset) {
             $expectedHash = $expectedHash.Trim().ToLowerInvariant()
         }
         $actualHash = (Get-FileHash -Path $zipFilePath -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($expectedHash -and $actualHash -ne $expectedHash) {
+        if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+            Remove-Item $zipFilePath -Force
+            throw "Checksum verification failed: could not parse expected hash for $zipFileName."
+        } elseif ($actualHash -ne $expectedHash) {
             Remove-Item $zipFilePath -Force
             throw "Checksum verification failed. Expected: $expectedHash, Got: $actualHash"
         }
@@ -166,7 +170,7 @@ Write-Output "Checking PATH..."
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 if (-not [string]::IsNullOrEmpty($userPath)) {
     $pathEntries = $userPath -split ';'
-    $alreadyPresent = $pathEntries | Where-Object { $_.Trim() -ieq $InstallDir } | Select-Object -First 1
+    $alreadyPresent = $pathEntries | Where-Object { $_.Trim().TrimEnd('\') -ieq $InstallDir.TrimEnd('\') } | Select-Object -First 1
 } else {
     $alreadyPresent = $false
 }
