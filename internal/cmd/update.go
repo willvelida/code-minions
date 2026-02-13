@@ -206,7 +206,17 @@ func detectInstalled(content fs.FS, target string, pathMapper func(string) strin
 		}
 	}
 
-	// Detect installed standards
+	// Build a set of available (embedded) standard names for quick lookup.
+	availableStds, err := listSubDirs(content, "standards/languages")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list standards: %w", err)
+	}
+	embeddedStds := make(map[string]struct{}, len(availableStds))
+	for _, std := range availableStds {
+		embeddedStds[std] = struct{}{}
+	}
+
+	// Detect installed standards and intersect with the embedded set.
 	stdBase := "standards/languages"
 	if pathMapper != nil {
 		stdBase = pathMapper(stdBase)
@@ -222,8 +232,12 @@ func detectInstalled(content fs.FS, target string, pathMapper func(string) strin
 		return nil, fmt.Errorf("failed to list installed standards in %s: %w", stdFullPath, err)
 	}
 	for _, entry := range entries {
-		if entry.IsDir() {
-			dirs = append(dirs, "standards/languages/"+entry.Name())
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if _, ok := embeddedStds[name]; ok {
+			dirs = append(dirs, "standards/languages/"+name)
 		}
 	}
 
