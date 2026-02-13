@@ -145,14 +145,14 @@ code-minions update --package developer-mentor --for copilot
 code-minions update --package threat-modelling --dry-run
 ```
 
-Update overwrites existing files with the latest embedded content. `AGENTS.md` is not modified during updates.
+Update overwrites installed files with the latest embedded content. When run with no flags, only packages and standards already present in the target directory are updated — no new packages are installed. `AGENTS.md` is not modified during updates.
 
 ### Update flags
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--package` | string | all | Comma-separated list of packages to update |
-| `--standards` | string | all | Comma-separated list of language standards |
+| `--package` | string | | Comma-separated list of packages to update (omit to auto-detect installed) |
+| `--standards` | string | | Comma-separated list of language standards (omit to auto-detect installed) |
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) |
 | `--target` | string | `.` | Target directory |
 | `--dry-run` | bool | false | Show what would be updated without writing files |

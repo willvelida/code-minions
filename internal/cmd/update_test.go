@@ -185,11 +185,22 @@ func TestUpdateDoesNotModifyAgentsMD(t *testing.T) {
 	}
 }
 
-// TestUpdateNoFlagsUpdatesEverything verifies that running update
-// with no --package or --standards flag updates all packages and standards.
-func TestUpdateNoFlagsUpdatesEverything(t *testing.T) {
+// TestUpdateNoFlagsUpdatesOnlyInstalled verifies that running update
+// with no flags only updates packages and standards that are already
+// installed — it does not install new ones.
+func TestUpdateNoFlagsUpdatesOnlyInstalled(t *testing.T) {
 	target := t.TempDir()
 	content := testContentFS()
+
+	// Install only git-workflow (not developer-mentor)
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
 
 	// Run update with no flags
 	updateCmd := newUpdateCommand(content)
@@ -200,20 +211,41 @@ func TestUpdateNoFlagsUpdatesEverything(t *testing.T) {
 		t.Fatalf("update failed: %v", err)
 	}
 
-	// Both packages should have their files
-	mentorAgent := filepath.Join(target, "agents", "developer-mentor.agent.md")
-	if _, err := os.Stat(mentorAgent); os.IsNotExist(err) {
-		t.Errorf("expected developer-mentor agent: %s", mentorAgent)
-	}
-
+	// git-workflow should still exist (it was installed and updated)
 	gitAgent := filepath.Join(target, "agents", "git-workflow.agent.md")
 	if _, err := os.Stat(gitAgent); os.IsNotExist(err) {
-		t.Errorf("expected git-workflow agent: %s", gitAgent)
+		t.Errorf("expected git-workflow agent to be updated: %s", gitAgent)
 	}
 
-	// Standards should exist too
-	pythonStd := filepath.Join(target, "standards", "languages", "python", "core.md")
-	if _, err := os.Stat(pythonStd); os.IsNotExist(err) {
-		t.Errorf("expected python standard: %s", pythonStd)
+	// developer-mentor should NOT exist (it was never installed)
+	mentorAgent := filepath.Join(target, "agents", "developer-mentor.agent.md")
+	if _, err := os.Stat(mentorAgent); !os.IsNotExist(err) {
+		t.Errorf("developer-mentor should NOT be installed by update: %s", mentorAgent)
+	}
+}
+
+// TestUpdateNothingInstalledShowsMessage verifies that running update
+// against an empty directory prints a helpful message and succeeds.
+func TestUpdateNothingInstalledShowsMessage(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	updateCmd := newUpdateCommand(content)
+	updateCmd.SetArgs([]string{
+		"--target", target,
+	})
+
+	// Should succeed (not error)
+	if err := updateCmd.Execute(); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	// Target should remain empty (no files installed)
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected empty target dir, found %d entries", len(entries))
 	}
 }

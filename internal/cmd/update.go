@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -17,7 +18,8 @@ func newUpdateCommand(content fs.FS) *cobra.Command {
 		Use:   "update",
 		Short: "Update installed packages and standards with the latest versions",
 		Long: `Update overwrites previously installed files with the latest embedded
-content. This is equivalent to running install --force.
+content. When run with no flags, only packages and standards that are
+already installed in the target directory are updated.
 
 AGENTS.md is not modified during updates.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -37,10 +39,25 @@ AGENTS.md is not modified during updates.`,
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			// Build the list of directories to update
-			dirs, err := buildDirList(content, packageFlag, standardsFlag)
-			if err != nil {
-				return err
+			// When flags are provided, use buildDirList (same as install).
+			// When no flags are provided, detect what's already installed.
+			var dirs []string
+			if packageFlag != "" || standardsFlag != "" {
+				var err error
+				dirs, err = buildDirList(content, packageFlag, standardsFlag)
+				if err != nil {
+					return err
+				}
+			} else {
+				var err error
+				dirs, err = detectInstalled(content, target, pathMapper)
+				if err != nil {
+					return err
+				}
+				if len(dirs) == 0 {
+					fmt.Println("No installed packages or standards found. Use 'code-minions install' to install packages first.")
+					return nil
+				}
 			}
 
 			if dryRun {
@@ -141,4 +158,49 @@ AGENTS.md is not modified during updates.`,
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
 
 	return cmd
+}
+
+// detectInstalled scans the target directory to find which packages and
+// standards are already installed. For packages, it checks for
+// skills/<pkg>/SKILL.md (with path mapping applied). For standards, it
+// checks for directories under standards/languages/.
+func detectInstalled(content fs.FS, target string, pathMapper func(string) string) ([]string, error) {
+	var dirs []string
+
+	// Detect installed packages
+	available, err := listSubDirs(content, "packages")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packages: %w", err)
+	}
+
+	for _, pkg := range available {
+		// Each package installs a SKILL.md — use it as the detection marker
+		skillPath := fmt.Sprintf("skills/%s/SKILL.md", pkg)
+		if pathMapper != nil {
+			skillPath = pathMapper(skillPath)
+		}
+		fullPath := filepath.Join(target, skillPath)
+		if _, err := os.Stat(fullPath); err == nil {
+			dirs = append(dirs, "packages/"+pkg)
+		}
+	}
+
+	// Detect installed standards
+	stdBase := "standards/languages"
+	if pathMapper != nil {
+		stdBase = pathMapper(stdBase)
+	}
+	stdFullPath := filepath.Join(target, stdBase)
+
+	entries, err := os.ReadDir(stdFullPath)
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				dirs = append(dirs, "standards/languages/"+entry.Name())
+			}
+		}
+	}
+	// If standards/languages/ doesn't exist, that's fine — just no standards installed
+
+	return dirs, nil
 }
