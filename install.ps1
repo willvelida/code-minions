@@ -37,7 +37,7 @@ if ($policy -eq 'Restricted' -or $policy -eq 'AllSigned') {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Set up GitHub authentication if available
-if ($Env:GITHUB_USER) {
+if ($Env:GITHUB_USER -and $Env:GITHUB_TOKEN) {
     $basicAuth = [System.Convert]::ToBase64String(
         [System.Text.Encoding]::ASCII.GetBytes($Env:GITHUB_USER + ":" + $Env:GITHUB_TOKEN)
     )
@@ -104,9 +104,12 @@ try {
 
 Write-Output "Downloading $($asset.browser_download_url)..."
 $oldProgressPreference = $ProgressPreference
-$ProgressPreference = 'SilentlyContinue'
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipFilePath
-$ProgressPreference = $oldProgressPreference
+try {
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipFilePath
+} finally {
+    $ProgressPreference = $oldProgressPreference
+}
 
 if (!(Test-Path $zipFilePath -PathType Leaf)) {
     throw "Failed to download code-minions - $zipFilePath"
@@ -118,9 +121,12 @@ if ($checksumAsset) {
     Write-Output "Verifying checksum..."
     $checksumUrl = $checksumAsset.browser_download_url
     $oldProgressPreference2 = $ProgressPreference
-    $ProgressPreference = 'SilentlyContinue'
-    $checksumContent = (Invoke-WebRequest -Uri $checksumUrl).Content
-    $ProgressPreference = $oldProgressPreference2
+    try {
+        $ProgressPreference = 'SilentlyContinue'
+        $checksumContent = (Invoke-WebRequest -Uri $checksumUrl).Content
+    } finally {
+        $ProgressPreference = $oldProgressPreference2
+    }
     $checksumLines = $checksumContent -split "`n"
     $matchingLines = $checksumLines | Where-Object { $_ -like "*$zipFileName*" }
 
