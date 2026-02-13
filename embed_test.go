@@ -43,5 +43,3 @@ func TestEmbeddedContentContainsPackages(t *testing.T) {
 		}
 	}
 }
-
-
