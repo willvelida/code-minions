@@ -94,6 +94,30 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
 			}
 
+			// Create AGENTS.md if installing packages
+			if len(packageDirs) > 0 {
+				agentsMDPath := "AGENTS.md"
+				if pathMapper != nil {
+					agentsMDPath = pathMapper("agents/AGENTS.md")
+				}
+
+				handler := &installer.AgentsMDHandler{
+					Target: target,
+					DryRun: dryRun,
+					Stdin:  os.Stdin,
+					Stdout: os.Stdout,
+				}
+
+				action, err := handler.OnInstall(agentsMDPath, []byte(installer.DefaultAgentsMDContent))
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
+				} else if action == "created" {
+					combinedResult.Copied = append(combinedResult.Copied, agentsMDPath)
+				} else {
+					combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
+				}
+			}
+
 			green := color.New(color.FgGreen)
 			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)

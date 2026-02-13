@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -195,3 +196,115 @@ func TestInstallWithoutForPreservesBehaviour(t *testing.T) {
 		t.Errorf("expected skill at generic path: %s", genericSkill)
 	}
 }
+
+// TestInstallCreatesAgentsMD verifies that installing a package
+// creates AGENTS.md when it does not exist.
+func TestInstallCreatesAgentsMD(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	agentsMD := filepath.Join(target, "AGENTS.md")
+	data, err := os.ReadFile(agentsMD)
+	if err != nil {
+		t.Fatalf("expected AGENTS.md to be created: %v", err)
+	}
+
+	if !strings.Contains(string(data), "code-minions") {
+		t.Errorf("AGENTS.md content missing expected text, got:\n%s", data)
+	}
+}
+
+// TestInstallSkipsExistingAgentsMD verifies that installing a package
+// does not overwrite an existing AGENTS.md.
+func TestInstallSkipsExistingAgentsMD(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Pre-create AGENTS.md with custom content
+	original := []byte("# My Custom Agents\n")
+	if err := os.WriteFile(filepath.Join(target, "AGENTS.md"), original, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(target, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(got) != string(original) {
+		t.Errorf("AGENTS.md was overwritten:\n  got:  %q\n  want: %q", got, original)
+	}
+}
+
+// TestInstallForCopilotCreatesAgentsMDAtMappedPath verifies that
+// --for copilot creates AGENTS.md at .github/agents/AGENTS.md.
+func TestInstallForCopilotCreatesAgentsMDAtMappedPath(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "copilot",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	agentsMD := filepath.Join(target, ".github", "agents", "AGENTS.md")
+	if _, err := os.Stat(agentsMD); os.IsNotExist(err) {
+		t.Errorf("expected AGENTS.md at Copilot path: %s", agentsMD)
+	}
+
+	// Should NOT exist at default path
+	defaultPath := filepath.Join(target, "AGENTS.md")
+	if _, err := os.Stat(defaultPath); !os.IsNotExist(err) {
+		t.Errorf("AGENTS.md should NOT exist at default path when using --for copilot")
+	}
+}
+
+// TestInstallStandardsDoesNotCreateAgentsMD verifies that installing
+// only standards does not create AGENTS.md.
+func TestInstallStandardsDoesNotCreateAgentsMD(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--standards", "python",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	agentsMD := filepath.Join(target, "AGENTS.md")
+	if _, err := os.Stat(agentsMD); !os.IsNotExist(err) {
+		t.Errorf("AGENTS.md should NOT be created when only installing standards")
+	}
+}
+
+

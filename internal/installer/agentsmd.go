@@ -20,6 +20,15 @@ type AgentsMDHandler struct {
 
 const agentsMDFile = "AGENTS.md"
 
+// DefaultAgentsMDContent is the starter AGENTS.md created in target repos
+// when installing packages for the first time.
+const DefaultAgentsMDContent = `# Agents
+
+This repository uses [code-minions](https://github.com/willvelida/code-minions) for AI-assisted development.
+
+See the installed agent files for available capabilities.
+`
+
 // ShouldSkip returns true if the path is an AGENTS.md file that should
 // be handled separately from the normal install/uninstall flow.
 func (h *AgentsMDHandler) ShouldSkip(outputPath string) bool {
