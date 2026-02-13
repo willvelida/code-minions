@@ -16,6 +16,7 @@
 ```
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/willvelida/code-minions)](https://goreportcard.com/report/github.com/willvelida/code-minions)
+[![codecov](https://codecov.io/gh/willvelida/code-minions/branch/main/graph/badge.svg)](https://codecov.io/gh/willvelida/code-minions)
 
 A collection of reusable assets for AI coding agents to enhance AI-assisted development.
 
@@ -195,7 +196,7 @@ Without `--for`, files are installed to generic locations (`agents/`, `skills/`)
 
 ## Contributing
 
-Contributions are welcome. Please open an issue to discuss changes before submitting a pull request.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing expectations, and PR guidelines.
 
 ## License
 

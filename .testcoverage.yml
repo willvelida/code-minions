@@ -1,0 +1,16 @@
+# .testcoverage.yml — Configuration for vladopajic/go-test-coverage
+# https://github.com/vladopajic/go-test-coverage
+
+profile: coverage.out
+
+threshold:
+  # Minimum total coverage percentage required.
+  total: 70
+
+  # Per-file thresholds (optional, can be tightened over time).
+  # file: 50
+
+# Exclude packages that are not meaningful to cover.
+exclude:
+  paths:
+    - cmd/code-minions/main\.go  # main() bootstrap — no testable logic

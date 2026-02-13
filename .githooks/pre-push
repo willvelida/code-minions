@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# pre-push hook — Runs coverage threshold check before pushing.
+#
+# Install with:
+#   git config core.hooksPath .githooks
+#
+# Bypass with:
+#   git push --no-verify
+
+set -euo pipefail
+
+echo "🔍 Running pre-push coverage check..."
+echo ""
+
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+"${SCRIPT_DIR}/scripts/check-coverage.sh"

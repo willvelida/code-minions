@@ -27,6 +27,32 @@ jobs:
       - name: Run tests
         run: go test ./... -cover
 
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out ./...
+
+      - name: Enforce coverage threshold
+        uses: vladopajic/go-test-coverage@v2
+        with:
+          config: .testcoverage.yml
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:
