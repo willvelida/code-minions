@@ -15,6 +15,8 @@
  ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 ```
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/willvelida/code-minions)](https://goreportcard.com/report/github.com/willvelida/code-minions)
+
 A collection of reusable skills and standards for AI coding agents to enhance AI-assisted development.
 
 ## Overview

@@ -1,0 +1,17 @@
+# golangci-lint v2 configuration
+# Docs: https://golangci-lint.run/docs/configuration/file/
+version: "2"
+
+linters:
+  # "standard" is the default — it enables the linters that the golangci-lint
+  # team considers safe and useful for most projects. This includes things like
+  # govet, errcheck, staticcheck, unused, gosimple, ineffassign, and others.
+  # Starting with the defaults keeps noise low while still catching real bugs.
+  default: standard
+
+  # exclusions lets you silence known false-positives so the linter output
+  # stays actionable. The "common-false-positives" preset filters out issues
+  # that are almost never real bugs (e.g. unchecked errors on Close()).
+  exclusions:
+    presets:
+      - common-false-positives

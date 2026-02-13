@@ -52,6 +52,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  lint-go:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read       # Required: the action needs to read the repo
+      pull-requests: read   # Required when using only-new-issues on PRs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.9
+          only-new-issues: true
+
   lint-scripts:
     runs-on: ubuntu-latest
     steps:
