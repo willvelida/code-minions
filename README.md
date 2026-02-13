@@ -82,7 +82,7 @@ code-minions list
 code-minions version
 ```
 
-### Flags
+### Install flags
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
@@ -92,6 +92,36 @@ code-minions version
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
+
+When installing packages, an `AGENTS.md` file is automatically created if one does not already exist. Existing `AGENTS.md` files are never overwritten.
+
+### Uninstalling
+
+```bash
+# Uninstall a specific package
+code-minions uninstall --package threat-modelling
+
+# Uninstall language standards
+code-minions uninstall --standards python
+
+# Uninstall everything (--for is required to identify file locations)
+code-minions uninstall --for copilot
+
+# Preview what would be removed
+code-minions uninstall --package git-workflow --dry-run
+```
+
+When uninstalling packages, you will be prompted before `AGENTS.md` is removed. If you decline (or stdin is empty, e.g. in CI), the file is kept.
+
+### Uninstall flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--package` | string | all | Comma-separated list of packages to uninstall |
+| `--standards` | string | all | Comma-separated list of language standards |
+| `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) — **required** when uninstalling everything |
+| `--target` | string | `.` | Target directory to uninstall from |
+| `--dry-run` | bool | false | Show what would be removed without deleting files |
 
 ## Packages
 
