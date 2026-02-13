@@ -6,6 +6,7 @@ Thank you for your interest in contributing! This guide will help you get set up
 
 - **Go 1.25+** — see [go.dev/dl](https://go.dev/dl/) for installation
 - **Git** — any recent version
+- **Make** (optional, for local workflow shortcuts) — pre-installed on macOS/Linux; on Windows install via `choco install make`
 - **golangci-lint** (optional, for local linting) — see [golangci-lint.run](https://golangci-lint.run/welcome/install/)
 
 ## Getting Started
@@ -36,6 +37,24 @@ Thank you for your interest in contributing! This guide will help you get set up
    ```
 
    This runs a coverage threshold check before each push. You can bypass it in a pinch with `git push --no-verify`, but CI will still enforce the threshold.
+
+## Using Make
+
+The repository includes a `Makefile` with shortcuts for common development tasks. Run `make help` to see all available targets:
+
+| Target | Description |
+|--------|-------------|
+| `make build` | Compile the binary (default target) |
+| `make test` | Run all tests with coverage summary |
+| `make lint` | Run golangci-lint |
+| `make fmt` | Format all Go source files |
+| `make snapshot` | Run GoReleaser in snapshot mode |
+| `make install` | Install the binary to `$GOPATH/bin` |
+| `make coverage` | Generate coverage profile and open HTML report |
+| `make check-coverage` | Run the coverage threshold check |
+| `make clean` | Remove build artifacts and coverage files |
+
+Make is **optional** — all commands work standalone too. The sections below show both forms.
 
 ## Making Changes
 
@@ -132,7 +151,7 @@ Only new issues are flagged on PRs — you won't be asked to fix pre-existing li
 1. **Open an issue first** — discuss the change before investing time in implementation
 2. **Create a branch** from `main` following the [branch naming convention](#branch-naming)
 3. **Make your changes** with clear, well-scoped commits
-4. **Ensure all checks pass locally**:
+4. **Ensure all checks pass locally** (or use `make build`, `make test`, `make check-coverage`):
    - `go build ./cmd/code-minions` — builds successfully
    - `go test ./... -cover` — tests pass
    - `./scripts/check-coverage.sh` — coverage meets the threshold
