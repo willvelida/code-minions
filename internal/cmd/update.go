@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -16,17 +15,16 @@ import (
 func newUpdateCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: "Update installed packages and standards with the latest versions",
+		Short: "Update installed packages with the latest versions",
 		Long: `Update overwrites previously installed files with the latest embedded
-content. When run with no flags, only packages and standards that are
-already installed in the target directory are updated.
+content. When run with no flags, only packages that are already
+installed in the target directory are updated.
 
 AGENTS.md is not modified during updates.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
-			standardsFlag, _ := cmd.Flags().GetString("standards")
 			forFlag, _ := cmd.Flags().GetString("for")
 
 			// If --for is set, look up the assistant config and build a path mapper
@@ -39,23 +37,23 @@ AGENTS.md is not modified during updates.`,
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			// When flags are provided, use buildDirList (same as install).
+			// When --package is provided, use buildPackageList (same as install).
 			// When no flags are provided, detect what's already installed.
-			var dirs []string
-			if packageFlag != "" || standardsFlag != "" {
+			var packageDirs []string
+			if packageFlag != "" {
 				var err error
-				dirs, err = buildDirList(content, packageFlag, standardsFlag)
+				packageDirs, err = buildPackageList(content, packageFlag)
 				if err != nil {
 					return err
 				}
 			} else {
 				var err error
-				dirs, err = detectInstalled(content, target, pathMapper)
+				packageDirs, err = detectInstalled(content, target, pathMapper)
 				if err != nil {
 					return err
 				}
-				if len(dirs) == 0 {
-					fmt.Println("No installed packages or standards found. Use 'code-minions install' to install packages or standards first.")
+				if len(packageDirs) == 0 {
+					fmt.Println("No installed packages found. Use 'code-minions install' to install packages first.")
 					return nil
 				}
 			}
@@ -65,28 +63,10 @@ AGENTS.md is not modified during updates.`,
 				fmt.Println()
 			}
 
-			// Separate package dirs from standard dirs
-			var packageDirs []string
-			var standardDirs []string
-			for _, d := range dirs {
-				if strings.HasPrefix(d, "packages/") {
-					packageDirs = append(packageDirs, d)
-				} else {
-					standardDirs = append(standardDirs, d)
-				}
-			}
-
 			// Update each package (with prefix stripping, force always true)
 			combinedResult := &installer.Result{}
 			for _, pkgDir := range packageDirs {
 				if err := runUpdate(content, target, pkgDir, dryRun, pathMapper, combinedResult); err != nil {
-					return err
-				}
-			}
-
-			// Update standards (force always true)
-			for _, stdDir := range standardDirs {
-				if err := runUpdate(content, target, "", dryRun, pathMapper, combinedResult, stdDir); err != nil {
 					return err
 				}
 			}
@@ -130,7 +110,6 @@ AGENTS.md is not modified during updates.`,
 
 	cmd.Flags().String("target", ".", "Target directory for update")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to update (omit to auto-detect installed packages)")
-	cmd.Flags().String("standards", "", "Comma-separated list of language standards to update (omit to auto-detect installed standards)")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
 
@@ -163,10 +142,9 @@ func runUpdate(content fs.FS, target, stripPrefix string, dryRun bool, pathMappe
 	return nil
 }
 
-// detectInstalled scans the target directory to find which packages and
-// standards are already installed. For packages, it scans the installed
-// skills/ directory once and intersects with the embedded package set.
-// For standards, it checks for directories under standards/languages/.
+// detectInstalled scans the target directory to find which packages
+// are already installed. It scans the installed skills/ directory once
+// and intersects with the embedded package set.
 func detectInstalled(content fs.FS, target string, pathMapper func(string) string) ([]string, error) {
 	var dirs []string
 
@@ -203,41 +181,6 @@ func detectInstalled(content fs.FS, target string, pathMapper func(string) strin
 			if _, ok := embeddedPkgs[name]; ok {
 				dirs = append(dirs, "packages/"+name)
 			}
-		}
-	}
-
-	// Build a set of available (embedded) standard names for quick lookup.
-	availableStds, err := listSubDirs(content, "standards/languages")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list standards: %w", err)
-	}
-	embeddedStds := make(map[string]struct{}, len(availableStds))
-	for _, std := range availableStds {
-		embeddedStds[std] = struct{}{}
-	}
-
-	// Detect installed standards and intersect with the embedded set.
-	stdBase := "standards/languages"
-	if pathMapper != nil {
-		stdBase = pathMapper(stdBase)
-	}
-	stdFullPath := filepath.Join(target, stdBase)
-
-	entries, err := os.ReadDir(stdFullPath)
-	if err != nil {
-		// If standards/languages/ doesn't exist, that's fine — just no standards installed
-		if os.IsNotExist(err) {
-			return dirs, nil
-		}
-		return nil, fmt.Errorf("failed to list installed standards in %s: %w", stdFullPath, err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if _, ok := embeddedStds[name]; ok {
-			dirs = append(dirs, "standards/languages/"+name)
 		}
 	}
 

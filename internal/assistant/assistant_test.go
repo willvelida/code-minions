@@ -7,32 +7,28 @@ import (
 
 func TestGetReturnsCorrectConfig(t *testing.T) {
 	tests := []struct {
-		name        string // Description shown in test output
-		assistant   string // Input to Get()
-		agentDir    string // Expected AgentDir
-		skillDir    string // Expected SkillDir
-		standardDir string // Expected StandardDir
+		name      string // Description shown in test output
+		assistant string // Input to Get()
+		agentDir  string // Expected AgentDir
+		skillDir  string // Expected SkillDir
 	}{
 		{
-			name:        "copilot uses .github/agents",
-			assistant:   "copilot",
-			agentDir:    ".github/agents",
-			skillDir:    "skills",
-			standardDir: "standards",
+			name:      "copilot uses .github/agents",
+			assistant: "copilot",
+			agentDir:  ".github/agents",
+			skillDir:  "skills",
 		},
 		{
-			name:        "claude uses .claude directories",
-			assistant:   "claude",
-			agentDir:    ".claude/agents",
-			skillDir:    ".claude/skills",
-			standardDir: "standards",
+			name:      "claude uses .claude directories",
+			assistant: "claude",
+			agentDir:  ".claude/agents",
+			skillDir:  ".claude/skills",
 		},
 		{
-			name:        "opencode uses .opencode directories",
-			assistant:   "opencode",
-			agentDir:    ".opencode/agents",
-			skillDir:    ".opencode/skills",
-			standardDir: "standards",
+			name:      "opencode uses .opencode directories",
+			assistant: "opencode",
+			agentDir:  ".opencode/agents",
+			skillDir:  ".opencode/skills",
 		},
 	}
 
@@ -52,9 +48,6 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			}
 			if cfg.SkillDir != tt.skillDir {
 				t.Errorf("SkillDir: got %q, want %q", cfg.SkillDir, tt.skillDir)
-			}
-			if cfg.StandardDir != tt.standardDir {
-				t.Errorf("StandardDir: got %q, want %q", cfg.StandardDir, tt.standardDir)
 			}
 		})
 	}
@@ -129,7 +122,7 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 		input     string // Path coming out of the embedded FS (after prefix strip)
 		expected  string // Where it should end up
 	}{
-		// --- Copilot: agents remap to .github/agents, skills and standards stay ---
+		// --- Copilot: agents remap to .github/agents, skills stay ---
 		{
 			name:      "copilot remaps agents",
 			assistant: "copilot",
@@ -142,14 +135,8 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			input:     "skills/my-skill/SKILL.md",
 			expected:  "skills/my-skill/SKILL.md",
 		},
-		{
-			name:      "copilot keeps standards unchanged",
-			assistant: "copilot",
-			input:     "standards/languages/go/core.md",
-			expected:  "standards/languages/go/core.md",
-		},
 
-		// --- Claude: agents and skills remap to .claude/, standards stay ---
+		// --- Claude: agents and skills remap to .claude/ ---
 		{
 			name:      "claude remaps agents",
 			assistant: "claude",
@@ -162,14 +149,8 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			input:     "skills/my-skill/SKILL.md",
 			expected:  ".claude/skills/my-skill/SKILL.md",
 		},
-		{
-			name:      "claude keeps standards unchanged",
-			assistant: "claude",
-			input:     "standards/languages/python/core.md",
-			expected:  "standards/languages/python/core.md",
-		},
 
-		// --- OpenCode: agents and skills remap to .opencode/, standards stay ---
+		// --- OpenCode: agents and skills remap to .opencode/ ---
 		{
 			name:      "opencode remaps agents",
 			assistant: "opencode",
@@ -181,12 +162,6 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			assistant: "opencode",
 			input:     "skills/my-skill/actions/create.md",
 			expected:  ".opencode/skills/my-skill/actions/create.md",
-		},
-		{
-			name:      "opencode keeps standards unchanged",
-			assistant: "opencode",
-			input:     "standards/languages/bash/tooling.md",
-			expected:  "standards/languages/bash/tooling.md",
 		},
 
 		// --- Edge cases ---

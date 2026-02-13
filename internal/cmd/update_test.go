@@ -210,7 +210,7 @@ func TestUpdateDoesNotModifyAgentsMD(t *testing.T) {
 }
 
 // TestUpdateNoFlagsUpdatesOnlyInstalled verifies that running update
-// with no flags only updates packages and standards that are already
+// with no flags only updates packages that are already
 // installed — it does not install new ones.
 func TestUpdateNoFlagsUpdatesOnlyInstalled(t *testing.T) {
 	target := t.TempDir()

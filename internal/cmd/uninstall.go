@@ -15,15 +15,14 @@ import (
 func newUninstallCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uninstall",
-		Short: "Remove installed agents, skills, and standards from your repository",
+		Short: "Remove installed agents and skills from your repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
-			standardsFlag, _ := cmd.Flags().GetString("standards")
 			forFlag, _ := cmd.Flags().GetString("for")
 
-			if packageFlag == "" && standardsFlag == "" && forFlag == "" {
+			if packageFlag == "" && forFlag == "" {
 				return fmt.Errorf("when uninstalling everything, --for is required to identify the correct file locations\n\nUsage: code-minions uninstall --for <assistant>\n\nAvailable assistants: %s",
 					strings.Join(assistant.List(), ", "))
 			}
@@ -37,7 +36,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			dirs, err := buildDirList(content, packageFlag, standardsFlag)
+			packageDirs, err := buildPackageList(content, packageFlag)
 			if err != nil {
 				return err
 			}
@@ -45,16 +44,6 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 			if dryRun {
 				color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
 				fmt.Println()
-			}
-
-			var packageDirs []string
-			var standardDirs []string
-			for _, d := range dirs {
-				if strings.HasPrefix(d, "packages/") {
-					packageDirs = append(packageDirs, d)
-				} else {
-					standardDirs = append(standardDirs, d)
-				}
 			}
 
 			combinedResult := &installer.UninstallResult{}
@@ -67,23 +56,6 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 					PathMapper:  pathMapper,
 				}
 				result, err := inst.Uninstall([]string{pkgDir})
-				if err != nil {
-					return fmt.Errorf("uninstallation failed: %w", err)
-				}
-				combinedResult.Removed = append(combinedResult.Removed, result.Removed...)
-				combinedResult.NotFound = append(combinedResult.NotFound, result.NotFound...)
-				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
-				combinedResult.DirsCleaned = append(combinedResult.DirsCleaned, result.DirsCleaned...)
-			}
-
-			if len(standardDirs) > 0 {
-				inst := &installer.Installer{
-					Content:    content,
-					Target:     target,
-					DryRun:     dryRun,
-					PathMapper: pathMapper,
-				}
-				result, err := inst.Uninstall(standardDirs)
 				if err != nil {
 					return fmt.Errorf("uninstallation failed: %w", err)
 				}
@@ -152,7 +124,6 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 
 	cmd.Flags().String("target", ".", "Target directory to uninstall from")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to uninstall (omit to uninstall all)")
-	cmd.Flags().String("standards", "", "Comma-separated list of language standards to uninstall")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be removed without deleting files")
 

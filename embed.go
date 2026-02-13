@@ -2,5 +2,5 @@ package codeminions
 
 import "embed"
 
-//go:embed packages standards
+//go:embed packages
 var Content embed.FS

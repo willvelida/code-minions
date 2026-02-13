@@ -32,14 +32,10 @@ This skill bundles the following standards in `standards/`:
 | Checklist | `checklist.md` | Consolidated compliance checklist |
 | Template | `template.json` | Base configuration template |
 
-## External Standards
-
-This skill references shared language standards from `../../standards/languages/`. See `../../standards/languages/standards.index.md` for the full index of supported languages and standard categories. Load the relevant language standards based on detected or specified project technologies.
-
 ## Usage
 
 1. Load this skill manifest
 2. Identify the required capability (create or review)
 3. Load the bundled standards from `standards/`
-4. Load relevant language standards from `../../standards/languages/<language>/` (especially `development-environment.md`)
+4. Ask the user what language(s) and tooling the DevContainer needs to accommodate
 5. Execute the action following `actions/<capability>.md`

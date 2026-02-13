@@ -6,14 +6,13 @@ This repository is a toolkit of various different AI-Assisted development capabi
 
 It includes standards, Agent Skills, and Agent configurations that have helped me during my software development.
 
-These agents provides a structured approach to AI-assisted development through specialized agents, skills, and standards. The system emphasizes isolated context for specific tasks, ensuring optimal token usage and focused expertise.
+These agents provides a structured approach to AI-assisted development through specialized agents and skills. The system emphasizes isolated context for specific tasks, ensuring optimal token usage and focused expertise.
 
 ## Philosophy
 
 - **Specialisation** — Each agent focuses on a specific domain, providing deep expertise
 - **Isolation** — Subagents operate with isolated context, reducing noise and improving accuracy
 - **Skills** — Self-contained capabilities that agents can invoke, bundling actions with relevant standards
-- **Standards** — Codified best practices that ensure consistency across all work
 
 ## Structure
 
@@ -21,36 +20,19 @@ These agents provides a structured approach to AI-assisted development through s
 code-minions/
 ├── AGENTS.md                 # This file - system overview and routing
 ├── agents/                   # Agent definitions
-├── skills/                   # Self-contained skill packages
-│   ├── creating-agent-skill/ # Skill for creating new agent skills
-│   ├── creating-agents/      # Agent definition creation skill
-│   ├── creating-devcontainers/ # DevContainer creation skill
-│   ├── creating-documentation/ # Documentation creation skill
-│   ├── developer-mentor/     # Developer mentoring skill
-│   ├── git-workflow/         # Git workflow skill
-│   ├── raise-pull-requests/  # Pull request skill
-│   └── threat-modelling/     # Threat modelling skill
-│       ├── SKILL.md          # Skill manifest (each skill follows this structure)
-│       ├── actions/          # Executable actions
-│       └── standards/        # Skill-specific standards
-└── standards/                # Project specific standards
-    └── languages/            # Language-specific standards
-        ├── standards.index.md # Standards registry
-        ├── bash/             # Bash standards
-        ├── python/           # Python standards
-        └── typescript/       # TypeScript standards
+└── skills/                   # Self-contained skill packages
+    ├── creating-agent-skill/ # Skill for creating new agent skills
+    ├── creating-agents/      # Agent definition creation skill
+    ├── creating-devcontainers/ # DevContainer creation skill
+    ├── creating-documentation/ # Documentation creation skill
+    ├── developer-mentor/     # Developer mentoring skill
+    ├── git-workflow/         # Git workflow skill
+    ├── raise-pull-requests/  # Pull request skill
+    └── threat-modelling/     # Threat modelling skill
+        ├── SKILL.md          # Skill manifest (each skill follows this structure)
+        ├── actions/          # Executable actions
+        └── standards/        # Skill-specific standards
 ```
-
-## Standards
-
-Project specific standards are documented in `standards/languages/standards.index.md`.
-
-### Reading Standards
-
-1. Start by reading `standards/languages/standards.index.md` to identify relevant standards
-2. The index lists each standards category with its path and structure
-3. Navigate to the specified path and load the applicable files
-4. For language standards, load only the category files relevant to your task (e.g., for DevContainer work, load `development-environment.md`)
 
 ### Skill-Bundled Standards
 
