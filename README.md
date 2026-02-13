@@ -123,6 +123,40 @@ When uninstalling packages, you will be prompted before `AGENTS.md` is removed. 
 | `--target` | string | `.` | Target directory to uninstall from |
 | `--dry-run` | bool | false | Show what would be removed without deleting files |
 
+### Updating
+
+```bash
+# Update all installed packages and standards
+code-minions update
+
+# Update a specific package
+code-minions update --package threat-modelling
+
+# Update multiple packages
+code-minions update --package threat-modelling,git-workflow
+
+# Update only language standards
+code-minions update --standards python,typescript
+
+# Update for a specific coding assistant
+code-minions update --package developer-mentor --for copilot
+
+# Preview what would be updated
+code-minions update --package threat-modelling --dry-run
+```
+
+Update overwrites existing files with the latest embedded content. `AGENTS.md` is not modified during updates.
+
+### Update flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--package` | string | all | Comma-separated list of packages to update |
+| `--standards` | string | all | Comma-separated list of language standards |
+| `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) |
+| `--target` | string | `.` | Target directory |
+| `--dry-run` | bool | false | Show what would be updated without writing files |
+
 ## Packages
 
 Each package bundles an agent and its corresponding skill into a single installable unit.
