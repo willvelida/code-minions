@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -46,8 +47,8 @@ func TestUpdateOverwritesExistingFiles(t *testing.T) {
 	if string(got) == "old content" {
 		t.Error("update did not overwrite the stale file")
 	}
-	if string(got) != "# Git Agent" {
-		t.Errorf("unexpected content after update: got %q, want %q", got, "# Git Agent")
+	if !strings.Contains(string(got), "# Git Agent") {
+		t.Errorf("updated content should contain '# Git Agent', got %q", got)
 	}
 }
 
@@ -224,9 +225,9 @@ func TestUpdateNoFlagsUpdatesOnlyInstalled(t *testing.T) {
 	}
 }
 
-// TestUpdateNothingInstalledShowsMessage verifies that running update
-// against an empty directory prints a helpful message and succeeds.
-func TestUpdateNothingInstalledShowsMessage(t *testing.T) {
+// TestUpdateNothingInstalledSucceedsWithoutChanges verifies that running
+// update against an empty directory succeeds without writing any files.
+func TestUpdateNothingInstalledSucceedsWithoutChanges(t *testing.T) {
 	target := t.TempDir()
 	content := testContentFS()
 

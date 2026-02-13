@@ -55,7 +55,7 @@ AGENTS.md is not modified during updates.`,
 					return err
 				}
 				if len(dirs) == 0 {
-					fmt.Println("No installed packages or standards found. Use 'code-minions install' to install packages first.")
+					fmt.Println("No installed packages or standards found. Use 'code-minions install' to install packages or standards first.")
 					return nil
 				}
 			}
@@ -152,8 +152,8 @@ AGENTS.md is not modified during updates.`,
 	}
 
 	cmd.Flags().String("target", ".", "Target directory for update")
-	cmd.Flags().String("package", "", "Comma-separated list of packages to update (omit to update all)")
-	cmd.Flags().String("standards", "", "Comma-separated list of language standards to update")
+	cmd.Flags().String("package", "", "Comma-separated list of packages to update (omit to auto-detect installed packages)")
+	cmd.Flags().String("standards", "", "Comma-separated list of language standards to update (omit to auto-detect installed standards)")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
 
@@ -182,6 +182,8 @@ func detectInstalled(content fs.FS, target string, pathMapper func(string) strin
 		fullPath := filepath.Join(target, skillPath)
 		if _, err := os.Stat(fullPath); err == nil {
 			dirs = append(dirs, "packages/"+pkg)
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to check package %q at %s: %w", pkg, fullPath, err)
 		}
 	}
 
@@ -193,14 +195,18 @@ func detectInstalled(content fs.FS, target string, pathMapper func(string) strin
 	stdFullPath := filepath.Join(target, stdBase)
 
 	entries, err := os.ReadDir(stdFullPath)
-	if err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				dirs = append(dirs, "standards/languages/"+entry.Name())
-			}
+	if err != nil {
+		// If standards/languages/ doesn't exist, that's fine — just no standards installed
+		if os.IsNotExist(err) {
+			return dirs, nil
+		}
+		return nil, fmt.Errorf("failed to list installed standards in %s: %w", stdFullPath, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirs = append(dirs, "standards/languages/"+entry.Name())
 		}
 	}
-	// If standards/languages/ doesn't exist, that's fine — just no standards installed
 
 	return dirs, nil
 }
