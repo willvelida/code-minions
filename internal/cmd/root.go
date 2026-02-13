@@ -20,6 +20,7 @@ Available components:
 	}
 
 	cmd.AddCommand(newInstallCommand(content))
+	cmd.AddCommand(newUninstallCommand(content))
 	cmd.AddCommand(newListCommand(content))
 	cmd.AddCommand(newVersionCommand())
 

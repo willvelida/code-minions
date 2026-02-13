@@ -46,6 +46,19 @@ func TestInstallCopiesFiles(t *testing.T) {
 					t.Errorf("expected file to exist: %s", path)
 				}
 			}
+
+			// Verify directories were created on disk
+			for _, d := range tt.dirs {
+				dirPath := filepath.Join(target, d)
+				info, err := os.Stat(dirPath)
+				if os.IsNotExist(err) {
+					t.Errorf("expected directory to exist: %s", dirPath)
+				} else if err != nil {
+					t.Errorf("unexpected error checking directory: %v", err)
+				} else if !info.IsDir() {
+					t.Errorf("expected %s to be a directory", dirPath)
+				}
+			}
 		})
 	}
 }

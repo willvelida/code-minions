@@ -94,6 +94,30 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
 			}
 
+			// Create AGENTS.md if installing packages
+			if len(packageDirs) > 0 {
+				agentsMDPath := "AGENTS.md"
+				if pathMapper != nil {
+					agentsMDPath = pathMapper("agents/AGENTS.md")
+				}
+
+				handler := &installer.AgentsMDHandler{
+					Target: target,
+					DryRun: dryRun,
+					Stdin:  os.Stdin,
+					Stdout: os.Stdout,
+				}
+
+				action, err := handler.OnInstall(agentsMDPath, []byte(installer.DefaultAgentsMDContent))
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
+				} else if action == "created" {
+					combinedResult.Copied = append(combinedResult.Copied, agentsMDPath)
+				} else {
+					combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
+				}
+			}
+
 			green := color.New(color.FgGreen)
 			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)
@@ -181,7 +205,6 @@ func buildDirList(content fs.FS, packageFlag string, standardsFlag string) ([]st
 
 	// Standards filtering
 	if standardsFlag != "" {
-		standardsAdded := 0
 		standards := strings.Split(standardsFlag, ",")
 		for _, std := range standards {
 			std = strings.TrimSpace(std)
@@ -201,12 +224,6 @@ func buildDirList(content fs.FS, packageFlag string, standardsFlag string) ([]st
 			}
 
 			dirs = append(dirs, dirPath)
-			standardsAdded++
-		}
-
-		// Always include the standards index when installing standards
-		if standardsAdded > 0 {
-			dirs = append(dirs, "standards/languages/standards.index.md")
 		}
 
 	}
