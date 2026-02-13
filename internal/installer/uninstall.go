@@ -24,6 +24,11 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 	result := &UninstallResult{}
 	var dirPaths []string
 
+	absTarget, err := filepath.Abs(i.Target)
+	if err != nil {
+		return result, fmt.Errorf("failed to resolve target directory: %w", err)
+	}
+
 	for _, dir := range dirs {
 		err := fs.WalkDir(i.Content, dir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -48,11 +53,6 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 
 			targetPath := filepath.Join(i.Target, outputPath)
 
-			absTarget, err := filepath.Abs(i.Target)
-			if err != nil {
-				result.Errors = append(result.Errors, fmt.Sprintf("failed to resolve target directory: %v", err))
-				return nil
-			}
 			absPath, err := filepath.Abs(targetPath)
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("failed to resolve path %s: %v", path, err))

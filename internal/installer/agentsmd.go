@@ -12,10 +12,10 @@ import (
 // AgentsMDHandler manages the AGENTS.md file during install and uninstall.
 // It is handled separately because it is a shared resource across packages.
 type AgentsMDHandler struct {
-	Target     string
-	PathMapper func(string) string
-	DryRun     bool
-	Stdin      io.Reader // For interactive prompts (os.Stdin in production, bytes.Buffer in tests)
+	Target string
+	DryRun bool
+	Stdin  io.Reader // For reading user input (os.Stdin in production, bytes.Buffer in tests)
+	Stdout io.Writer // For prompts and messages (os.Stdout in production, bytes.Buffer in tests)
 }
 
 const agentsMDFile = "AGENTS.md"
@@ -67,8 +67,8 @@ func (h *AgentsMDHandler) OnUninstall(outputPath string) (string, error) {
 		return "kept", nil
 	}
 
-	fmt.Printf("  AGENTS.md exists at %s\n", targetPath)
-	fmt.Print("  Do you also want to remove it? (y/N): ")
+	fmt.Fprintf(h.Stdout, "  AGENTS.md exists at %s\n", targetPath)
+	fmt.Fprint(h.Stdout, "  Do you also want to remove it? (y/N): ")
 
 	scanner := bufio.NewScanner(h.Stdin)
 	if scanner.Scan() {
@@ -79,6 +79,10 @@ func (h *AgentsMDHandler) OnUninstall(outputPath string) (string, error) {
 			}
 			return "removed", nil
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
 	return "kept", nil

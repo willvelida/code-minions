@@ -8,7 +8,7 @@ import (
 )
 
 func TestAgentsMDShouldSkip(t *testing.T) {
-	handler := &AgentsMDHandler{}
+	handler := &AgentsMDHandler{Stdout: &bytes.Buffer{}}
 
 	tests := []struct {
 		path   string
@@ -40,6 +40,7 @@ func TestAgentsMDOnInstallCreatesNew(t *testing.T) {
 		Target: target,
 		DryRun: false,
 		Stdin:  bytes.NewBufferString(""),
+		Stdout: &bytes.Buffer{},
 	}
 
 	data := []byte("# My Agents\n")
@@ -74,6 +75,7 @@ func TestAgentsMDOnInstallSkipsExisting(t *testing.T) {
 		Target: target,
 		DryRun: false,
 		Stdin:  bytes.NewBufferString(""),
+		Stdout: &bytes.Buffer{},
 	}
 
 	action, err := handler.OnInstall("AGENTS.md", []byte("# Replacement\n"))
@@ -101,6 +103,7 @@ func TestAgentsMDOnInstallDryRun(t *testing.T) {
 		Target: target,
 		DryRun: true,
 		Stdin:  bytes.NewBufferString(""),
+		Stdout: &bytes.Buffer{},
 	}
 
 	action, err := handler.OnInstall("AGENTS.md", []byte("# Agents\n"))
@@ -124,6 +127,7 @@ func TestAgentsMDOnInstallWithPathMapper(t *testing.T) {
 		Target: target,
 		DryRun: false,
 		Stdin:  bytes.NewBufferString(""),
+		Stdout: &bytes.Buffer{},
 	}
 
 	// Simulate Copilot layout: agents/AGENTS.md → .github/agents/AGENTS.md
@@ -156,7 +160,8 @@ func TestAgentsMDOnUninstallConfirmRemove(t *testing.T) {
 	handler := &AgentsMDHandler{
 		Target: target,
 		DryRun: false,
-		Stdin:  bytes.NewBufferString("y\n"), // User types "y" and presses Enter
+		Stdin:  bytes.NewBufferString("y\n"),
+		Stdout: &bytes.Buffer{},
 	}
 
 	action, err := handler.OnUninstall("AGENTS.md")
@@ -183,7 +188,8 @@ func TestAgentsMDOnUninstallDeclineRemove(t *testing.T) {
 	handler := &AgentsMDHandler{
 		Target: target,
 		DryRun: false,
-		Stdin:  bytes.NewBufferString("n\n"), // User types "n"
+		Stdin:  bytes.NewBufferString("n\n"),
+		Stdout: &bytes.Buffer{},
 	}
 
 	action, err := handler.OnUninstall("AGENTS.md")
@@ -210,7 +216,8 @@ func TestAgentsMDOnUninstallDefaultNo(t *testing.T) {
 	handler := &AgentsMDHandler{
 		Target: target,
 		DryRun: false,
-		Stdin:  bytes.NewBufferString("\n"), // User just presses Enter (empty input)
+		Stdin:  bytes.NewBufferString("\n"),
+		Stdout: &bytes.Buffer{},
 	}
 
 	action, err := handler.OnUninstall("AGENTS.md")
@@ -234,6 +241,7 @@ func TestAgentsMDOnUninstallNotFound(t *testing.T) {
 		Target: target,
 		DryRun: false,
 		Stdin:  bytes.NewBufferString(""),
+		Stdout: &bytes.Buffer{},
 	}
 
 	// No AGENTS.md exists — should return "kept" with no error and no prompt
@@ -256,7 +264,8 @@ func TestAgentsMDOnUninstallDryRun(t *testing.T) {
 	handler := &AgentsMDHandler{
 		Target: target,
 		DryRun: true,
-		Stdin:  bytes.NewBufferString("y\n"), // Even with "y", dry-run should not delete
+		Stdin:  bytes.NewBufferString("y\n"),
+		Stdout: &bytes.Buffer{},
 	}
 
 	action, err := handler.OnUninstall("AGENTS.md")

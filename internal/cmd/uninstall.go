@@ -126,10 +126,12 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 					Target: target,
 					DryRun: dryRun,
 					Stdin:  os.Stdin,
+					Stdout: os.Stdout,
 				}
 
 				action, err := handler.OnUninstall(agentsMDPath)
 				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
 					red.Fprintf(os.Stderr, "  error: %s\n", err)
 				} else if action == "removed" {
 					green.Printf("  removed: %s\n", agentsMDPath)

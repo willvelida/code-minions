@@ -316,5 +316,3 @@ func testFS() fstest.MapFS {
 		"skills/my-skill/actions/create.md": &fstest.MapFile{Data: []byte("# Create")},
 	}
 }
-
-
