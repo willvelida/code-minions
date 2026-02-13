@@ -5,9 +5,11 @@ BINARY     := code-minions
 CMD_PKG    := ./cmd/code-minions
 COVER_OUT  := coverage.out
 
-# Cross-platform delete (Windows cmd lacks rm)
-ifdef OS
-    RM = del /q 2>nul
+# Cross-platform delete:
+# - On Windows (OS=Windows_NT), use cmd so that 'del' is available even under POSIX shells.
+# - On other systems, use standard rm -f.
+ifeq ($(OS),Windows_NT)
+    RM = cmd /C del /q 2>nul
 else
     RM = rm -f
 endif
