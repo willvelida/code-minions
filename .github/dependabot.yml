@@ -12,6 +12,8 @@ updates:
       prefix: "chore"
     groups:
       go-minor-patch:
+        patterns:
+          - "*"
         update-types:
           - minor
           - patch
@@ -28,6 +30,8 @@ updates:
       prefix: "chore"
     groups:
       actions-minor-patch:
+        patterns:
+          - "*"
         update-types:
           - minor
           - patch
