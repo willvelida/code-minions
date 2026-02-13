@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,8 @@ func TestUpdateOverwritesExistingFiles(t *testing.T) {
 
 	// First, install the package so files exist on disk
 	installCmd := newInstallCommand(content)
+	installCmd.SetOut(io.Discard)
+	installCmd.SetErr(io.Discard)
 	installCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
@@ -31,6 +34,8 @@ func TestUpdateOverwritesExistingFiles(t *testing.T) {
 
 	// Run update — should overwrite with the embedded content
 	updateCmd := newUpdateCommand(content)
+	updateCmd.SetOut(io.Discard)
+	updateCmd.SetErr(io.Discard)
 	updateCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
@@ -60,6 +65,8 @@ func TestUpdateDryRunDoesNotWriteFiles(t *testing.T) {
 
 	// Install first so files exist
 	installCmd := newInstallCommand(content)
+	installCmd.SetOut(io.Discard)
+	installCmd.SetErr(io.Discard)
 	installCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
@@ -76,6 +83,8 @@ func TestUpdateDryRunDoesNotWriteFiles(t *testing.T) {
 
 	// Run update with --dry-run
 	updateCmd := newUpdateCommand(content)
+	updateCmd.SetOut(io.Discard)
+	updateCmd.SetErr(io.Discard)
 	updateCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
@@ -96,7 +105,7 @@ func TestUpdateDryRunDoesNotWriteFiles(t *testing.T) {
 }
 
 // TestUpdateInvalidPackageReturnsError verifies that updating a
-// non-existent package returns a helpful error.
+// non-existent package returns an error mentioning the package name.
 func TestUpdateInvalidPackageReturnsError(t *testing.T) {
 	content := testContentFS()
 
@@ -111,6 +120,14 @@ func TestUpdateInvalidPackageReturnsError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid package, got nil")
 	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, "nonexistent") {
+		t.Errorf("error message should mention invalid package name: got %q", msg)
+	}
+	if !strings.Contains(msg, "not found") {
+		t.Errorf("error message should indicate package was not found: got %q", msg)
+	}
 }
 
 // TestUpdateForCopilotRemapsPaths verifies that --for copilot places
@@ -121,6 +138,8 @@ func TestUpdateForCopilotRemapsPaths(t *testing.T) {
 
 	// Install with --for copilot first
 	installCmd := newInstallCommand(content)
+	installCmd.SetOut(io.Discard)
+	installCmd.SetErr(io.Discard)
 	installCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--for", "copilot",
@@ -132,6 +151,8 @@ func TestUpdateForCopilotRemapsPaths(t *testing.T) {
 
 	// Run update with --for copilot
 	updateCmd := newUpdateCommand(content)
+	updateCmd.SetOut(io.Discard)
+	updateCmd.SetErr(io.Discard)
 	updateCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--for", "copilot",
@@ -168,6 +189,8 @@ func TestUpdateDoesNotModifyAgentsMD(t *testing.T) {
 
 	// Run update
 	updateCmd := newUpdateCommand(content)
+	updateCmd.SetOut(io.Discard)
+	updateCmd.SetErr(io.Discard)
 	updateCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
@@ -195,6 +218,8 @@ func TestUpdateNoFlagsUpdatesOnlyInstalled(t *testing.T) {
 
 	// Install only git-workflow (not developer-mentor)
 	installCmd := newInstallCommand(content)
+	installCmd.SetOut(io.Discard)
+	installCmd.SetErr(io.Discard)
 	installCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
@@ -205,6 +230,8 @@ func TestUpdateNoFlagsUpdatesOnlyInstalled(t *testing.T) {
 
 	// Run update with no flags
 	updateCmd := newUpdateCommand(content)
+	updateCmd.SetOut(io.Discard)
+	updateCmd.SetErr(io.Discard)
 	updateCmd.SetArgs([]string{
 		"--target", target,
 	})
@@ -232,6 +259,8 @@ func TestUpdateNothingInstalledSucceedsWithoutChanges(t *testing.T) {
 	content := testContentFS()
 
 	updateCmd := newUpdateCommand(content)
+	updateCmd.SetOut(io.Discard)
+	updateCmd.SetErr(io.Discard)
 	updateCmd.SetArgs([]string{
 		"--target", target,
 	})

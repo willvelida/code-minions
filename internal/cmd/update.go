@@ -79,39 +79,16 @@ AGENTS.md is not modified during updates.`,
 			// Update each package (with prefix stripping, force always true)
 			combinedResult := &installer.Result{}
 			for _, pkgDir := range packageDirs {
-				inst := &installer.Installer{
-					Content:     content,
-					Target:      target,
-					Force:       true, // Update always overwrites
-					DryRun:      dryRun,
-					StripPrefix: pkgDir,
-					PathMapper:  pathMapper,
+				if err := runUpdate(content, target, pkgDir, dryRun, pathMapper, combinedResult); err != nil {
+					return err
 				}
-				result, err := inst.Install([]string{pkgDir})
-				if err != nil {
-					return fmt.Errorf("update failed: %w", err)
-				}
-				combinedResult.Copied = append(combinedResult.Copied, result.Copied...)
-				combinedResult.Skipped = append(combinedResult.Skipped, result.Skipped...)
-				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
 			}
 
 			// Update standards (force always true)
-			if len(standardDirs) > 0 {
-				inst := &installer.Installer{
-					Content:    content,
-					Target:     target,
-					Force:      true, // Update always overwrites
-					DryRun:     dryRun,
-					PathMapper: pathMapper,
+			for _, stdDir := range standardDirs {
+				if err := runUpdate(content, target, "", dryRun, pathMapper, combinedResult, stdDir); err != nil {
+					return err
 				}
-				result, err := inst.Install(standardDirs)
-				if err != nil {
-					return fmt.Errorf("update failed: %w", err)
-				}
-				combinedResult.Copied = append(combinedResult.Copied, result.Copied...)
-				combinedResult.Skipped = append(combinedResult.Skipped, result.Skipped...)
-				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
 			}
 
 			// No AGENTS.md handling — update leaves it untouched
@@ -160,30 +137,72 @@ AGENTS.md is not modified during updates.`,
 	return cmd
 }
 
+// runUpdate runs the installer for a set of directories, appending
+// results into combined. When stripPrefix is non-empty it is set on
+// the installer (used for packages). When dirs are provided they
+// override the default of []string{stripPrefix}.
+func runUpdate(content fs.FS, target, stripPrefix string, dryRun bool, pathMapper func(string) string, combined *installer.Result, dirs ...string) error {
+	if len(dirs) == 0 {
+		dirs = []string{stripPrefix}
+	}
+	inst := &installer.Installer{
+		Content:     content,
+		Target:      target,
+		Force:       true,
+		DryRun:      dryRun,
+		StripPrefix: stripPrefix,
+		PathMapper:  pathMapper,
+	}
+	result, err := inst.Install(dirs)
+	if err != nil {
+		return fmt.Errorf("update failed: %w", err)
+	}
+	combined.Copied = append(combined.Copied, result.Copied...)
+	combined.Skipped = append(combined.Skipped, result.Skipped...)
+	combined.Errors = append(combined.Errors, result.Errors...)
+	return nil
+}
+
 // detectInstalled scans the target directory to find which packages and
-// standards are already installed. For packages, it checks for
-// skills/<pkg>/SKILL.md (with path mapping applied). For standards, it
-// checks for directories under standards/languages/.
+// standards are already installed. For packages, it scans the installed
+// skills/ directory once and intersects with the embedded package set.
+// For standards, it checks for directories under standards/languages/.
 func detectInstalled(content fs.FS, target string, pathMapper func(string) string) ([]string, error) {
 	var dirs []string
 
-	// Detect installed packages
+	// Build a set of available (embedded) package names for quick lookup.
 	available, err := listSubDirs(content, "packages")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %w", err)
 	}
-
+	embeddedPkgs := make(map[string]struct{}, len(available))
 	for _, pkg := range available {
-		// Each package installs a SKILL.md — use it as the detection marker
-		skillPath := fmt.Sprintf("skills/%s/SKILL.md", pkg)
-		if pathMapper != nil {
-			skillPath = pathMapper(skillPath)
+		embeddedPkgs[pkg] = struct{}{}
+	}
+
+	// Scan the installed skills directories once and intersect with
+	// the embedded package set.
+	skillsBase := "skills"
+	if pathMapper != nil {
+		skillsBase = pathMapper(skillsBase)
+	}
+	skillsFullPath := filepath.Join(target, skillsBase)
+
+	skillEntries, err := os.ReadDir(skillsFullPath)
+	if err != nil {
+		// If skills/ doesn't exist, that's fine — just no packages installed.
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to list installed skills in %s: %w", skillsFullPath, err)
 		}
-		fullPath := filepath.Join(target, skillPath)
-		if _, err := os.Stat(fullPath); err == nil {
-			dirs = append(dirs, "packages/"+pkg)
-		} else if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to check package %q at %s: %w", pkg, fullPath, err)
+	} else {
+		for _, entry := range skillEntries {
+			if !entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			if _, ok := embeddedPkgs[name]; ok {
+				dirs = append(dirs, "packages/"+name)
+			}
 		}
 	}
 
