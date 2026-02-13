@@ -32,6 +32,30 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 curl -fsSL "$URL" -o "${TMPDIR}/${ARCHIVE}"
+
+# Verify checksum
+CHECKSUM_URL="https://github.com/${REPO}/releases/download/${VERSION}/checksums.txt"
+if curl -fsSL "$CHECKSUM_URL" -o "${TMPDIR}/checksums.txt" 2>/dev/null; then
+  EXPECTED_HASH="$(grep "${ARCHIVE}" "${TMPDIR}/checksums.txt" | awk '{print $1}')"
+  if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL_HASH="$(sha256sum "${TMPDIR}/${ARCHIVE}" | awk '{print $1}')"
+  elif command -v shasum >/dev/null 2>&1; then
+    ACTUAL_HASH="$(shasum -a 256 "${TMPDIR}/${ARCHIVE}" | awk '{print $1}')"
+  else
+    echo "Warning: Neither sha256sum nor shasum found - skipping checksum verification"
+    ACTUAL_HASH=""
+  fi
+  if [ -n "$EXPECTED_HASH" ] && [ -n "$ACTUAL_HASH" ] && [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+    echo "Checksum verification failed."
+    echo "  Expected: $EXPECTED_HASH"
+    echo "  Got:      $ACTUAL_HASH"
+    exit 1
+  fi
+  echo "Checksum verified."
+else
+  echo "Warning: Could not download checksums - skipping verification"
+fi
+
 tar -xzf "${TMPDIR}/${ARCHIVE}" -C "$TMPDIR"
 
 # Install

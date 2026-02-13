@@ -44,3 +44,37 @@ release:
   github:
     owner: willvelida
     name: code-minions
+
+# Winget manifest publishing.
+# Requires a GH_PAT secret with public_repo scope and a fork of microsoft/winget-pkgs
+# at willvelida/winget-pkgs. If GH_PAT is not set, the release will still succeed
+# but the winget manifest will not be published.
+winget:
+  - name: code-minions
+    publisher: willvelida
+    short_description: "CLI tool for installing AI-assisted development agents and skills into your repositories"
+    license: mit
+    publisher_url: https://github.com/willvelida
+    publisher_support_url: https://github.com/willvelida/code-minions/issues/new
+    package_identifier: willvelida.code-minions
+    homepage: https://github.com/willvelida/code-minions
+    description: "code-minions is a CLI tool that installs AI-assisted development agents, skills, and language standards into your repositories. It supports multiple coding assistants including GitHub Copilot and Claude."
+    license_url: https://github.com/willvelida/code-minions/blob/main/LICENSE
+    tags:
+      - cli
+      - ai
+      - developer-tools
+      - coding-agents
+    commit_msg_template: "{{ .PackageIdentifier }}: {{ .Tag }}"
+    skip_upload: auto
+    repository:
+      owner: willvelida
+      name: winget-pkgs
+      branch: "code-minions-{{ .Version }}"
+      token: "{{ .Env.GH_PAT }}"
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
