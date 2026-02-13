@@ -5,19 +5,6 @@ BINARY     := code-minions
 CMD_PKG    := ./cmd/code-minions
 COVER_OUT  := coverage.out
 
-# Use Git Bash on Windows so shell scripts and rm work consistently.
-ifeq ($(OS),Windows_NT)
-    SHELL := C:/PROGRA~1/Git/bin/bash.exe
-    .SHELLFLAGS := -lc
-endif
-# - On Windows (OS=Windows_NT), use cmd so that 'del' is available even under POSIX shells.
-# - On other systems, use standard rm -f.
-ifeq ($(OS),Windows_NT)
-    RM = cmd /C del /q 2>nul
-else
-    RM = rm -f
-endif
-
 .DEFAULT_GOAL := build
 
 .PHONY: build test lint fmt snapshot install coverage check-coverage clean help

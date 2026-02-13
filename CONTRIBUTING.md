@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This guide will help you get set up
 
 - **Go 1.25+** — see [go.dev/dl](https://go.dev/dl/) for installation
 - **Git** — any recent version
-- **Make** (optional, for local workflow shortcuts) — pre-installed on macOS/Linux; on Windows install via `choco install make`
+- **GNU Make** (optional, for local workflow shortcuts) — on Linux typically pre-installed; on macOS install via Homebrew (`brew install make`) and use `gmake`; on Windows install via `choco install make` and run from a **Git Bash** terminal
 - **golangci-lint** (optional, for local linting) — see [golangci-lint.run](https://golangci-lint.run/welcome/install/)
 
 ## Getting Started
