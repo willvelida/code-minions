@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # check-coverage.sh — Shared coverage threshold check.
-# Used by both CI and the pre-push git hook.
+# Used by the pre-push git hook. CI uses vladopajic/go-test-coverage action instead.
 #
 # Usage: ./scripts/check-coverage.sh [threshold]
 #   threshold: minimum coverage percentage (default: 70)
