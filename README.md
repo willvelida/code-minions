@@ -17,18 +17,17 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/willvelida/code-minions)](https://goreportcard.com/report/github.com/willvelida/code-minions)
 
-A collection of reusable skills and standards for AI coding agents to enhance AI-assisted development.
+A collection of reusable assets for AI coding agents to enhance AI-assisted development.
 
 ## Overview
 
 code-minions provides structured knowledge that AI agents can load to perform development tasks consistently and effectively. It includes:
 
 - **Packages** — Bundled agents and skills for common workflows (git operations, documentation, DevContainers)
-- **Standards** — Language-specific guidelines for consistent code quality
 
 ## CLI
 
-code-minions includes a CLI tool that installs packages (made up of Agents and Agent Skills) and standards into your own repositories.
+code-minions includes a CLI tool that installs packages (made up of Agents and Agent Skills) into your own repositories.
 
 ### Installation
 
@@ -73,7 +72,7 @@ winget install willvelida.code-minions
 ### Usage
 
 ```bash
-# Install everything (all packages + all standards)
+# Install everything (all packages)
 code-minions install
 
 # Install a specific package (agent + skill)
@@ -81,12 +80,6 @@ code-minions install --package threat-modelling
 
 # Install multiple packages
 code-minions install --package threat-modelling,git-workflow
-
-# Install only language standards
-code-minions install --standards python,typescript
-
-# Install a package and standards together
-code-minions install --package git-workflow --standards bash
 
 # Preview what would be installed without writing files
 code-minions install --dry-run
@@ -111,7 +104,6 @@ code-minions version
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--package` | string | all | Comma-separated list of packages to install |
-| `--standards` | string | all | Comma-separated list of language standards |
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) |
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
@@ -124,9 +116,6 @@ When installing packages, an `AGENTS.md` file is automatically created if one do
 ```bash
 # Uninstall a specific package
 code-minions uninstall --package threat-modelling
-
-# Uninstall language standards
-code-minions uninstall --standards python
 
 # Uninstall everything (--for is required to identify file locations)
 code-minions uninstall --for copilot
@@ -142,7 +131,6 @@ When uninstalling packages, you will be prompted before `AGENTS.md` is removed. 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--package` | string | all | Comma-separated list of packages to uninstall |
-| `--standards` | string | all | Comma-separated list of language standards |
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) — **required** when uninstalling everything |
 | `--target` | string | `.` | Target directory to uninstall from |
 | `--dry-run` | bool | false | Show what would be removed without deleting files |
@@ -150,7 +138,7 @@ When uninstalling packages, you will be prompted before `AGENTS.md` is removed. 
 ### Updating
 
 ```bash
-# Update all installed packages and standards
+# Update all installed packages
 code-minions update
 
 # Update a specific package
@@ -159,9 +147,6 @@ code-minions update --package threat-modelling
 # Update multiple packages
 code-minions update --package threat-modelling,git-workflow
 
-# Update only language standards
-code-minions update --standards python,typescript
-
 # Update for a specific coding assistant
 code-minions update --package developer-mentor --for copilot
 
@@ -169,14 +154,13 @@ code-minions update --package developer-mentor --for copilot
 code-minions update --package threat-modelling --dry-run
 ```
 
-Update overwrites installed files with the latest embedded content. When run with no flags, only packages and standards already present in the target directory are updated — no new packages are installed. `AGENTS.md` is not modified during updates.
+Update overwrites installed files with the latest embedded content. When run with no flags, only packages already present in the target directory are updated — no new packages are installed. `AGENTS.md` is not modified during updates.
 
 ### Update flags
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--package` | string | | Comma-separated list of packages to update (omit to auto-detect installed) |
-| `--standards` | string | | Comma-separated list of language standards (omit to auto-detect installed) |
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) |
 | `--target` | string | `.` | Target directory |
 | `--dry-run` | bool | false | Show what would be updated without writing files |
@@ -207,27 +191,7 @@ Use the `--for` flag to install packages into the directories expected by your c
 | Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` |
 | OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` |
 
-Without `--for`, files are installed to generic locations (`agents/`, `skills/`, `standards/`). Standards are always placed in `standards/` regardless of the assistant.
-
-## Standards
-
-Language standards provide consistent guidelines for development practices.
-
-```text
-standards/
-└── languages/
-    ├── bash/                   # Portable shell scripting with ShellCheck and shfmt
-    ├── python/                 # Modern Python with uv, Ruff, and strict typing
-    └── typescript/             # Type-safe JavaScript with ESLint, Prettier, and pnpm
-```
-
-Each language includes standards for:
-- **Core** — Project structure, naming, coding style
-- **Tooling** — Package manager, linter, formatter, testing
-- **Security** — Secure practices and prohibited patterns
-- **Development Environment** — DevContainer and VS Code setup
-
-See the [standards index](standards/languages/standards.index.md) for details. Additional languages will be added over time.
+Without `--for`, files are installed to generic locations (`agents/`, `skills/`).
 
 ## Contributing
 

@@ -21,7 +21,6 @@ You are a Socratic development mentor for this repository's users. You guide dev
   - `skills/developer-mentor/SKILL.md` — Skill manifest with level-adaptive code policy (READ)
   - `skills/developer-mentor/actions/` — Step-by-step mentoring actions (READ)
   - `skills/developer-mentor/standards/` — Mentoring standards and assessment criteria (READ)
-  - `standards/languages/` — Shared language standards (READ, when relevant to mentoring topic)
 
 ## Level-Adaptive Code Policy
 

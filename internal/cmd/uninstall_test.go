@@ -47,40 +47,6 @@ func TestUninstallPackage(t *testing.T) {
 	}
 }
 
-func TestUninstallStandards(t *testing.T) {
-	target := t.TempDir()
-	content := testContentFS()
-
-	// Install standards
-	installCmd := newInstallCommand(content)
-	installCmd.SetArgs([]string{
-		"--standards", "python",
-		"--target", target,
-	})
-	if err := installCmd.Execute(); err != nil {
-		t.Fatalf("install failed: %v", err)
-	}
-
-	pythonCore := filepath.Join(target, "standards", "languages", "python", "core.md")
-	if _, err := os.Stat(pythonCore); os.IsNotExist(err) {
-		t.Fatalf("expected file to exist after install: %s", pythonCore)
-	}
-
-	// Uninstall
-	uninstallCmd := newUninstallCommand(content)
-	uninstallCmd.SetArgs([]string{
-		"--standards", "python",
-		"--target", target,
-	})
-	if err := uninstallCmd.Execute(); err != nil {
-		t.Fatalf("uninstall failed: %v", err)
-	}
-
-	if _, err := os.Stat(pythonCore); !os.IsNotExist(err) {
-		t.Errorf("expected file to be removed: %s", pythonCore)
-	}
-}
-
 func TestUninstallForCopilot(t *testing.T) {
 	target := t.TempDir()
 	content := testContentFS()
@@ -216,7 +182,7 @@ func TestUninstallAllRequiresFor(t *testing.T) {
 
 	err := uninstallCmd.Execute()
 	if err == nil {
-		t.Fatal("expected error when no --package, --standards, or --for is given")
+		t.Fatal("expected error when no --package or --for is given")
 	}
 }
 

@@ -44,13 +44,4 @@ func TestEmbeddedContentContainsPackages(t *testing.T) {
 	}
 }
 
-func TestEmbeddedContentContainsStandards(t *testing.T) {
-	entries, err := fs.ReadDir(Content, "standards")
-	if err != nil {
-		t.Fatalf("failed to read standards directory: %v", err)
-	}
 
-	if len(entries) == 0 {
-		t.Error("standards directory is empty")
-	}
-}

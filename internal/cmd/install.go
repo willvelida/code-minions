@@ -15,13 +15,12 @@ import (
 func newInstallCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
-		Short: "Install agents, skills, and standards into your repository",
+		Short: "Install agents and skills into your repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			force, _ := cmd.Flags().GetBool("force")
 			packageFlag, _ := cmd.Flags().GetString("package")
-			standardsFlag, _ := cmd.Flags().GetString("standards")
 			forFlag, _ := cmd.Flags().GetString("for")
 
 			// If --for is set, look up the assistant config and build a path mapper
@@ -34,8 +33,8 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			// Build the list of directories to install
-			dirs, err := buildDirList(content, packageFlag, standardsFlag)
+			// Build the list of package directories to install
+			packageDirs, err := buildPackageList(content, packageFlag)
 			if err != nil {
 				return err
 			}
@@ -43,17 +42,6 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			if dryRun {
 				color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
 				fmt.Println()
-			}
-
-			// Separate package dirs from standard dirs
-			var packageDirs []string
-			var standardDirs []string
-			for _, d := range dirs {
-				if strings.HasPrefix(d, "packages/") {
-					packageDirs = append(packageDirs, d)
-				} else {
-					standardDirs = append(standardDirs, d)
-				}
 			}
 
 			// Install each package (with prefix stripping)
@@ -68,24 +56,6 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 					PathMapper:  pathMapper,
 				}
 				result, err := inst.Install([]string{pkgDir})
-				if err != nil {
-					return fmt.Errorf("installation failed: %w", err)
-				}
-				combinedResult.Copied = append(combinedResult.Copied, result.Copied...)
-				combinedResult.Skipped = append(combinedResult.Skipped, result.Skipped...)
-				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
-			}
-
-			// Install standards
-			if len(standardDirs) > 0 {
-				inst := &installer.Installer{
-					Content:    content,
-					Target:     target,
-					Force:      force,
-					DryRun:     dryRun,
-					PathMapper: pathMapper,
-				}
-				result, err := inst.Install(standardDirs)
 				if err != nil {
 					return fmt.Errorf("installation failed: %w", err)
 				}
@@ -153,7 +123,6 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 
 	cmd.Flags().String("target", ".", "Target directory for installation")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to install all)")
-	cmd.Flags().String("standards", "", "Comma-separated list of language standards to install")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
@@ -161,11 +130,10 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 	return cmd
 }
 
-func buildDirList(content fs.FS, packageFlag string, standardsFlag string) ([]string, error) {
-	// No flags = install all packages + all standards
-	if packageFlag == "" && standardsFlag == "" {
+func buildPackageList(content fs.FS, packageFlag string) ([]string, error) {
+	// No flag = install all packages
+	if packageFlag == "" {
 		var dirs []string
-		// Add all packages
 		packages, err := listSubDirs(content, "packages")
 		if err != nil {
 			return nil, fmt.Errorf("failed to list packages: %w", err)
@@ -173,59 +141,28 @@ func buildDirList(content fs.FS, packageFlag string, standardsFlag string) ([]st
 		for _, pkg := range packages {
 			dirs = append(dirs, "packages/"+pkg)
 		}
-		// Add standards
-		dirs = append(dirs, "standards")
 		return dirs, nil
 	}
 
 	var dirs []string
-
-	// Package filtering
-	if packageFlag != "" {
-		packages := strings.Split(packageFlag, ",")
-		for _, pkg := range packages {
-			pkg = strings.TrimSpace(pkg)
-			if pkg == "" {
-				continue
-			}
-			dirPath := "packages/" + pkg
-
-			if _, err := fs.Stat(content, dirPath); err != nil {
-				available, err := listSubDirs(content, "packages")
-				if err != nil {
-					return nil, fmt.Errorf("package %q not found", pkg)
-				}
-				return nil, fmt.Errorf("package %q not found\n\nAvailable packages:\n  %s",
-					pkg, strings.Join(available, "\n  "))
-			}
-
-			dirs = append(dirs, dirPath)
+	packages := strings.Split(packageFlag, ",")
+	for _, pkg := range packages {
+		pkg = strings.TrimSpace(pkg)
+		if pkg == "" {
+			continue
 		}
-	}
+		dirPath := "packages/" + pkg
 
-	// Standards filtering
-	if standardsFlag != "" {
-		standards := strings.Split(standardsFlag, ",")
-		for _, std := range standards {
-			std = strings.TrimSpace(std)
-			if std == "" {
-				continue
+		if _, err := fs.Stat(content, dirPath); err != nil {
+			available, err := listSubDirs(content, "packages")
+			if err != nil {
+				return nil, fmt.Errorf("package %q not found", pkg)
 			}
-			dirPath := "standards/languages/" + std
-
-			// Validate standard exists in embedded FS
-			if _, err := fs.Stat(content, dirPath); err != nil {
-				available, err := listSubDirs(content, "standards/languages")
-				if err != nil {
-					return nil, fmt.Errorf("standard %q not found", std)
-				}
-				return nil, fmt.Errorf("standard %q not found\n\nAvailable standards:\n  %s",
-					std, strings.Join(available, "\n  "))
-			}
-
-			dirs = append(dirs, dirPath)
+			return nil, fmt.Errorf("package %q not found\n\nAvailable packages:\n  %s",
+				pkg, strings.Join(available, "\n  "))
 		}
 
+		dirs = append(dirs, dirPath)
 	}
 
 	// De-duplicate dirs

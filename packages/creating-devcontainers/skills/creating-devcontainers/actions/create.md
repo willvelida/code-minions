@@ -54,13 +54,14 @@ Collect from user:
    - `extensions.md`
    - `features.md`
 
-2. **Per language**: Load from `../../standards/languages/<language>/`:
-   - `development-environment.md`
-   - `tooling.md` (for tool configuration guidance)
+2. **Per language**: Use the language(s) and versions gathered in Step 2 to configure:
+   - DevContainer features for the language runtime
+   - Language-specific VS Code extensions
+   - Language-specific tooling setup in lifecycle hooks
 
 **Success Criteria:**
 - [ ] Core skill standards loaded
-- [ ] All relevant language standards loaded
+- [ ] Language requirements captured from the user
 
 ---
 
@@ -71,7 +72,7 @@ Apply configuration per loaded standards:
 1. **Base image & features** — Per `core.md`
 2. **Feature versioning** — Per `features.md`
 3. **Essential extensions** — Per `extensions.md`
-4. **Language extensions** — Per language `development-environment.md` files
+4. **Language extensions** — Based on the user's specified language(s)
 5. **Container settings** — Per `core.md`
 6. **Security settings** — Per `security.md`
 
@@ -87,7 +88,7 @@ Create hooks per `core.md`:
 1. **Post-Create Hook** — `.devcontainer/post-create.sh`
 2. **Post-Start Hook** — `.devcontainer/post-start.sh`
 
-Include language-specific setup from language `tooling.md` files.
+Include language-specific setup based on the user's specified tooling requirements.
 
 **Success Criteria:**
 - [ ] Both hooks created per standards

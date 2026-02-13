@@ -12,7 +12,6 @@ type Config struct {
 	Description string // Human-readable label, e.g. "GitHub Copilot"
 	AgentDir    string // Where agent .md files go, e.g. ".github/agents"
 	SkillDir    string // Where skill directories go, e.g. "skills"
-	StandardDir string // Where standards go, e.g. "standards"
 }
 
 var configs = map[string]Config{
@@ -21,21 +20,18 @@ var configs = map[string]Config{
 		Description: "GitHub Copilot",
 		AgentDir:    ".github/agents",
 		SkillDir:    "skills",
-		StandardDir: "standards",
 	},
 	"claude": {
 		Name:        "claude",
 		Description: "Claude Code",
 		AgentDir:    ".claude/agents",
 		SkillDir:    ".claude/skills",
-		StandardDir: "standards",
 	},
 	"opencode": {
 		Name:        "opencode",
 		Description: "OpenCode",
 		AgentDir:    ".opencode/agents",
 		SkillDir:    ".opencode/skills",
-		StandardDir: "standards",
 	},
 }
 
@@ -84,7 +80,6 @@ func (c *Config) NewPathMapper() func(string) string {
 	remaps := []remap{
 		{from: "agents", to: c.AgentDir},
 		{from: "skills", to: c.SkillDir},
-		{from: "standards", to: c.StandardDir},
 	}
 
 	return func(p string) string {

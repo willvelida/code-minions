@@ -62,7 +62,7 @@ All DevContainers **MUST** include these minimum required extensions, organised 
 
 ## Language Extensions
 
-Language-specific extensions are defined in `standards/languages/<language>/development-environment.md`. When creating or reviewing a DevContainer, add the extensions for each included language.
+When creating or reviewing a DevContainer, ask the user what language(s) the container needs to support and add the appropriate language-specific extensions.
 
 ---
 

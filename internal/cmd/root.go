@@ -9,14 +9,13 @@ import (
 func NewRootCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "code-minions",
-		Short: "Install code-minions agents, skills, and standards into your repository",
-		Long: `code-minions is a CLI tool that installs reusable AI agent skills,
-standards, and configurations into your project.
+		Short: "Install code-minions agents and skills into your repository",
+		Long: `code-minions is a CLI tool that installs reusable AI agent skills
+and configurations into your project.
 
 Available components:
   - agents:    AI agent definitions (.agent.md files)
-  - skills:    Step-by-step procedures for common workflows
-  - standards: Language-specific development guidelines`,
+  - skills:    Step-by-step procedures for common workflows`,
 	}
 
 	cmd.AddCommand(newInstallCommand(content))

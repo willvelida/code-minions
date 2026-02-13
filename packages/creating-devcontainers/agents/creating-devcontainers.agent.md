@@ -22,7 +22,6 @@ You are a DevContainer specialist for this repository. You create and review `.d
   - `skills/creating-devcontainers/SKILL.md` — Skill manifest (READ)
   - `skills/creating-devcontainers/actions/` — Create and Review action flows (READ)
   - `skills/creating-devcontainers/standards/` — Core, security, extensions, features, checklist, template (READ)
-  - `standards/languages/` — Shared language standards, especially `development-environment.md` and `tooling.md` per language (READ)
 
 ## Commands
 
@@ -33,8 +32,8 @@ Follow `skills/creating-devcontainers/actions/create.md`:
 1. Present Option A (Automatic — analyse repo) or Option B (Manual — user specifies)
 2. **🛑 STOP** — wait for the user to choose
 3. Gather requirements (detect or collect languages, frameworks, tools)
-4. Load standards: `core.md`, `security.md`, `extensions.md`, `features.md` + per-language `development-environment.md` and `tooling.md`
-5. Build configuration against loaded standards
+4. Load standards: `core.md`, `security.md`, `extensions.md`, `features.md`
+5. Build configuration using the user's specified language(s) and tooling
 6. Create lifecycle hooks with modular `.d` script system
 7. Validate against `checklist.md`
 8. Generate output files and document what was configured
@@ -45,7 +44,7 @@ Follow `skills/creating-devcontainers/actions/review.md`:
 
 1. Locate `.devcontainer/` files
 2. Detect project technologies
-3. Load all standards (skill + language-specific)
+3. Load all skill standards
 4. Run compliance, security, and performance checks
 5. Score: Compliance, Security, Performance (X/10)
 6. Present findings by priority: 🔴 Critical → 🟠 High → 🟡 Medium → 🟢 Low
@@ -164,7 +163,7 @@ Always produce this layout:
 - ✅ **Always:** Specify explicit versions on all features (no `latest`, `lts`, or omitted)
 - ✅ **Always:** Include essential extensions from `extensions.md` with bundle headers and comments
 - ✅ **Always:** Validate against `skills/creating-devcontainers/standards/checklist.md` before finishing
-- ✅ **Always:** Load language-specific standards from `standards/languages/<lang>/development-environment.md`
+- ✅ **Always:** Ask the user what language(s) the DevContainer needs to accommodate
 - ⚠️ **Ask first:** Before adding `privileged: true` (document justification if approved)
 - ⚠️ **Ask first:** Before adding host filesystem mounts (prefer specific paths with `readonly`)
 - ⚠️ **Ask first:** Before removing existing extensions during a review (the essential list is a minimum, not a maximum)

@@ -8,29 +8,23 @@ import (
 	"testing/fstest"
 )
 
-func TestBuildDirList(t *testing.T) {
+func TestBuildPackageList(t *testing.T) {
 	content := testContentFS()
 
 	tests := []struct {
-		name          string
-		packageFlag   string
-		standardsFlag string
-		expectDirs    []string
-		expectError   bool
+		name        string
+		packageFlag string
+		expectDirs  []string
+		expectError bool
 	}{
 		{
 			name:       "no flag installs everything",
-			expectDirs: []string{"packages/developer-mentor", "packages/git-workflow", "standards"},
+			expectDirs: []string{"packages/developer-mentor", "packages/git-workflow"},
 		},
 		{
 			name:        "single package",
 			packageFlag: "git-workflow",
 			expectDirs:  []string{"packages/git-workflow"},
-		},
-		{
-			name:          "single standard",
-			standardsFlag: "python",
-			expectDirs:    []string{"standards/languages/python"},
 		},
 		{
 			name:        "invalid package returns error",
@@ -41,7 +35,7 @@ func TestBuildDirList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dirs, err := buildDirList(content, tt.packageFlag, tt.standardsFlag)
+			dirs, err := buildPackageList(content, tt.packageFlag)
 
 			if tt.expectError {
 				if err == nil {
@@ -73,14 +67,12 @@ func testContentFS() fstest.MapFS {
 		"packages/git-workflow/skills/git-workflow/SKILL.md":         &fstest.MapFile{Data: []byte("# Git")},
 		"packages/developer-mentor/agents/developer-mentor.agent.md": &fstest.MapFile{Data: []byte("# Mentor Agent")},
 		"packages/developer-mentor/skills/developer-mentor/SKILL.md": &fstest.MapFile{Data: []byte("# Mentor")},
-		"standards/languages/python/core.md":                         &fstest.MapFile{Data: []byte("# Python")},
-		"standards/languages/typescript/core.md":                     &fstest.MapFile{Data: []byte("# TS")},
 	}
 }
 
 // TestInstallForCopilotRemapsPaths verifies that --for copilot places
-// agent files in .github/agents/ while keeping skills and standards
-// in their default locations.
+// agent files in .github/agents/ while keeping skills in their default
+// locations.
 func TestInstallForCopilotRemapsPaths(t *testing.T) {
 	target := t.TempDir()
 	content := testContentFS()
@@ -285,26 +277,5 @@ func TestInstallForCopilotCreatesAgentsMDAtMappedPath(t *testing.T) {
 	}
 }
 
-// TestInstallStandardsDoesNotCreateAgentsMD verifies that installing
-// only standards does not create AGENTS.md.
-func TestInstallStandardsDoesNotCreateAgentsMD(t *testing.T) {
-	target := t.TempDir()
-	content := testContentFS()
-
-	cmd := newInstallCommand(content)
-	cmd.SetArgs([]string{
-		"--standards", "python",
-		"--target", target,
-	})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	agentsMD := filepath.Join(target, "AGENTS.md")
-	if _, err := os.Stat(agentsMD); !os.IsNotExist(err) {
-		t.Errorf("AGENTS.md should NOT be created when only installing standards")
-	}
-}
 
 

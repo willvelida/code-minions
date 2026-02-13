@@ -14,7 +14,7 @@ import (
 func newListCommand(content fs.FS) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
-		Short: "List available packages and standards",
+		Short: "List available packages",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bold := color.New(color.Bold)
 			cyan := color.New(color.FgCyan)
@@ -35,19 +35,6 @@ func newListCommand(content fs.FS) *cobra.Command {
 						dim.Printf("  %s", desc)
 					}
 					fmt.Println()
-				}
-			}
-
-			// List standards
-			bold.Println("\nStandards")
-			dim.Println(strings.Repeat("-", 40))
-			standards, err := fs.ReadDir(content, "standards/languages")
-			if err != nil {
-				return fmt.Errorf("failed to read standards: %w", err)
-			}
-			for _, entry := range standards {
-				if entry.IsDir() {
-					cyan.Printf("  %s\n", entry.Name())
 				}
 			}
 
