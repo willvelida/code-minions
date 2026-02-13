@@ -11,9 +11,6 @@ param (
 Write-Output ""
 $ErrorActionPreference = 'stop'
 
-# Escape spaces in path
-$InstallDir = $InstallDir -replace ' ', '` '
-
 # Constants
 $BinaryName = "code-minions.exe"
 $BinaryPath = "${InstallDir}\${BinaryName}"
@@ -33,7 +30,7 @@ if ($policy -eq 'Restricted' -or $policy -eq 'AllSigned') {
     Write-Output "PowerShell execution policy '$policy' does not allow running this script."
     Write-Output "To make this change please run:"
     Write-Output "  Set-ExecutionPolicy RemoteSigned -Scope CurrentUser"
-    break
+    exit 1
 }
 
 # Support TLS 1.2 for older PowerShell versions
@@ -123,13 +120,25 @@ if ($checksumAsset) {
     $ProgressPreference = 'SilentlyContinue'
     $checksumContent = (Invoke-WebRequest -Uri $checksumUrl).Content
     $ProgressPreference = $oldProgressPreference2
-    $expectedHash = ($checksumContent -split "`n" | Where-Object { $_ -like "*$zipFileName*" } | ForEach-Object { ($_ -split "\s+")[0] }).Trim()
-    $actualHash = (Get-FileHash -Path $zipFilePath -Algorithm SHA256).Hash.ToLower()
-    if ($expectedHash -and $actualHash -ne $expectedHash) {
-        Remove-Item $zipFilePath -Force
-        throw "Checksum verification failed. Expected: $expectedHash, Got: $actualHash"
+    $checksumLines = $checksumContent -split "`n"
+    $matchingLines = $checksumLines | Where-Object { $_ -like "*$zipFileName*" }
+
+    if (-not $matchingLines -or @($matchingLines).Count -eq 0) {
+        Write-Warning "No matching checksum entry found for $zipFileName - skipping verification"
+    } elseif (@($matchingLines).Count -gt 1) {
+        Write-Warning "Multiple checksum entries found for $zipFileName - skipping verification"
+    } else {
+        $expectedHash = ($matchingLines -split "\s+")[0]
+        if ($null -ne $expectedHash) {
+            $expectedHash = $expectedHash.Trim().ToLowerInvariant()
+        }
+        $actualHash = (Get-FileHash -Path $zipFilePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($expectedHash -and $actualHash -ne $expectedHash) {
+            Remove-Item $zipFilePath -Force
+            throw "Checksum verification failed. Expected: $expectedHash, Got: $actualHash"
+        }
+        Write-Output "Checksum verified."
     }
-    Write-Output "Checksum verified."
 } else {
     Write-Warning "Checksum file not found in release - skipping verification"
 }
@@ -155,10 +164,22 @@ if (!(Test-Path $BinaryPath -PathType Leaf)) {
 # Add to User PATH if not already present
 Write-Output "Checking PATH..."
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-if ($userPath -like "*code-minions*") {
-    Write-Output "PATH already contains code-minions directory - skipping"
+if (-not [string]::IsNullOrEmpty($userPath)) {
+    $pathEntries = $userPath -split ';'
+    $alreadyPresent = $pathEntries | Where-Object { $_.Trim() -ieq $InstallDir } | Select-Object -First 1
 } else {
-    [Environment]::SetEnvironmentVariable("PATH", $userPath + ";$InstallDir", "User")
+    $alreadyPresent = $false
+}
+
+if ($alreadyPresent) {
+    Write-Output "PATH already contains $InstallDir - skipping"
+} else {
+    if ([string]::IsNullOrEmpty($userPath)) {
+        $newPath = $InstallDir
+    } else {
+        $newPath = "$userPath;$InstallDir"
+    }
+    [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
     Write-Output "Added $InstallDir to User PATH"
     Write-Output "Restart your terminal for the PATH change to take effect."
 }
