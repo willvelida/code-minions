@@ -276,6 +276,3 @@ func TestInstallForCopilotCreatesAgentsMDAtMappedPath(t *testing.T) {
 		t.Errorf("AGENTS.md should NOT exist at default path when using --for copilot")
 	}
 }
-
-
-
