@@ -43,8 +43,10 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				return err
 			}
 
-			if dryRun {
-				color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+
+			if dryRun && !jsonFlag {
+				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
 				fmt.Println()
 			}
 
@@ -68,7 +70,6 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 			}
 
 			// JSON output — handle AGENTS.md non-interactively, then marshal
-			jsonFlag, _ := cmd.Flags().GetBool("json")
 			if jsonFlag {
 				if len(packageDirs) > 0 {
 					agentsMDPath := "AGENTS.md"
@@ -125,19 +126,19 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 
 			for _, f := range combinedResult.Removed {
 				if dryRun {
-					yellow.Printf("  would remove: %s\n", f)
+					_, _ = yellow.Printf("  would remove: %s\n", f)
 				} else {
-					green.Printf("  removed: %s\n", f)
+					_, _ = green.Printf("  removed: %s\n", f)
 				}
 			}
 			for _, f := range combinedResult.NotFound {
-				dim.Printf("  not found: %s\n", f)
+				_, _ = dim.Printf("  not found: %s\n", f)
 			}
 			for _, d := range combinedResult.DirsCleaned {
-				dim.Printf("  cleaned dir: %s\n", d)
+				_, _ = dim.Printf("  cleaned dir: %s\n", d)
 			}
 			for _, e := range combinedResult.Errors {
-				red.Fprintf(os.Stderr, "  error: %s\n", e)
+				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
 			}
 
 			if len(packageDirs) > 0 {
@@ -156,14 +157,14 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				action, err := handler.OnUninstall(agentsMDPath)
 				if err != nil {
 					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
-					red.Fprintf(os.Stderr, "  error: %s\n", err)
+					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", err)
 				} else if action == "removed" {
-					green.Printf("  removed: %s\n", agentsMDPath)
+					_, _ = green.Printf("  removed: %s\n", agentsMDPath)
 				}
 			}
 
 			fmt.Println()
-			bold.Printf("%d removed, %d not found, %d errors\n",
+			_, _ = bold.Printf("%d removed, %d not found, %d errors\n",
 				len(combinedResult.Removed), len(combinedResult.NotFound), len(combinedResult.Errors))
 
 			if len(combinedResult.Errors) > 0 {

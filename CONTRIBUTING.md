@@ -31,13 +31,17 @@ Thank you for your interest in contributing! This guide will help you get set up
    go test ./...
    ```
 
-4. **Set up the pre-push hook** (recommended):
+4. **Set up the git hooks** (recommended):
 
    ```bash
    git config core.hooksPath .githooks
    ```
 
-   This runs a coverage threshold check before each push. You can bypass it in a pinch with `git push --no-verify`, but CI will still enforce the threshold.
+   This enables two hooks:
+   - **pre-commit** — checks that staged Go files are formatted with `gofmt`
+   - **pre-push** — runs a coverage threshold check before each push
+
+   You can bypass either hook in a pinch with `--no-verify`, but CI will still enforce both checks.
 
 ## Using Make
 
@@ -117,7 +121,7 @@ go tool cover -html=coverage.out     # visual HTML report
 - `cmd/code-minions/main.go` is excluded from coverage (bootstrap code with no testable logic)
 - If you add new packages, make sure to include tests — don't let coverage regress
 
-The pre-push hook (see [Getting Started](#getting-started)) runs the same coverage check locally so you catch issues before pushing.
+The pre-push hook (see [Getting Started](#getting-started)) runs the same coverage check locally so you catch issues before pushing. The pre-commit hook catches formatting issues even earlier.
 
 ### Coverage Check Script
 

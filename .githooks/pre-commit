@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# pre-commit hook — Checks that Go source files are formatted with gofmt.
+#
+# Install with:
+#   git config core.hooksPath .githooks
+#
+# Bypass with:
+#   git commit --no-verify
+
+set -euo pipefail
+
+# Only check staged .go files to keep the hook fast.
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.go' || true)
+
+if [ -z "$STAGED_GO_FILES" ]; then
+  exit 0
+fi
+
+UNFORMATTED=$(echo "$STAGED_GO_FILES" | xargs gofmt -l 2>/dev/null || true)
+
+if [ -n "$UNFORMATTED" ]; then
+  echo "❌ The following files need formatting (run 'gofmt -w .' or 'make fmt'):"
+  echo ""
+  echo "$UNFORMATTED" | sed 's/^/  /'
+  echo ""
+  exit 1
+fi

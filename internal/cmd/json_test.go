@@ -267,3 +267,74 @@ func TestUninstallJSON(t *testing.T) {
 		t.Errorf("expected 0 errors, got %d", result.Summary.Errors)
 	}
 }
+
+func TestInstallJSONDryRun(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	var buf bytes.Buffer
+	cmd := newJSONTestRootCmd(content)
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"install", "--package", "git-workflow", "--target", target, "--json", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Copied  []string `json:"copied"`
+		Skipped []string `json:"skipped"`
+		Errors  []string `json:"errors"`
+		Summary struct {
+			Copied  int `json:"copied"`
+			Skipped int `json:"skipped"`
+			Errors  int `json:"errors"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v\nraw output: %s", err, buf.String())
+	}
+
+	if result.Summary.Errors != 0 {
+		t.Errorf("expected 0 errors, got %d", result.Summary.Errors)
+	}
+
+	// Verify no files were actually written (dry run)
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); !os.IsNotExist(err) {
+		t.Error("dry run should not write files to disk")
+	}
+}
+
+func TestUpdateJSONNoInstalledPackages(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	var buf bytes.Buffer
+	cmd := newJSONTestRootCmd(content)
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"update", "--target", target, "--json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Updated []string `json:"updated"`
+		Errors  []string `json:"errors"`
+		Summary struct {
+			Updated int `json:"updated"`
+			Errors  int `json:"errors"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v\nraw output: %s", err, buf.String())
+	}
+
+	if result.Summary.Updated != 0 {
+		t.Errorf("expected 0 updated, got %d", result.Summary.Updated)
+	}
+	if result.Summary.Errors != 0 {
+		t.Errorf("expected 0 errors, got %d", result.Summary.Errors)
+	}
+}

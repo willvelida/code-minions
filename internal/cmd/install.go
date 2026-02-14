@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"strings"
@@ -40,8 +41,10 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				return err
 			}
 
-			if dryRun {
-				color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+
+			if dryRun && !jsonFlag {
+				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
 				fmt.Println()
 			}
 
@@ -72,11 +75,15 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 					agentsMDPath = pathMapper("agents/AGENTS.md")
 				}
 
+				handlerStdout := io.Writer(os.Stdout)
+				if jsonFlag {
+					handlerStdout = io.Discard
+				}
 				handler := &installer.AgentsMDHandler{
 					Target: target,
 					DryRun: dryRun,
 					Stdin:  os.Stdin,
-					Stdout: os.Stdout,
+					Stdout: handlerStdout,
 				}
 
 				action, err := handler.OnInstall(agentsMDPath, []byte(installer.DefaultAgentsMDContent))
@@ -90,7 +97,6 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			}
 
 			// JSON output
-			jsonFlag, _ := cmd.Flags().GetBool("json")
 			if jsonFlag {
 				result := struct {
 					Copied  []string `json:"copied"`
@@ -126,21 +132,21 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			// Print results
 			for _, f := range combinedResult.Copied {
 				if dryRun {
-					yellow.Printf("  would copy: %s\n", f)
+					_, _ = yellow.Printf("  would copy: %s\n", f)
 				} else {
-					green.Printf("  copied: %s\n", f)
+					_, _ = green.Printf("  copied: %s\n", f)
 				}
 			}
 			for _, f := range combinedResult.Skipped {
-				yellow.Printf("  skipped (exists): %s\n", f)
+				_, _ = yellow.Printf("  skipped (exists): %s\n", f)
 			}
 			for _, e := range combinedResult.Errors {
-				red.Fprintf(os.Stderr, "  error: %s\n", e)
+				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
 			}
 
 			// Summary
 			fmt.Println()
-			bold.Printf("%d copied, %d skipped, %d errors\n",
+			_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
 				len(combinedResult.Copied), len(combinedResult.Skipped), len(combinedResult.Errors))
 
 			if len(combinedResult.Errors) > 0 {

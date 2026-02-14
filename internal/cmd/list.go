@@ -50,7 +50,7 @@ func newListCommand(content fs.FS) *cobra.Command {
 			if jsonFlag {
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
 					Packages   []packageEntry   `json:"packages"`
-					Assistants []assistantEntry  `json:"assistants"`
+					Assistants []assistantEntry `json:"assistants"`
 				}{Packages: pkgs, Assistants: assistants})
 			}
 
@@ -59,21 +59,21 @@ func newListCommand(content fs.FS) *cobra.Command {
 			cyan := color.New(color.FgCyan)
 			dim := color.New(color.Faint)
 
-			bold.Println("\nPackages")
-			dim.Println(strings.Repeat("-", 40))
+			_, _ = bold.Println("\nPackages")
+			_, _ = dim.Println(strings.Repeat("-", 40))
 			for _, p := range pkgs {
-				cyan.Printf("  %-30s", p.Name)
+				_, _ = cyan.Printf("  %-30s", p.Name)
 				if p.Description != "" {
-					dim.Printf("  %s", p.Description)
+					_, _ = dim.Printf("  %s", p.Description)
 				}
 				fmt.Println()
 			}
 
-			bold.Println("\nAssistants (use with --for)")
-			dim.Println(strings.Repeat("-", 40))
+			_, _ = bold.Println("\nAssistants (use with --for)")
+			_, _ = dim.Println(strings.Repeat("-", 40))
 			for _, a := range assistants {
-				cyan.Printf("  %-15s", a.Name)
-				dim.Printf("  %s", a.Description)
+				_, _ = cyan.Printf("  %-15s", a.Name)
+				_, _ = dim.Printf("  %s", a.Description)
 				fmt.Println()
 			}
 

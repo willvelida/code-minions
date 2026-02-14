@@ -76,8 +76,8 @@ func (h *AgentsMDHandler) OnUninstall(outputPath string) (string, error) {
 		return "kept", nil
 	}
 
-	fmt.Fprintf(h.Stdout, "  AGENTS.md exists at %s\n", targetPath)
-	fmt.Fprint(h.Stdout, "  Do you also want to remove it? (y/N): ")
+	_, _ = fmt.Fprintf(h.Stdout, "  AGENTS.md exists at %s\n", targetPath)
+	_, _ = fmt.Fprint(h.Stdout, "  Do you also want to remove it? (y/N): ")
 
 	scanner := bufio.NewScanner(h.Stdin)
 	if scanner.Scan() {

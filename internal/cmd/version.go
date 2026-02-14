@@ -48,8 +48,8 @@ func newVersionCommand() *cobra.Command {
 				}{Version: v})
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "code-minions %s\n", v)
-			return nil
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "code-minions %s\n", v)
+			return err
 		},
 	}
 }

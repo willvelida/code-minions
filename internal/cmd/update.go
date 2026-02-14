@@ -27,6 +27,7 @@ AGENTS.md is not modified during updates.`,
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
+			jsonFlag, _ := cmd.Flags().GetBool("json")
 
 			// If --for is set, look up the assistant config and build a path mapper
 			var pathMapper func(string) string
@@ -54,13 +55,23 @@ AGENTS.md is not modified during updates.`,
 					return err
 				}
 				if len(packageDirs) == 0 {
+					if jsonFlag {
+						return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
+							Updated []string `json:"updated"`
+							Errors  []string `json:"errors"`
+							Summary struct {
+								Updated int `json:"updated"`
+								Errors  int `json:"errors"`
+							} `json:"summary"`
+						}{Updated: []string{}, Errors: []string{}})
+					}
 					fmt.Println("No installed packages found. Use 'code-minions install' to install packages first.")
 					return nil
 				}
 			}
 
-			if dryRun {
-				color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
+			if dryRun && !jsonFlag {
+				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
 				fmt.Println()
 			}
 
@@ -75,7 +86,6 @@ AGENTS.md is not modified during updates.`,
 			// No AGENTS.md handling — update leaves it untouched
 
 			// JSON output
-			jsonFlag, _ := cmd.Flags().GetBool("json")
 			if jsonFlag {
 				result := struct {
 					Updated []string `json:"updated"`
@@ -107,22 +117,22 @@ AGENTS.md is not modified during updates.`,
 			// Print results — say "updated" instead of "copied"
 			for _, f := range combinedResult.Copied {
 				if dryRun {
-					yellow.Printf("  would update: %s\n", f)
+					_, _ = yellow.Printf("  would update: %s\n", f)
 				} else {
-					green.Printf("  updated: %s\n", f)
+					_, _ = green.Printf("  updated: %s\n", f)
 				}
 			}
 			for _, e := range combinedResult.Errors {
-				red.Fprintf(os.Stderr, "  error: %s\n", e)
+				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
 			}
 
 			// Summary
 			fmt.Println()
 			if dryRun {
-				bold.Printf("%d would be updated, %d errors\n",
+				_, _ = bold.Printf("%d would be updated, %d errors\n",
 					len(combinedResult.Copied), len(combinedResult.Errors))
 			} else {
-				bold.Printf("%d updated, %d errors\n",
+				_, _ = bold.Printf("%d updated, %d errors\n",
 					len(combinedResult.Copied), len(combinedResult.Errors))
 			}
 
