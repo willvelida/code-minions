@@ -23,7 +23,11 @@ body = """
 {%- endmacro -%}
 
 {% if version -%}
-  ## [{{ version | trim_start_matches(pat="v") }}]({{ self::remote_url() }}/compare/{{ previous.version }}...{{ version }}) — {{ timestamp | date(format="%Y-%m-%d") }}
+  {% if previous.version -%}
+    ## [{{ version | trim_start_matches(pat="v") }}]({{ self::remote_url() }}/compare/{{ previous.version }}...{{ version }}) — {{ timestamp | date(format="%Y-%m-%d") }}
+  {% else -%}
+    ## [{{ version | trim_start_matches(pat="v") }}]({{ self::remote_url() }}/releases/tag/{{ version }}) — {{ timestamp | date(format="%Y-%m-%d") }}
+  {% endif -%}
 {% else -%}
   ## [Unreleased]({{ self::remote_url() }}/compare/{{ previous.version }}...HEAD)
 {% endif -%}
@@ -35,6 +39,7 @@ body = """
     {%- if commit.breaking %} (**BREAKING**){% endif -%}
   {% endfor %}
 {% endfor %}
+\n
 """
 
 # Footer placed at the very bottom of the generated file.
@@ -48,7 +53,7 @@ trim = true
 # Postprocessors run regex replacements on the final output.
 postprocessors = [
   # Turn issue/PR references like #123 into GitHub links.
-  { pattern = '(\s)#(\d+)', replace = '$1[#$2](https://github.com/willvelida/code-minions/issues/$2)' },
+  { pattern = '(\s|\()#(\d+)', replace = '$1[#$2](https://github.com/willvelida/code-minions/issues/$2)' },
 ]
 
 [git]

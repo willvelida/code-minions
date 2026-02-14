@@ -34,11 +34,11 @@ coverage: ## Generate coverage profile and open HTML report
 check-coverage: ## Run the coverage threshold check (default: 70%)
 	./scripts/check-coverage.sh
 
-clean: ## Remove build artifacts and coverage files
-	rm -f $(BINARY) $(BINARY).exe $(COVER_OUT)
-
 changelog: ## Regenerate CHANGELOG.md from git history
 	git-cliff --output CHANGELOG.md
+
+clean: ## Remove build artifacts and coverage files
+	rm -f $(BINARY) $(BINARY).exe $(COVER_OUT)
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -50,6 +50,6 @@ help: ## Show this help message
 	@echo "  install           Install the binary to \$$GOPATH/bin"
 	@echo "  coverage          Generate coverage profile and open HTML report"
 	@echo "  check-coverage    Run the coverage threshold check (default: 70%)"
-	@echo "  changelog         Regenerate CHANGELOG.md from git history"
 	@echo "  clean             Remove build artifacts and coverage files"
+	@echo "  changelog         Regenerate CHANGELOG.md from git history"
 	@echo "  help              Show this help message"
