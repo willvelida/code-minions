@@ -288,14 +288,23 @@ func TestAgentsMDOnUninstallDryRun(t *testing.T) {
 
 // TestAgentsMDOnInstallWriteFailure verifies that OnInstall returns an error
 // when os.WriteFile fails. We make the target directory read-only so
-// WriteFile can't create the file. This only works on Unix (directory
-// permissions don't prevent file creation on Windows).
+// WriteFile can't create the file. Skipped on Windows (directory
+// permissions don't prevent file creation) and when running as root.
 func TestAgentsMDOnInstallWriteFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("write-failure via read-only directory is not supported on Windows")
 	}
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
 
 	target := t.TempDir()
+
+	info, statErr := os.Stat(target)
+	if statErr != nil {
+		t.Fatalf("setup: stat failed: %v", statErr)
+	}
+	originalMode := info.Mode().Perm()
 
 	// Make target read-only: Stat returns NotExist for the file,
 	// MkdirAll is a no-op (target already exists), but WriteFile
@@ -303,7 +312,7 @@ func TestAgentsMDOnInstallWriteFailure(t *testing.T) {
 	if err := os.Chmod(target, 0555); err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(target, 0755) })
+	t.Cleanup(func() { _ = os.Chmod(target, originalMode) })
 
 	handler := &AgentsMDHandler{
 		Target: target,
