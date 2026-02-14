@@ -198,6 +198,10 @@ Without `--for`, files are installed to generic locations (`agents/`, `skills/`)
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing expectations, and PR guidelines.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a full release history.
+
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
