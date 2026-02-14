@@ -338,3 +338,92 @@ func TestUpdateJSONNoInstalledPackages(t *testing.T) {
 		t.Errorf("expected 0 errors, got %d", result.Summary.Errors)
 	}
 }
+
+func TestVersionPlainText(t *testing.T) {
+	originalVersion := Version
+	originalBuildInfo := readBuildInfo
+	Version = "v1.2.3"
+	readBuildInfo = func() (*debug.BuildInfo, bool) { return nil, false }
+	t.Cleanup(func() {
+		Version = originalVersion
+		readBuildInfo = originalBuildInfo
+	})
+
+	var buf bytes.Buffer
+	cmd := newJSONTestRootCmd(fstest.MapFS{})
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"version"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "code-minions v1.2.3\n"
+	if got := buf.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestInstallDryRunPlainText(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	var buf bytes.Buffer
+	cmd := newJSONTestRootCmd(content)
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"install", "--package", "git-workflow", "--target", target, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify no files were actually written (dry run)
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); !os.IsNotExist(err) {
+		t.Error("dry run should not write files to disk")
+	}
+}
+
+func TestUninstallJSONWithFor(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first with --for copilot
+	cmd1 := newJSONTestRootCmd(content)
+	cmd1.SetOut(&bytes.Buffer{})
+	cmd1.SetArgs([]string{"install", "--package", "git-workflow", "--for", "copilot", "--target", target})
+	if err := cmd1.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --json --for copilot
+	var buf bytes.Buffer
+	cmd2 := newJSONTestRootCmd(content)
+	cmd2.SetOut(&buf)
+	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--for", "copilot", "--target", target, "--json"})
+	if err := cmd2.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Removed     []string `json:"removed"`
+		NotFound    []string `json:"not_found"`
+		Errors      []string `json:"errors"`
+		DirsCleaned []string `json:"dirs_cleaned"`
+		Summary     struct {
+			Removed  int `json:"removed"`
+			NotFound int `json:"not_found"`
+			Errors   int `json:"errors"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v\nraw output: %s", err, buf.String())
+	}
+
+	if result.Summary.Removed == 0 {
+		t.Error("expected at least one removed file")
+	}
+	if result.Summary.Errors != 0 {
+		t.Errorf("expected 0 errors, got %d", result.Summary.Errors)
+	}
+}
