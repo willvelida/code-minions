@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/willvelida/code-minions/internal/assistant"
 )
 
 // TestUpdateOverwritesExistingFiles verifies that the update command
@@ -152,8 +154,10 @@ func TestUpdateForUnknownAssistantReturnsError(t *testing.T) {
 	if !strings.Contains(msg, "vscode") {
 		t.Errorf("error should mention the invalid name: got %q", msg)
 	}
-	if !strings.Contains(msg, "copilot") || !strings.Contains(msg, "claude") {
-		t.Errorf("error should list valid assistants: got %q", msg)
+	for _, name := range assistant.List() {
+		if !strings.Contains(msg, name) {
+			t.Errorf("error should list valid assistant %q: got %q", name, msg)
+		}
 	}
 }
 
