@@ -25,5 +25,7 @@ Available components:
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newCompletionCommand())
 
+	cmd.PersistentFlags().Bool("json", false, "Output results as JSON")
+
 	return cmd
 }
