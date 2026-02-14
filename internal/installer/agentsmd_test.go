@@ -303,7 +303,7 @@ func TestAgentsMDOnInstallWriteFailure(t *testing.T) {
 	if err := os.Chmod(target, 0555); err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
-	t.Cleanup(func() { os.Chmod(target, 0755) })
+	t.Cleanup(func() { _ = os.Chmod(target, 0755) })
 
 	handler := &AgentsMDHandler{
 		Target: target,
