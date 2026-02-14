@@ -98,6 +98,18 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 
 			// JSON output
 			if jsonFlag {
+				copied := combinedResult.Copied
+				if copied == nil {
+					copied = []string{}
+				}
+				skipped := combinedResult.Skipped
+				if skipped == nil {
+					skipped = []string{}
+				}
+				errs := combinedResult.Errors
+				if errs == nil {
+					errs = []string{}
+				}
 				result := struct {
 					Copied  []string `json:"copied"`
 					Skipped []string `json:"skipped"`
@@ -108,9 +120,9 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 						Errors  int `json:"errors"`
 					} `json:"summary"`
 				}{
-					Copied:  combinedResult.Copied,
-					Skipped: combinedResult.Skipped,
-					Errors:  combinedResult.Errors,
+					Copied:  copied,
+					Skipped: skipped,
+					Errors:  errs,
 				}
 				result.Summary.Copied = len(combinedResult.Copied)
 				result.Summary.Skipped = len(combinedResult.Skipped)

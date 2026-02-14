@@ -90,6 +90,22 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 					}
 				}
 
+				removed := combinedResult.Removed
+				if removed == nil {
+					removed = []string{}
+				}
+				notFound := combinedResult.NotFound
+				if notFound == nil {
+					notFound = []string{}
+				}
+				errs := combinedResult.Errors
+				if errs == nil {
+					errs = []string{}
+				}
+				dirsCleaned := combinedResult.DirsCleaned
+				if dirsCleaned == nil {
+					dirsCleaned = []string{}
+				}
 				result := struct {
 					Removed     []string `json:"removed"`
 					NotFound    []string `json:"not_found"`
@@ -101,10 +117,10 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 						Errors   int `json:"errors"`
 					} `json:"summary"`
 				}{
-					Removed:     combinedResult.Removed,
-					NotFound:    combinedResult.NotFound,
-					Errors:      combinedResult.Errors,
-					DirsCleaned: combinedResult.DirsCleaned,
+					Removed:     removed,
+					NotFound:    notFound,
+					Errors:      errs,
+					DirsCleaned: dirsCleaned,
 				}
 				result.Summary.Removed = len(combinedResult.Removed)
 				result.Summary.NotFound = len(combinedResult.NotFound)

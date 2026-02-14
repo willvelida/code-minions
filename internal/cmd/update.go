@@ -87,6 +87,14 @@ AGENTS.md is not modified during updates.`,
 
 			// JSON output
 			if jsonFlag {
+				updated := combinedResult.Copied
+				if updated == nil {
+					updated = []string{}
+				}
+				errs := combinedResult.Errors
+				if errs == nil {
+					errs = []string{}
+				}
 				result := struct {
 					Updated []string `json:"updated"`
 					Errors  []string `json:"errors"`
@@ -95,8 +103,8 @@ AGENTS.md is not modified during updates.`,
 						Errors  int `json:"errors"`
 					} `json:"summary"`
 				}{
-					Updated: combinedResult.Copied,
-					Errors:  combinedResult.Errors,
+					Updated: updated,
+					Errors:  errs,
 				}
 				result.Summary.Updated = len(combinedResult.Copied)
 				result.Summary.Errors = len(combinedResult.Errors)

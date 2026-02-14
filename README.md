@@ -173,7 +173,7 @@ Update overwrites installed files with the latest embedded content. When run wit
 
 ### JSON Output
 
-All commands support a `--json` flag for machine-readable output:
+The `version`, `list`, `install`, `uninstall`, and `update` commands support a `--json` flag for machine-readable output:
 
 ```bash
 # List packages as JSON
