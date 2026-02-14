@@ -27,7 +27,7 @@ AGENTS.md is not modified during updates.`,
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
-			jsonFlag, _ := cmd.Flags().GetBool("json")
+			mode := getOutputMode(cmd)
 
 			// If --for is set, look up the assistant config and build a path mapper
 			var pathMapper func(string) string
@@ -55,7 +55,7 @@ AGENTS.md is not modified during updates.`,
 					return err
 				}
 				if len(packageDirs) == 0 {
-					if jsonFlag {
+					if mode == OutputJSON {
 						return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
 							Updated []string `json:"updated"`
 							Errors  []string `json:"errors"`
@@ -65,12 +65,14 @@ AGENTS.md is not modified during updates.`,
 							} `json:"summary"`
 						}{Updated: []string{}, Errors: []string{}})
 					}
-					fmt.Println("No installed packages found. Use 'code-minions install' to install packages first.")
+					if mode != OutputQuiet {
+						fmt.Println("No installed packages found. Use 'code-minions install' to install packages first.")
+					}
 					return nil
 				}
 			}
 
-			if dryRun && !jsonFlag {
+			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
 				fmt.Println()
 			}
@@ -86,7 +88,7 @@ AGENTS.md is not modified during updates.`,
 			// No AGENTS.md handling — update leaves it untouched
 
 			// JSON output
-			if jsonFlag {
+			if mode == OutputJSON {
 				updated := combinedResult.Copied
 				if updated == nil {
 					updated = []string{}
@@ -117,10 +119,28 @@ AGENTS.md is not modified during updates.`,
 				return nil
 			}
 
+			// Quiet mode — only report errors to stderr
+			if mode == OutputQuiet {
+				for _, e := range combinedResult.Errors {
+					fmt.Fprintf(os.Stderr, "  error: %s\n", e)
+				}
+				if len(combinedResult.Errors) > 0 {
+					return fmt.Errorf("update completed with %d errors", len(combinedResult.Errors))
+				}
+				return nil
+			}
+
 			green := color.New(color.FgGreen)
 			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)
 			bold := color.New(color.Bold)
+
+			// Verbose: show package list and detection method
+			if packageFlag != "" {
+				verbosePrintf(cmd, mode, "packages (explicit): %v\n", packageDirs)
+			} else {
+				verbosePrintf(cmd, mode, "packages (auto-detected): %v\n", packageDirs)
+			}
 
 			// Print results — say "updated" instead of "copied"
 			for _, f := range combinedResult.Copied {

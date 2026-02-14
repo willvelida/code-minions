@@ -102,6 +102,12 @@ code-minions version
 # Output as JSON (works with list, install, uninstall, update, version)
 code-minions list --json
 code-minions install --package git-workflow --json
+
+# Verbose output for debugging
+code-minions install --package git-workflow --verbose
+
+# Quiet mode for CI pipelines (exit code only)
+code-minions install --package git-workflow --quiet
 ```
 
 ### Install flags
@@ -114,6 +120,8 @@ code-minions install --package git-workflow --json
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
 | `--json` | bool | false | Output results as JSON |
+| `--verbose` / `-v` | bool | false | Show detailed output |
+| `--quiet` / `-q` | bool | false | Suppress all output except errors |
 
 When installing packages, an `AGENTS.md` file is automatically created if one does not already exist. Existing `AGENTS.md` files are never overwritten.
 
@@ -141,6 +149,8 @@ When uninstalling packages, you will be prompted before `AGENTS.md` is removed. 
 | `--target` | string | `.` | Target directory to uninstall from |
 | `--dry-run` | bool | false | Show what would be removed without deleting files |
 | `--json` | bool | false | Output results as JSON |
+| `--verbose` / `-v` | bool | false | Show detailed output |
+| `--quiet` / `-q` | bool | false | Suppress all output except errors |
 
 ```bash
 # Update all installed packages
@@ -170,6 +180,8 @@ Update overwrites installed files with the latest embedded content. When run wit
 | `--target` | string | `.` | Target directory |
 | `--dry-run` | bool | false | Show what would be updated without writing files |
 | `--json` | bool | false | Output results as JSON |
+| `--verbose` / `-v` | bool | false | Show detailed output |
+| `--quiet` / `-q` | bool | false | Suppress all output except errors |
 
 ### JSON Output
 
@@ -187,6 +199,25 @@ code-minions install --package git-workflow --json
 # Pipe to jq
 code-minions list --json | jq '.packages[].name'
 ```
+
+### Verbosity
+
+The `--verbose` (`-v`), `--quiet` (`-q`), and `--json` flags are mutually exclusive — only one can be used at a time.
+
+| Flag | Behaviour |
+|------|----------|
+| (none) | Normal human-readable output |
+| `--verbose` / `-v` | Normal output plus extra details (package lists, skip reasons, hints) |
+| `--quiet` / `-q` | Suppress all stdout; errors still go to stderr. Exit code signals success/failure |
+| `--json` | Machine-readable JSON to stdout |
+
+`--quiet` is designed for CI pipelines where only the exit code matters:
+
+```bash
+code-minions install --package git-workflow --for copilot --quiet
+```
+
+> **Note:** `--quiet` has no effect on `list` and `version` (these commands exist solely to display information). A warning is printed to stderr.
 
 ### Shell Completion
 

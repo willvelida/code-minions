@@ -26,6 +26,12 @@ Available components:
 	cmd.AddCommand(newCompletionCommand())
 
 	cmd.PersistentFlags().Bool("json", false, "Output results as JSON")
+	cmd.PersistentFlags().BoolP("verbose", "v", false, "Show detailed output")
+	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress all output except errors")
+
+	cmd.MarkFlagsMutuallyExclusive("verbose", "quiet")
+	cmd.MarkFlagsMutuallyExclusive("verbose", "json")
+	cmd.MarkFlagsMutuallyExclusive("quiet", "json")
 
 	return cmd
 }

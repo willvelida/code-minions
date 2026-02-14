@@ -45,13 +45,22 @@ func newListCommand(content fs.FS) *cobra.Command {
 				assistants = append(assistants, assistantEntry{Name: name, Description: cfg.Description})
 			}
 
-			// JSON output
-			jsonFlag, _ := cmd.Flags().GetBool("json")
-			if jsonFlag {
+			// Output mode
+			mode := getOutputMode(cmd)
+
+			if mode == OutputJSON {
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
 					Packages   []packageEntry   `json:"packages"`
 					Assistants []assistantEntry `json:"assistants"`
 				}{Packages: pkgs, Assistants: assistants})
+			}
+
+			// --quiet on list is a no-op — warn and print anyway
+			quietWarning(cmd, mode)
+
+			// Verbose: show scan paths
+			for _, p := range pkgs {
+				verbosePrintf(cmd, mode, "scanned: packages/%s/skills/%s/SKILL.md\n", p.Name, p.Name)
 			}
 
 			// Human-readable output

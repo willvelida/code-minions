@@ -41,9 +41,9 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				return err
 			}
 
-			jsonFlag, _ := cmd.Flags().GetBool("json")
+			mode := getOutputMode(cmd)
 
-			if dryRun && !jsonFlag {
+			if dryRun && mode == OutputNormal || dryRun && mode == OutputVerbose {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
 				fmt.Println()
 			}
@@ -76,7 +76,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				}
 
 				handlerStdout := io.Writer(os.Stdout)
-				if jsonFlag {
+				if mode == OutputJSON || mode == OutputQuiet {
 					handlerStdout = io.Discard
 				}
 				handler := &installer.AgentsMDHandler{
@@ -97,7 +97,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			}
 
 			// JSON output
-			if jsonFlag {
+			if mode == OutputJSON {
 				copied := combinedResult.Copied
 				if copied == nil {
 					copied = []string{}
@@ -136,10 +136,24 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				return nil
 			}
 
+			// Quiet mode — only report errors to stderr
+			if mode == OutputQuiet {
+				for _, e := range combinedResult.Errors {
+					fmt.Fprintf(os.Stderr, "  error: %s\n", e)
+				}
+				if len(combinedResult.Errors) > 0 {
+					return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
+				}
+				return nil
+			}
+
 			green := color.New(color.FgGreen)
 			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)
 			bold := color.New(color.Bold)
+
+			// Verbose: show package list
+			verbosePrintf(cmd, mode, "packages: %v\n", packageDirs)
 
 			// Print results
 			for _, f := range combinedResult.Copied {
@@ -151,6 +165,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			}
 			for _, f := range combinedResult.Skipped {
 				_, _ = yellow.Printf("  skipped (exists): %s\n", f)
+				verbosePrintf(cmd, mode, "    → use --force to overwrite\n")
 			}
 			for _, e := range combinedResult.Errors {
 				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
