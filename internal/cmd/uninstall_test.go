@@ -3,7 +3,10 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/willvelida/code-minions/internal/assistant"
 )
 
 func TestUninstallPackage(t *testing.T) {
@@ -117,6 +120,33 @@ func TestUninstallForClaude(t *testing.T) {
 
 	if _, err := os.Stat(claudeAgent); !os.IsNotExist(err) {
 		t.Errorf("expected file to be removed: %s", claudeAgent)
+	}
+}
+
+func TestUninstallForUnknownAssistantReturnsError(t *testing.T) {
+	content := testContentFS()
+
+	cmd := newUninstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "vscode",
+	})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown assistant, got nil")
+	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, "vscode") {
+		t.Errorf("error should mention the invalid name: got %q", msg)
+	}
+	for _, name := range assistant.List() {
+		if !strings.Contains(msg, name) {
+			t.Errorf("error should list valid assistant %q: got %q", name, msg)
+		}
 	}
 }
 

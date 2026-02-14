@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/willvelida/code-minions/internal/assistant"
 )
 
 // TestUpdateOverwritesExistingFiles verifies that the update command
@@ -127,6 +129,35 @@ func TestUpdateInvalidPackageReturnsError(t *testing.T) {
 	}
 	if !strings.Contains(msg, "not found") {
 		t.Errorf("error message should indicate package was not found: got %q", msg)
+	}
+}
+
+// TestUpdateForUnknownAssistantReturnsError verifies that --for with
+// an invalid assistant name returns a helpful error.
+func TestUpdateForUnknownAssistantReturnsError(t *testing.T) {
+	content := testContentFS()
+
+	cmd := newUpdateCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "vscode",
+	})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown assistant, got nil")
+	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, "vscode") {
+		t.Errorf("error should mention the invalid name: got %q", msg)
+	}
+	for _, name := range assistant.List() {
+		if !strings.Contains(msg, name) {
+			t.Errorf("error should list valid assistant %q: got %q", name, msg)
+		}
 	}
 }
 
