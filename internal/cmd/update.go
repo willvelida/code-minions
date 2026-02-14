@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -72,6 +73,31 @@ AGENTS.md is not modified during updates.`,
 			}
 
 			// No AGENTS.md handling — update leaves it untouched
+
+			// JSON output
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+			if jsonFlag {
+				result := struct {
+					Updated []string `json:"updated"`
+					Errors  []string `json:"errors"`
+					Summary struct {
+						Updated int `json:"updated"`
+						Errors  int `json:"errors"`
+					} `json:"summary"`
+				}{
+					Updated: combinedResult.Copied,
+					Errors:  combinedResult.Errors,
+				}
+				result.Summary.Updated = len(combinedResult.Copied)
+				result.Summary.Errors = len(combinedResult.Errors)
+				if err := json.NewEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
+					return err
+				}
+				if len(combinedResult.Errors) > 0 {
+					return fmt.Errorf("update completed with %d errors", len(combinedResult.Errors))
+				}
+				return nil
+			}
 
 			green := color.New(color.FgGreen)
 			yellow := color.New(color.FgYellow)

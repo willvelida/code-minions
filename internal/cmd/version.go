@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 
@@ -37,8 +38,18 @@ func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the version of code-minions",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("code-minions %s\n", getVersion())
+		RunE: func(cmd *cobra.Command, args []string) error {
+			v := getVersion()
+
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+			if jsonFlag {
+				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
+					Version string `json:"version"`
+				}{Version: v})
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "code-minions %s\n", v)
+			return nil
 		},
 	}
 }

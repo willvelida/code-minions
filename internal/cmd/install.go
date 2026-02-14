@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -86,6 +87,35 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 				} else {
 					combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
 				}
+			}
+
+			// JSON output
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+			if jsonFlag {
+				result := struct {
+					Copied  []string `json:"copied"`
+					Skipped []string `json:"skipped"`
+					Errors  []string `json:"errors"`
+					Summary struct {
+						Copied  int `json:"copied"`
+						Skipped int `json:"skipped"`
+						Errors  int `json:"errors"`
+					} `json:"summary"`
+				}{
+					Copied:  combinedResult.Copied,
+					Skipped: combinedResult.Skipped,
+					Errors:  combinedResult.Errors,
+				}
+				result.Summary.Copied = len(combinedResult.Copied)
+				result.Summary.Skipped = len(combinedResult.Skipped)
+				result.Summary.Errors = len(combinedResult.Errors)
+				if err := json.NewEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
+					return err
+				}
+				if len(combinedResult.Errors) > 0 {
+					return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
+				}
+				return nil
 			}
 
 			green := color.New(color.FgGreen)

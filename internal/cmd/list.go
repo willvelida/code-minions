@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"strings"
@@ -16,13 +17,17 @@ func newListCommand(content fs.FS) *cobra.Command {
 		Use:   "list",
 		Short: "List available packages",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bold := color.New(color.Bold)
-			cyan := color.New(color.FgCyan)
-			dim := color.New(color.Faint)
+			// Collect package data
+			type packageEntry struct {
+				Name        string `json:"name"`
+				Description string `json:"description,omitempty"`
+			}
+			type assistantEntry struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			}
 
-			// List packages
-			bold.Println("\nPackages")
-			dim.Println(strings.Repeat("-", 40))
+			var pkgs []packageEntry
 			packages, err := fs.ReadDir(content, "packages")
 			if err != nil {
 				return fmt.Errorf("failed to read packages: %w", err)
@@ -30,21 +35,45 @@ func newListCommand(content fs.FS) *cobra.Command {
 			for _, entry := range packages {
 				if entry.IsDir() {
 					desc := readSkillDescription(content, "packages/"+entry.Name()+"/skills/"+entry.Name())
-					cyan.Printf("  %-30s", entry.Name())
-					if desc != "" {
-						dim.Printf("  %s", desc)
-					}
-					fmt.Println()
+					pkgs = append(pkgs, packageEntry{Name: entry.Name(), Description: desc})
 				}
 			}
 
-			// List assistants (for --for flag)
-			bold.Println("\nAssistants (use with --for)")
-			dim.Println(strings.Repeat("-", 40))
+			var assistants []assistantEntry
 			for _, name := range assistant.List() {
 				cfg, _ := assistant.Get(name)
-				cyan.Printf("  %-15s", name)
-				dim.Printf("  %s", cfg.Description)
+				assistants = append(assistants, assistantEntry{Name: name, Description: cfg.Description})
+			}
+
+			// JSON output
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+			if jsonFlag {
+				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
+					Packages   []packageEntry   `json:"packages"`
+					Assistants []assistantEntry  `json:"assistants"`
+				}{Packages: pkgs, Assistants: assistants})
+			}
+
+			// Human-readable output
+			bold := color.New(color.Bold)
+			cyan := color.New(color.FgCyan)
+			dim := color.New(color.Faint)
+
+			bold.Println("\nPackages")
+			dim.Println(strings.Repeat("-", 40))
+			for _, p := range pkgs {
+				cyan.Printf("  %-30s", p.Name)
+				if p.Description != "" {
+					dim.Printf("  %s", p.Description)
+				}
+				fmt.Println()
+			}
+
+			bold.Println("\nAssistants (use with --for)")
+			dim.Println(strings.Repeat("-", 40))
+			for _, a := range assistants {
+				cyan.Printf("  %-15s", a.Name)
+				dim.Printf("  %s", a.Description)
 				fmt.Println()
 			}
 

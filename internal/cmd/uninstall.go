@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"strings"
@@ -63,6 +65,56 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				combinedResult.NotFound = append(combinedResult.NotFound, result.NotFound...)
 				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
 				combinedResult.DirsCleaned = append(combinedResult.DirsCleaned, result.DirsCleaned...)
+			}
+
+			// JSON output — handle AGENTS.md non-interactively, then marshal
+			jsonFlag, _ := cmd.Flags().GetBool("json")
+			if jsonFlag {
+				if len(packageDirs) > 0 {
+					agentsMDPath := "AGENTS.md"
+					if pathMapper != nil {
+						agentsMDPath = pathMapper("agents/AGENTS.md")
+					}
+					handler := &installer.AgentsMDHandler{
+						Target: target,
+						DryRun: dryRun,
+						Stdin:  strings.NewReader("n\n"), // non-interactive: decline removal
+						Stdout: io.Discard,
+					}
+					action, err := handler.OnUninstall(agentsMDPath)
+					if err != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
+					} else if action == "removed" {
+						combinedResult.Removed = append(combinedResult.Removed, agentsMDPath)
+					}
+				}
+
+				result := struct {
+					Removed     []string `json:"removed"`
+					NotFound    []string `json:"not_found"`
+					Errors      []string `json:"errors"`
+					DirsCleaned []string `json:"dirs_cleaned"`
+					Summary     struct {
+						Removed  int `json:"removed"`
+						NotFound int `json:"not_found"`
+						Errors   int `json:"errors"`
+					} `json:"summary"`
+				}{
+					Removed:     combinedResult.Removed,
+					NotFound:    combinedResult.NotFound,
+					Errors:      combinedResult.Errors,
+					DirsCleaned: combinedResult.DirsCleaned,
+				}
+				result.Summary.Removed = len(combinedResult.Removed)
+				result.Summary.NotFound = len(combinedResult.NotFound)
+				result.Summary.Errors = len(combinedResult.Errors)
+				if err := json.NewEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
+					return err
+				}
+				if len(combinedResult.Errors) > 0 {
+					return fmt.Errorf("uninstallation completed with %d errors", len(combinedResult.Errors))
+				}
+				return nil
 			}
 
 			green := color.New(color.FgGreen)

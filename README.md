@@ -98,6 +98,10 @@ code-minions list
 
 # Print version
 code-minions version
+
+# Output as JSON (works with list, install, uninstall, update, version)
+code-minions list --json
+code-minions install --package git-workflow --json
 ```
 
 ### Install flags
@@ -109,6 +113,7 @@ code-minions version
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
+| `--json` | bool | false | Output results as JSON |
 
 When installing packages, an `AGENTS.md` file is automatically created if one does not already exist. Existing `AGENTS.md` files are never overwritten.
 
@@ -135,8 +140,7 @@ When uninstalling packages, you will be prompted before `AGENTS.md` is removed. 
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) — **required** when uninstalling everything |
 | `--target` | string | `.` | Target directory to uninstall from |
 | `--dry-run` | bool | false | Show what would be removed without deleting files |
-
-### Updating
+| `--json` | bool | false | Output results as JSON |
 
 ```bash
 # Update all installed packages
@@ -165,6 +169,24 @@ Update overwrites installed files with the latest embedded content. When run wit
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) |
 | `--target` | string | `.` | Target directory |
 | `--dry-run` | bool | false | Show what would be updated without writing files |
+| `--json` | bool | false | Output results as JSON |
+
+### JSON Output
+
+All commands support a `--json` flag for machine-readable output:
+
+```bash
+# List packages as JSON
+code-minions list --json
+# {"packages": [{"name": "git-workflow", ...}], "assistants": [...]}
+
+# Install and capture results
+code-minions install --package git-workflow --json
+# {"copied": [...], "skipped": [...], "errors": [], "summary": {"copied": 2, ...}}
+
+# Pipe to jq
+code-minions list --json | jq '.packages[].name'
+```
 
 ### Shell Completion
 
