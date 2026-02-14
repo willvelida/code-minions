@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// Config describes a coding assistant's directory layout for agents and skills.
 type Config struct {
 	Name        string // Assistant identifier, e.g. "copilot", "claude", "opencode"
 	Description string // Human-readable label, e.g. "GitHub Copilot"
@@ -35,6 +36,8 @@ var configs = map[string]Config{
 	},
 }
 
+// Get returns the configuration for the named assistant, or an error if the
+// name is not recognised.
 func Get(name string) (*Config, error) {
 	cfg, ok := configs[name]
 	if !ok {
@@ -45,6 +48,7 @@ func Get(name string) (*Config, error) {
 	return &cfg, nil
 }
 
+// List returns the sorted names of all registered assistants.
 func List() []string {
 	names := make([]string, 0, len(configs))
 	for name := range configs {
