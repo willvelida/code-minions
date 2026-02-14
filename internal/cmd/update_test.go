@@ -130,6 +130,33 @@ func TestUpdateInvalidPackageReturnsError(t *testing.T) {
 	}
 }
 
+// TestUpdateForUnknownAssistantReturnsError verifies that --for with
+// an invalid assistant name returns a helpful error.
+func TestUpdateForUnknownAssistantReturnsError(t *testing.T) {
+	content := testContentFS()
+
+	cmd := newUpdateCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "vscode",
+	})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown assistant, got nil")
+	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, "vscode") {
+		t.Errorf("error should mention the invalid name: got %q", msg)
+	}
+	if !strings.Contains(msg, "copilot") || !strings.Contains(msg, "claude") {
+		t.Errorf("error should list valid assistants: got %q", msg)
+	}
+}
+
 // TestUpdateForCopilotRemapsPaths verifies that --for copilot places
 // updated files in the correct Copilot-specific directories.
 func TestUpdateForCopilotRemapsPaths(t *testing.T) {

@@ -31,6 +31,16 @@ func TestBuildPackageList(t *testing.T) {
 			packageFlag: "nonexistent",
 			expectError: true,
 		},
+		{
+			name:        "whitespace around names is trimmed",
+			packageFlag: " git-workflow , developer-mentor ",
+			expectDirs:  []string{"packages/git-workflow", "packages/developer-mentor"},
+		},
+		{
+			name:        "empty items from double commas are skipped",
+			packageFlag: "git-workflow,,developer-mentor",
+			expectDirs:  []string{"packages/git-workflow", "packages/developer-mentor"},
+		},
 	}
 
 	for _, tt := range tests {
