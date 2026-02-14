@@ -7,7 +7,7 @@ COVER_OUT  := coverage.out
 
 .DEFAULT_GOAL := build
 
-.PHONY: build test lint fmt snapshot install coverage check-coverage clean help
+.PHONY: build test lint fmt snapshot install coverage check-coverage changelog clean help
 
 build: ## Compile the binary
 	go build $(CMD_PKG)
@@ -34,6 +34,9 @@ coverage: ## Generate coverage profile and open HTML report
 check-coverage: ## Run the coverage threshold check (default: 70%)
 	./scripts/check-coverage.sh
 
+changelog: ## Regenerate CHANGELOG.md from git history
+	git-cliff --output CHANGELOG.md
+
 clean: ## Remove build artifacts and coverage files
 	rm -f $(BINARY) $(BINARY).exe $(COVER_OUT)
 
@@ -48,4 +51,5 @@ help: ## Show this help message
 	@echo "  coverage          Generate coverage profile and open HTML report"
 	@echo "  check-coverage    Run the coverage threshold check (default: 70%)"
 	@echo "  clean             Remove build artifacts and coverage files"
+	@echo "  changelog         Regenerate CHANGELOG.md from git history"
 	@echo "  help              Show this help message"

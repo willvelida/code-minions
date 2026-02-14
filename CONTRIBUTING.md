@@ -8,6 +8,7 @@ Thank you for your interest in contributing! This guide will help you get set up
 - **Git** — any recent version
 - **GNU Make** (optional, for local workflow shortcuts) — on Linux typically pre-installed; on macOS install via Homebrew (`brew install make`) and use `gmake`; on Windows install via `choco install make` and run from a **Git Bash** terminal
 - **golangci-lint** (optional, for local linting) — see [golangci-lint.run](https://golangci-lint.run/welcome/install/)
+- **git-cliff** (optional, for changelog regeneration) — see [git-cliff.org](https://git-cliff.org/docs/installation/)
 
 ## Getting Started
 
@@ -52,6 +53,7 @@ The repository includes a `Makefile` with shortcuts for common development tasks
 | `make install` | Install the binary to `$GOPATH/bin` |
 | `make coverage` | Generate coverage profile and open HTML report |
 | `make check-coverage` | Run the coverage threshold check |
+| `make changelog` | Regenerate CHANGELOG.md from git history |
 | `make clean` | Remove build artifacts and coverage files |
 
 Make is **optional** — all commands work standalone too. The sections below show both forms.
