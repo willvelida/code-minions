@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// UninstallResult tracks what happened during uninstallation
+// UninstallResult tracks what happened during an uninstallation.
 type UninstallResult struct {
 	Removed     []string
 	NotFound    []string

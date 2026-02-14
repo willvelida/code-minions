@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Installer copies embedded content to a target directory
+// Installer copies embedded package content to a target directory.
 type Installer struct {
 	Content     fs.FS
 	Target      string
@@ -18,13 +18,15 @@ type Installer struct {
 	PathMapper  func(path string) string // Optional: transforms output paths (e.g. for assistant-specific layouts)
 }
 
-// Result tracks what happened during installation
+// Result tracks what happened during an installation.
 type Result struct {
 	Copied  []string
 	Skipped []string
 	Errors  []string
 }
 
+// Install walks the embedded filesystem directories and copies their contents
+// to the target directory. It respects Force, DryRun, and PathMapper settings.
 func (i *Installer) Install(dirs []string) (*Result, error) {
 	result := &Result{}
 
