@@ -1,0 +1,8 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto # fail if overall coverage drops vs base
+    patch:
+      default:
+        informational: true # report but never block merges
