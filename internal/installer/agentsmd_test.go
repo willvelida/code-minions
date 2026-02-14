@@ -2,8 +2,10 @@ package installer
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -279,5 +281,112 @@ func TestAgentsMDOnUninstallDryRun(t *testing.T) {
 	// Verify the file still exists
 	if _, err := os.Stat(filepath.Join(target, "AGENTS.md")); os.IsNotExist(err) {
 		t.Error("expected AGENTS.md to still exist in dry-run mode")
+	}
+}
+
+// ---------- AgentsMDHandler error branch tests ----------
+
+// TestAgentsMDOnInstallWriteFailure verifies that OnInstall returns an error
+// when os.WriteFile fails. We make the target directory read-only so
+// WriteFile can't create the file. This only works on Unix (directory
+// permissions don't prevent file creation on Windows).
+func TestAgentsMDOnInstallWriteFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("write-failure via read-only directory is not supported on Windows")
+	}
+
+	target := t.TempDir()
+
+	// Make target read-only: Stat returns NotExist for the file,
+	// MkdirAll is a no-op (target already exists), but WriteFile
+	// cannot create a file in a read-only directory.
+	if err := os.Chmod(target, 0555); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(target, 0755) })
+
+	handler := &AgentsMDHandler{
+		Target: target,
+		Stdin:  &bytes.Buffer{},
+		Stdout: &bytes.Buffer{},
+	}
+
+	_, err := handler.OnInstall("AGENTS.md", []byte("# Agents\n"))
+	if err == nil {
+		t.Fatal("expected write error, got nil")
+	}
+}
+
+// TestAgentsMDOnInstallMkdirAllFailure verifies that OnInstall returns an error
+// when the parent directory can't be created.
+func TestAgentsMDOnInstallMkdirAllFailure(t *testing.T) {
+	target := t.TempDir()
+
+	// Create a file where MkdirAll expects to create a directory.
+	if err := os.WriteFile(filepath.Join(target, "deep"), []byte("blocker"), 0644); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	handler := &AgentsMDHandler{
+		Target: target,
+		Stdin:  &bytes.Buffer{},
+		Stdout: &bytes.Buffer{},
+	}
+
+	_, err := handler.OnInstall("deep/nested/AGENTS.md", []byte("# Agents\n"))
+	if err == nil {
+		t.Fatal("expected MkdirAll error, got nil")
+	}
+}
+
+// errReader is an io.Reader that always returns an error.
+type errReader struct{ err error }
+
+func (r *errReader) Read([]byte) (int, error) { return 0, r.err }
+
+// TestAgentsMDOnUninstallScannerError verifies that OnUninstall returns an error
+// when reading stdin fails.
+func TestAgentsMDOnUninstallScannerError(t *testing.T) {
+	target := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(target, "AGENTS.md"), []byte("# Agents\n"), 0644); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	handler := &AgentsMDHandler{
+		Target: target,
+		Stdin:  &errReader{err: errors.New("stdin broken")},
+		Stdout: &bytes.Buffer{},
+	}
+
+	_, err := handler.OnUninstall("AGENTS.md")
+	if err == nil {
+		t.Fatal("expected scanner error, got nil")
+	}
+}
+
+// TestAgentsMDOnUninstallRemoveFailure verifies that OnUninstall returns an
+// error when os.Remove fails (e.g. path is a non-empty directory).
+func TestAgentsMDOnUninstallRemoveFailure(t *testing.T) {
+	target := t.TempDir()
+
+	// Create a non-empty directory at the AGENTS.md path so os.Remove fails.
+	agentsDir := filepath.Join(target, "AGENTS.md")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "blocker"), []byte("x"), 0644); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	handler := &AgentsMDHandler{
+		Target: target,
+		Stdin:  bytes.NewBufferString("y\n"),
+		Stdout: &bytes.Buffer{},
+	}
+
+	_, err := handler.OnUninstall("AGENTS.md")
+	if err == nil {
+		t.Fatal("expected remove error, got nil")
 	}
 }

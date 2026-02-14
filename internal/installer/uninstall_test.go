@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -283,5 +284,104 @@ func TestUninstallWithPathMapper(t *testing.T) {
 	// File should be gone from the mapped path
 	if _, err := os.Stat(mappedPath); !os.IsNotExist(err) {
 		t.Errorf("expected file to be removed: %s", mappedPath)
+	}
+}
+
+// ---------- Uninstall error branch tests ----------
+
+// TestUninstallPathEscapeDetected verifies that a PathMapper returning a path
+// outside the target directory is caught and reported as an error.
+func TestUninstallPathEscapeDetected(t *testing.T) {
+	target := t.TempDir()
+
+	inst := &Installer{
+		Content:    testFS(),
+		Target:     target,
+		PathMapper: func(p string) string { return "../../" + p },
+	}
+
+	result, err := inst.Uninstall([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "escapes target directory") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'escapes target directory' error, got: %v", result.Errors)
+	}
+}
+
+// TestUninstallWalkDirCallbackError verifies that a ReadDir failure during
+// WalkDir is captured in result.Errors.
+func TestUninstallWalkDirCallbackError(t *testing.T) {
+	target := t.TempDir()
+
+	content := &errFS{
+		inner:       testFS(),
+		readDirErrs: map[string]error{"agents": errors.New("permission denied")},
+	}
+
+	inst := &Installer{
+		Content: content,
+		Target:  target,
+	}
+
+	result, err := inst.Uninstall([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "error reading") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'error reading' error, got: %v", result.Errors)
+	}
+}
+
+// TestUninstallRemoveFailure verifies that an os.Remove error is captured.
+// Triggered by placing a non-empty directory at a path where a file is expected.
+func TestUninstallRemoveFailure(t *testing.T) {
+	target := t.TempDir()
+
+	// Create a non-empty directory at a path the uninstaller expects to be a file.
+	// os.Remove fails on non-empty directories.
+	conflictPath := filepath.Join(target, "agents", "my-agent.agent.md")
+	if err := os.MkdirAll(conflictPath, 0755); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(conflictPath, "blocker"), []byte("x"), 0644); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+	}
+
+	result, err := inst.Uninstall([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "failed to remove") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'failed to remove' error, got: %v", result.Errors)
 	}
 }
