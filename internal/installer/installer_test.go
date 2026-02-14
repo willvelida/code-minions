@@ -1,6 +1,8 @@
 package installer
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -307,6 +309,218 @@ func TestInstallPathMapperRemapsPaths(t *testing.T) {
 		t.Errorf("file should NOT exist at original path: %s", originalPath)
 	}
 }
+
+// ---------- Install error branch tests ----------
+
+// TestInstallPathEscapeDetected verifies that a PathMapper returning a path
+// outside the target directory is caught and reported as an error.
+func TestInstallPathEscapeDetected(t *testing.T) {
+	target := t.TempDir()
+
+	inst := &Installer{
+		Content:    testFS(),
+		Target:     target,
+		Force:      true,
+		PathMapper: func(p string) string { return "../../" + p },
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Errors) == 0 {
+		t.Fatal("expected path escape errors, got none")
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "escapes target directory") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'escapes target directory' error, got: %v", result.Errors)
+	}
+}
+
+// TestInstallReadFileFailure verifies that a ReadFile error from the content
+// filesystem is captured in result.Errors without stopping the walk.
+func TestInstallReadFileFailure(t *testing.T) {
+	target := t.TempDir()
+
+	content := &errFS{
+		inner:        testFS(),
+		readFileErrs: map[string]error{"agents/my-agent.agent.md": errors.New("disk read error")},
+	}
+
+	inst := &Installer{
+		Content: content,
+		Target:  target,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "failed to read") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'failed to read' error, got: %v", result.Errors)
+	}
+}
+
+// TestInstallWriteFileFailure verifies that an os.WriteFile error is captured.
+// Triggered by creating a directory where a file is expected to be written.
+func TestInstallWriteFileFailure(t *testing.T) {
+	target := t.TempDir()
+
+	// Create a directory at the path where WriteFile expects to write a file.
+	// os.WriteFile fails with "is a directory" on this path.
+	conflictPath := filepath.Join(target, "agents", "my-agent.agent.md")
+	if err := os.MkdirAll(conflictPath, 0755); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+		Force:   true, // Skip "file exists" check — go straight to write
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "failed to write") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'failed to write' error, got: %v", result.Errors)
+	}
+}
+
+// TestInstallMkdirAllFailure verifies that an os.MkdirAll error for a directory
+// is captured. Triggered by placing a file where a directory is expected.
+func TestInstallMkdirAllFailure(t *testing.T) {
+	target := t.TempDir()
+
+	// Create a regular file named "agents" — MkdirAll fails because it can't
+	// create a directory when a file already occupies that path.
+	if err := os.WriteFile(filepath.Join(target, "agents"), []byte("blocker"), 0644); err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Errors) == 0 {
+		t.Fatal("expected MkdirAll errors, got none")
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "failed to create directory") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'failed to create directory' error, got: %v", result.Errors)
+	}
+}
+
+// TestInstallWalkDirCallbackError verifies that a ReadDir failure during
+// WalkDir is captured in result.Errors via the callback's err parameter.
+func TestInstallWalkDirCallbackError(t *testing.T) {
+	target := t.TempDir()
+
+	content := &errFS{
+		inner:       testFS(),
+		readDirErrs: map[string]error{"agents": errors.New("permission denied")},
+	}
+
+	inst := &Installer{
+		Content: content,
+		Target:  target,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "error reading") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'error reading' error, got: %v", result.Errors)
+	}
+}
+
+// ---------- errFS: a test helper that injects errors into an fs.FS ----------
+
+// errFS wraps an fs.FS and returns configured errors for specific paths.
+// This lets us test error branches that fstest.MapFS can't trigger (e.g.
+// ReadFile failures, ReadDir failures during WalkDir).
+type errFS struct {
+	inner        fs.FS
+	readFileErrs map[string]error // ReadFile returns this error for matching paths
+	readDirErrs  map[string]error // ReadDir returns this error for matching paths
+}
+
+// Open delegates to the inner filesystem. Required to implement fs.FS.
+func (e *errFS) Open(name string) (fs.File, error) {
+	return e.inner.Open(name)
+}
+
+// ReadFile returns a configured error or delegates to the inner filesystem.
+// fs.ReadFile checks for this interface before falling back to Open+Read.
+func (e *errFS) ReadFile(name string) ([]byte, error) {
+	if e.readFileErrs != nil {
+		if err, ok := e.readFileErrs[name]; ok {
+			return nil, err
+		}
+	}
+	return fs.ReadFile(e.inner, name)
+}
+
+// ReadDir returns a configured error or delegates to the inner filesystem.
+// fs.WalkDir calls fs.ReadDir internally, so this triggers the WalkDir
+// callback's err parameter when a subdirectory read fails.
+func (e *errFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	if e.readDirErrs != nil {
+		if err, ok := e.readDirErrs[name]; ok {
+			return nil, err
+		}
+	}
+	return fs.ReadDir(e.inner, name)
+}
+
+// ---------- test filesystem ----------
 
 func testFS() fstest.MapFS {
 	return fstest.MapFS{
