@@ -166,6 +166,26 @@ Update overwrites installed files with the latest embedded content. When run wit
 | `--target` | string | `.` | Target directory |
 | `--dry-run` | bool | false | Show what would be updated without writing files |
 
+### Shell Completion
+
+Generate shell completion scripts for tab-completion of commands and flags:
+
+```bash
+# Bash
+source <(code-minions completion bash)
+
+# Zsh
+source <(code-minions completion zsh)
+
+# Fish
+code-minions completion fish | source
+
+# PowerShell
+code-minions completion powershell | Out-String | Invoke-Expression
+```
+
+To load completions automatically in every session, add the appropriate command to your shell profile. Run `code-minions completion --help` for per-shell instructions.
+
 ## Packages
 
 Each package bundles an agent and its corresponding skill into a single installable unit.

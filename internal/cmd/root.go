@@ -23,6 +23,7 @@ Available components:
 	cmd.AddCommand(newUpdateCommand(content))
 	cmd.AddCommand(newListCommand(content))
 	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(newCompletionCommand())
 
 	return cmd
 }
