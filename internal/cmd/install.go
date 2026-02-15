@@ -23,7 +23,7 @@ package registry into your repository. Files are placed relative to the
 target directory, organised into agents/ and skills/ directories.
 
 When --for is specified, files are placed in the assistant-specific
-location (e.g. .github/agents/ for GitHub Copilot, .claude/ for Claude).
+location (e.g. .github/agents/ for GitHub Copilot, .claude/agents/ for Claude).
 
 An AGENTS.md routing file is created or updated at the root of the
 target to help AI assistants discover installed agents.
