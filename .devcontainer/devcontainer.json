@@ -1,0 +1,24 @@
+{
+  "name": "code-minions",
+  "image": "mcr.microsoft.com/devcontainers/go:1.25-trixie",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/guiyomh/features/golangci-lint:0": {},
+    "ghcr.io/guiyomh/features/goreleaser:0": {},
+    "ghcr.io/lukewiwa/features/shellcheck:0": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "DavidAnson.vscode-markdownlint",
+        "yzhang.markdown-all-in-one",
+        "EditorConfig.EditorConfig"
+      ]
+    }
+  },
+
+  "postCreateCommand": "go mod download && go install ./cmd/code-minions"
+}

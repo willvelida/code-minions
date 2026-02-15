@@ -12,6 +12,28 @@ Thank you for your interest in contributing! This guide will help you get set up
 
 ## Getting Started
 
+### Dev Container (recommended)
+
+The fastest way to get a working development environment is with a [Dev Container](https://containers.dev/). Everything — Go, golangci-lint, GoReleaser, ShellCheck, and the GitHub CLI — is pre-installed automatically.
+
+**VS Code:** Open the repo, then run **Dev Containers: Reopen in Container** from the Command Palette.
+
+**GitHub Codespaces:** Click **Code → Codespaces → New codespace** on the repository page.
+
+Any other [devcontainer-compatible tool](https://containers.dev/supporting) works too.
+
+Once the container starts, verify your setup:
+
+```bash
+go build ./cmd/code-minions   # build the binary
+go test ./...                 # run all tests
+golangci-lint run             # lint
+```
+
+### Manual setup
+
+If you prefer to work outside a container, install the [Prerequisites](#prerequisites) above, then:
+
 1. **Fork and clone** the repository:
 
    ```bash
