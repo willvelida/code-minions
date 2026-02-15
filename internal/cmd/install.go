@@ -139,7 +139,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			// Quiet mode — only report errors to stderr
 			if mode == OutputQuiet {
 				for _, e := range combinedResult.Errors {
-					fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
 				}
 				if len(combinedResult.Errors) > 0 {
 					return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))

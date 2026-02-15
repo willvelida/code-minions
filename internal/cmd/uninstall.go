@@ -155,7 +155,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 					}
 				}
 				for _, e := range combinedResult.Errors {
-					fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
 				}
 				if len(combinedResult.Errors) > 0 {
 					return fmt.Errorf("uninstallation completed with %d errors", len(combinedResult.Errors))
