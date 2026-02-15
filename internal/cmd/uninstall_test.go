@@ -272,9 +272,15 @@ func TestUninstallConfirmationAccepted(t *testing.T) {
 
 	// Pipe "y" into stdin via the confirm prompt
 	origStdin := os.Stdin
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe for stdin: %v", err)
+	}
 	os.Stdin = r
-	t.Cleanup(func() { os.Stdin = origStdin })
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	})
 	_, _ = w.WriteString("y\n")
 	_ = w.Close()
 
@@ -315,9 +321,15 @@ func TestUninstallConfirmationDeclined(t *testing.T) {
 
 	// Pipe "n" into stdin
 	origStdin := os.Stdin
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe for stdin: %v", err)
+	}
 	os.Stdin = r
-	t.Cleanup(func() { os.Stdin = origStdin })
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	})
 	_, _ = w.WriteString("n\n")
 	_ = w.Close()
 

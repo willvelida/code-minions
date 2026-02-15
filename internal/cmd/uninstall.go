@@ -84,7 +84,9 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 							FileCount: fileCount,
 							Hint:      "use --yes to skip",
 						}
-						_ = json.NewEncoder(cmd.OutOrStdout()).Encode(errResult)
+						if err := json.NewEncoder(cmd.OutOrStdout()).Encode(errResult); err != nil {
+							return fmt.Errorf("failed to write JSON error response: %w", err)
+						}
 						return fmt.Errorf("confirmation required (use --yes to skip)")
 
 					case OutputQuiet:
@@ -101,7 +103,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 						promptMsg := fmt.Sprintf("This will remove %d files. Continue? [y/N]: ", fileCount)
 						confirmed, err := confirmPrompt(os.Stdin, os.Stdout, promptMsg)
 						if err != nil {
-							return fmt.Errorf("failed to read confirmation: %w", err)
+							return err
 						}
 						if !confirmed {
 							fmt.Println("Aborted.")
