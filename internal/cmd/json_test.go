@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -240,7 +241,7 @@ func TestUninstallJSON(t *testing.T) {
 	var buf bytes.Buffer
 	cmd2 := newJSONTestRootCmd(content)
 	cmd2.SetOut(&buf)
-	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--target", target, "--json"})
+	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--target", target, "--json", "--yes"})
 	if err := cmd2.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -400,7 +401,7 @@ func TestUninstallJSONWithFor(t *testing.T) {
 	var buf bytes.Buffer
 	cmd2 := newJSONTestRootCmd(content)
 	cmd2.SetOut(&buf)
-	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--for", "copilot", "--target", target, "--json"})
+	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--for", "copilot", "--target", target, "--json", "--yes"})
 	if err := cmd2.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -425,5 +426,59 @@ func TestUninstallJSONWithFor(t *testing.T) {
 	}
 	if result.Summary.Errors != 0 {
 		t.Errorf("expected 0 errors, got %d", result.Summary.Errors)
+	}
+}
+
+func TestUninstallJSONRequiresYes(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	cmd1 := newJSONTestRootCmd(content)
+	cmd1.SetOut(&bytes.Buffer{})
+	cmd1.SetArgs([]string{"install", "--package", "git-workflow", "--target", target})
+	if err := cmd1.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --json but without --yes
+	var buf bytes.Buffer
+	cmd2 := newJSONTestRootCmd(content)
+	cmd2.SetOut(&buf)
+	cmd2.SilenceErrors = true
+	cmd2.SilenceUsage = true
+	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--target", target, "--json"})
+
+	err := cmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error when --json without --yes")
+	}
+	if !strings.Contains(err.Error(), "--yes") {
+		t.Errorf("error should mention --yes, got: %q", err.Error())
+	}
+
+	// JSON error response should contain confirmation info
+	var errResult struct {
+		Error     string `json:"error"`
+		FileCount int    `json:"file_count"`
+		Hint      string `json:"hint"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &errResult); err != nil {
+		t.Fatalf("failed to unmarshal JSON error: %v\nraw output: %s", err, buf.String())
+	}
+	if errResult.Error != "confirmation required" {
+		t.Errorf("expected error 'confirmation required', got: %q", errResult.Error)
+	}
+	if errResult.FileCount == 0 {
+		t.Error("expected non-zero file_count in JSON error")
+	}
+	if errResult.Hint != "use --yes to skip" {
+		t.Errorf("expected hint 'use --yes to skip', got: %q", errResult.Hint)
+	}
+
+	// Files should still exist
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("file should still exist after JSON rejection: %s", agentFile)
 	}
 }

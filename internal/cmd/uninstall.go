@@ -23,6 +23,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
+			yesFlag, _ := cmd.Flags().GetBool("yes")
 
 			if packageFlag == "" && forFlag == "" {
 				return fmt.Errorf("when uninstalling everything, --for is required to identify the correct file locations\n\nUsage: code-minions uninstall --for <assistant>\n\nAvailable assistants: %s",
@@ -50,6 +51,74 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				fmt.Println()
 			}
 
+			// --- Confirmation gate (skip for dry-run) ---
+			if !dryRun && !yesFlag {
+				// Phase 1: pre-flight scan to count files that would be removed
+				scanResult := &installer.UninstallResult{}
+				for _, pkgDir := range packageDirs {
+					inst := &installer.Installer{
+						Content:     content,
+						Target:      target,
+						DryRun:      true, // always dry-run for the scan
+						StripPrefix: pkgDir,
+						PathMapper:  pathMapper,
+					}
+					result, err := inst.Uninstall([]string{pkgDir})
+					if err != nil {
+						return fmt.Errorf("pre-flight scan failed: %w", err)
+					}
+					scanResult.Removed = append(scanResult.Removed, result.Removed...)
+				}
+
+				fileCount := len(scanResult.Removed)
+				if fileCount > 0 {
+					switch mode {
+					case OutputJSON:
+						// JSON mode is non-interactive — require --yes
+						errResult := struct {
+							Error     string `json:"error"`
+							FileCount int    `json:"file_count"`
+							Hint      string `json:"hint"`
+						}{
+							Error:     "confirmation required",
+							FileCount: fileCount,
+							Hint:      "use --yes to skip",
+						}
+						if err := json.NewEncoder(cmd.OutOrStdout()).Encode(errResult); err != nil {
+							return fmt.Errorf("failed to write JSON error response: %w", err)
+						}
+						// Prevent Cobra from printing a second, non-JSON error line.
+						cmd.SilenceErrors = true
+						cmd.SilenceUsage = true
+						return fmt.Errorf("confirmation required (use --yes to skip)")
+
+					case OutputQuiet:
+						// Quiet mode is non-interactive — require --yes
+						cmd.SilenceErrors = true
+						cmd.SilenceUsage = true
+						_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "error: confirmation required — this will remove %d files (use --yes to skip)\n", fileCount)
+						return fmt.Errorf("confirmation required (use --yes to skip)")
+
+					default:
+						// Normal/verbose — interactive prompt
+						if !isInteractiveFunc() {
+							return fmt.Errorf("confirmation required (use --yes to skip)")
+						}
+
+						promptMsg := fmt.Sprintf("This will remove %d files. Continue? [y/N]: ", fileCount)
+						confirmed, err := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), promptMsg)
+						if err != nil {
+							return err
+						}
+						if !confirmed {
+							_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+							return nil
+						}
+					}
+				}
+			}
+
+			// --- Phase 2: actual removal ---
 			combinedResult := &installer.UninstallResult{}
 			for _, pkgDir := range packageDirs {
 				inst := &installer.Installer{
@@ -228,6 +297,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 	cmd.Flags().String("package", "", "Comma-separated list of packages to uninstall (omit to uninstall all)")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be removed without deleting files")
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt and proceed with removal")
 
 	return cmd
 }

@@ -128,17 +128,20 @@ When installing packages, an `AGENTS.md` file is automatically created if one do
 ### Uninstalling
 
 ```bash
-# Uninstall a specific package
+# Uninstall a specific package (prompts for confirmation)
 code-minions uninstall --package threat-modelling
 
 # Uninstall everything (--for is required to identify file locations)
 code-minions uninstall --for copilot
 
-# Preview what would be removed
+# Skip the confirmation prompt (for CI/scripting)
+code-minions uninstall --for copilot --yes
+
+# Preview what would be removed (no prompt)
 code-minions uninstall --package git-workflow --dry-run
 ```
 
-When uninstalling packages, you will be prompted before `AGENTS.md` is removed. If you decline (or stdin is empty, e.g. in CI), the file is kept.
+The uninstall command prompts for confirmation before removing files. You will also be prompted separately before `AGENTS.md` is removed. In non-interactive environments (no TTY), the command aborts unless `--yes` is passed.
 
 ### Uninstall flags
 
@@ -148,6 +151,7 @@ When uninstalling packages, you will be prompted before `AGENTS.md` is removed. 
 | `--for` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) — **required** when uninstalling everything |
 | `--target` | string | `.` | Target directory to uninstall from |
 | `--dry-run` | bool | false | Show what would be removed without deleting files |
+| `--yes` / `-y` | bool | false | Skip confirmation prompt and proceed with removal |
 | `--json` | bool | false | Output results as JSON |
 | `--verbose` / `-v` | bool | false | Show detailed output |
 | `--quiet` / `-q` | bool | false | Suppress all output except errors |

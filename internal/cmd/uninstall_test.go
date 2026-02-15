@@ -34,6 +34,7 @@ func TestUninstallPackage(t *testing.T) {
 	uninstallCmd.SetArgs([]string{
 		"--package", "git-workflow",
 		"--target", target,
+		"--yes",
 	})
 	if err := uninstallCmd.Execute(); err != nil {
 		t.Fatalf("uninstall failed: %v", err)
@@ -77,6 +78,7 @@ func TestUninstallForCopilot(t *testing.T) {
 		"--package", "git-workflow",
 		"--for", "copilot",
 		"--target", target,
+		"--yes",
 	})
 	if err := uninstallCmd.Execute(); err != nil {
 		t.Fatalf("uninstall failed: %v", err)
@@ -113,6 +115,7 @@ func TestUninstallForClaude(t *testing.T) {
 		"--package", "git-workflow",
 		"--for", "claude",
 		"--target", target,
+		"--yes",
 	})
 	if err := uninstallCmd.Execute(); err != nil {
 		t.Fatalf("uninstall failed: %v", err)
@@ -216,6 +219,216 @@ func TestUninstallAllRequiresFor(t *testing.T) {
 	}
 }
 
+func TestUninstallYesFlagSkipsPrompt(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --yes (no stdin interaction needed)
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+		"--yes",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall with --yes failed: %v", err)
+	}
+
+	// Files should be removed
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); !os.IsNotExist(err) {
+		t.Errorf("expected file to be removed: %s", agentFile)
+	}
+}
+
+func TestUninstallConfirmationAccepted(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate interactive terminal
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return true }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	// Pipe "y" into stdin via the confirm prompt
+	origStdin := os.Stdin
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe for stdin: %v", err)
+	}
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	})
+	_, _ = w.WriteString("y\n")
+	_ = w.Close()
+
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v", err)
+	}
+
+	// Files should be removed
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); !os.IsNotExist(err) {
+		t.Errorf("expected file to be removed: %s", agentFile)
+	}
+}
+
+func TestUninstallConfirmationDeclined(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate interactive terminal
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return true }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	// Pipe "n" into stdin
+	origStdin := os.Stdin
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe for stdin: %v", err)
+	}
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	})
+	_, _ = w.WriteString("n\n")
+	_ = w.Close()
+
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	// Should not error — declining is a clean exit
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("expected clean exit on decline, got: %v", err)
+	}
+
+	// Files should still exist
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("file should still exist after declining: %s", agentFile)
+	}
+}
+
+func TestUninstallNonInteractiveAbortsWithoutYes(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate non-interactive
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	uninstallCmd.SilenceErrors = true
+	uninstallCmd.SilenceUsage = true
+
+	err := uninstallCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for non-interactive stdin without --yes")
+	}
+	if !strings.Contains(err.Error(), "--yes") {
+		t.Errorf("error should mention --yes flag, got: %q", err.Error())
+	}
+
+	// Files should still exist
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("file should still exist after abort: %s", agentFile)
+	}
+}
+
+func TestUninstallDryRunSkipsPrompt(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate non-interactive
+	// (if dry-run respects the prompt, this would fail)
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--dry-run",
+		"--target", target,
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("dry-run should not prompt: %v", err)
+	}
+
+	// Files should still exist (dry-run)
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("file should still exist in dry-run: %s", agentFile)
+	}
+}
+
 func TestUninstallAllWithFor(t *testing.T) {
 	target := t.TempDir()
 	content := testContentFS()
@@ -235,6 +448,7 @@ func TestUninstallAllWithFor(t *testing.T) {
 	uninstallCmd.SetArgs([]string{
 		"--for", "copilot",
 		"--target", target,
+		"--yes",
 	})
 	if err := uninstallCmd.Execute(); err != nil {
 		t.Fatalf("uninstall failed: %v", err)

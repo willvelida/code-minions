@@ -130,7 +130,7 @@ func TestUninstallQuiet(t *testing.T) {
 	var buf bytes.Buffer
 	cmd2 := newJSONTestRootCmd(content)
 	cmd2.SetOut(&buf)
-	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--target", target, "--quiet"})
+	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--target", target, "--quiet", "--yes"})
 
 	if err := cmd2.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -138,6 +138,48 @@ func TestUninstallQuiet(t *testing.T) {
 
 	if buf.Len() != 0 {
 		t.Errorf("expected empty stdout in quiet mode, got: %q", buf.String())
+	}
+}
+
+func TestUninstallQuietRequiresYes(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install first
+	cmd1 := newJSONTestRootCmd(content)
+	cmd1.SetOut(&bytes.Buffer{})
+	cmd1.SetArgs([]string{"install", "--package", "git-workflow", "--target", target})
+	if err := cmd1.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --quiet but without --yes
+	var buf bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd2 := newJSONTestRootCmd(content)
+	cmd2.SetOut(&buf)
+	cmd2.SetErr(&errBuf)
+	cmd2.SilenceErrors = true
+	cmd2.SilenceUsage = true
+	cmd2.SetArgs([]string{"uninstall", "--package", "git-workflow", "--target", target, "--quiet"})
+
+	err := cmd2.Execute()
+	if err == nil {
+		t.Fatal("expected error when --quiet without --yes")
+	}
+	if !strings.Contains(err.Error(), "--yes") {
+		t.Errorf("error should mention --yes, got: %q", err.Error())
+	}
+
+	// Error message should go to stderr
+	if !strings.Contains(errBuf.String(), "confirmation required") {
+		t.Errorf("expected confirmation error on stderr, got: %q", errBuf.String())
+	}
+
+	// Files should still exist
+	agentFile := filepath.Join(target, "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("file should still exist after quiet rejection: %s", agentFile)
 	}
 }
 
