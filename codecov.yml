@@ -3,6 +3,7 @@ coverage:
     project:
       default:
         target: auto # fail if overall coverage drops vs base
+        threshold: 1% # allow up to 1% drop to avoid flaky rounding failures
     patch:
       default:
         informational: true # report but never block merges

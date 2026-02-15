@@ -51,5 +51,5 @@ func quietWarning(cmd *cobra.Command, mode OutputMode) {
 	if mode != OutputQuiet {
 		return
 	}
-	fmt.Fprintf(cmd.ErrOrStderr(), "warning: --quiet has no effect on '%s' (the command exists to display information)\n", cmd.Name())
+	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: --quiet has no effect on '%s' (the command exists to display information)\n", cmd.Name())
 }
