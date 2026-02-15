@@ -30,16 +30,13 @@ func confirmPrompt(stdin io.Reader, stdout io.Writer, message string) (bool, err
 		return false, fmt.Errorf("failed to write confirmation prompt: %w", err)
 	}
 
-	scanner := bufio.NewScanner(stdin)
-	if scanner.Scan() {
-		answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
-		return answer == "y" || answer == "yes", nil
+	reader := bufio.NewReader(stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil && line == "" {
+		// EOF or read error with no input — treat as "no"
+		return false, nil
 	}
 
-	if err := scanner.Err(); err != nil {
-		return false, fmt.Errorf("failed to read confirmation: %w", err)
-	}
-
-	// EOF without any input — treat as "no"
-	return false, nil
+	answer := strings.TrimSpace(strings.ToLower(line))
+	return answer == "y" || answer == "yes", nil
 }

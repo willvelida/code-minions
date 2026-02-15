@@ -87,10 +87,15 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 						if err := json.NewEncoder(cmd.OutOrStdout()).Encode(errResult); err != nil {
 							return fmt.Errorf("failed to write JSON error response: %w", err)
 						}
+						// Prevent Cobra from printing a second, non-JSON error line.
+						cmd.SilenceErrors = true
+						cmd.SilenceUsage = true
 						return fmt.Errorf("confirmation required (use --yes to skip)")
 
 					case OutputQuiet:
 						// Quiet mode is non-interactive — require --yes
+						cmd.SilenceErrors = true
+						cmd.SilenceUsage = true
 						_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "error: confirmation required — this will remove %d files (use --yes to skip)\n", fileCount)
 						return fmt.Errorf("confirmation required (use --yes to skip)")
 
@@ -101,12 +106,12 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 						}
 
 						promptMsg := fmt.Sprintf("This will remove %d files. Continue? [y/N]: ", fileCount)
-						confirmed, err := confirmPrompt(os.Stdin, os.Stdout, promptMsg)
+						confirmed, err := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), promptMsg)
 						if err != nil {
 							return err
 						}
 						if !confirmed {
-							fmt.Println("Aborted.")
+							_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
 							return nil
 						}
 					}
