@@ -40,13 +40,16 @@ func newVersionCommand() *cobra.Command {
 		Short: "Print the version of code-minions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			v := getVersion()
+			mode := getOutputMode(cmd)
 
-			jsonFlag, _ := cmd.Flags().GetBool("json")
-			if jsonFlag {
+			if mode == OutputJSON {
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
 					Version string `json:"version"`
 				}{Version: v})
 			}
+
+			// --quiet on version is a no-op — warn and print anyway
+			quietWarning(cmd, mode)
 
 			_, err := fmt.Fprintf(cmd.OutOrStdout(), "code-minions %s\n", v)
 			return err

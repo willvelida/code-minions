@@ -43,9 +43,9 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				return err
 			}
 
-			jsonFlag, _ := cmd.Flags().GetBool("json")
+			mode := getOutputMode(cmd)
 
-			if dryRun && !jsonFlag {
+			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
 				fmt.Println()
 			}
@@ -70,7 +70,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 			}
 
 			// JSON output — handle AGENTS.md non-interactively, then marshal
-			if jsonFlag {
+			if mode == OutputJSON {
 				if len(packageDirs) > 0 {
 					agentsMDPath := "AGENTS.md"
 					if pathMapper != nil {
@@ -134,11 +134,43 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 				return nil
 			}
 
+			// Quiet mode — handle AGENTS.md non-interactively, only report errors
+			if mode == OutputQuiet {
+				if len(packageDirs) > 0 {
+					agentsMDPath := "AGENTS.md"
+					if pathMapper != nil {
+						agentsMDPath = pathMapper("agents/AGENTS.md")
+					}
+					handler := &installer.AgentsMDHandler{
+						Target: target,
+						DryRun: dryRun,
+						Stdin:  strings.NewReader("n\n"),
+						Stdout: io.Discard,
+					}
+					action, err := handler.OnUninstall(agentsMDPath)
+					if err != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
+					} else if action == "removed" {
+						combinedResult.Removed = append(combinedResult.Removed, agentsMDPath)
+					}
+				}
+				for _, e := range combinedResult.Errors {
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+				}
+				if len(combinedResult.Errors) > 0 {
+					return fmt.Errorf("uninstallation completed with %d errors", len(combinedResult.Errors))
+				}
+				return nil
+			}
+
 			green := color.New(color.FgGreen)
 			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)
 			dim := color.New(color.Faint)
 			bold := color.New(color.Bold)
+
+			// Verbose: show package list
+			verbosePrintf(cmd, mode, "packages: %v\n", packageDirs)
 
 			for _, f := range combinedResult.Removed {
 				if dryRun {
@@ -149,6 +181,7 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 			}
 			for _, f := range combinedResult.NotFound {
 				_, _ = dim.Printf("  not found: %s\n", f)
+				verbosePrintf(cmd, mode, "    → file does not exist in target\n")
 			}
 			for _, d := range combinedResult.DirsCleaned {
 				_, _ = dim.Printf("  cleaned dir: %s\n", d)
