@@ -18,6 +18,32 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install agents and skills into your repository",
+		Long: `Install copies agent definitions and skill files from the built-in
+package registry into your repository. Files are placed relative to the
+target directory, organised into agents/ and skills/ directories.
+
+When --for is specified, files are placed in the assistant-specific
+location (e.g. .github/agents/ for GitHub Copilot, .claude/ for Claude).
+
+An AGENTS.md routing file is created or updated at the root of the
+target to help AI assistants discover installed agents.
+
+Existing files are skipped unless --force is used. Use --dry-run to
+preview changes without writing any files.`,
+		Example: `  # Install all packages into the current directory
+  code-minions install
+
+  # Install for GitHub Copilot (places files in .github/agents/)
+  code-minions install --for copilot
+
+  # Install a specific package
+  code-minions install --package git-workflow
+
+  # Preview what would be installed
+  code-minions install --dry-run
+
+  # Overwrite existing files
+  code-minions install --force`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")

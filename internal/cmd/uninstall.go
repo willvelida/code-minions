@@ -18,6 +18,27 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove installed agents and skills from your repository",
+		Long: `Remove previously installed agent and skill files from your repository.
+Only files that match the built-in package registry are removed — your
+own custom files are not touched.
+
+A confirmation prompt is shown before any files are deleted. Use --yes
+to skip the prompt in CI/scripting environments. Use --dry-run to see
+what would be removed without deleting anything.
+
+The --for flag is required when uninstalling all packages, so that
+files are found in the correct assistant-specific location.`,
+		Example: `  # Remove all packages (interactive confirmation prompt)
+  code-minions uninstall --for copilot
+
+  # Skip the confirmation prompt (for CI/scripts)
+  code-minions uninstall --for copilot --yes
+
+  # Remove a specific package
+  code-minions uninstall --package git-workflow --for copilot
+
+  # Preview what would be removed
+  code-minions uninstall --dry-run --for copilot`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
