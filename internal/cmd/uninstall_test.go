@@ -276,7 +276,7 @@ func TestUninstallConfirmationAccepted(t *testing.T) {
 	os.Stdin = r
 	t.Cleanup(func() { os.Stdin = origStdin })
 	_, _ = w.WriteString("y\n")
-	w.Close()
+	_ = w.Close()
 
 	uninstallCmd := newUninstallCommand(content)
 	uninstallCmd.SetArgs([]string{
@@ -319,7 +319,7 @@ func TestUninstallConfirmationDeclined(t *testing.T) {
 	os.Stdin = r
 	t.Cleanup(func() { os.Stdin = origStdin })
 	_, _ = w.WriteString("n\n")
-	w.Close()
+	_ = w.Close()
 
 	uninstallCmd := newUninstallCommand(content)
 	uninstallCmd.SetArgs([]string{
