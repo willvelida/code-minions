@@ -14,8 +14,7 @@
       "extensions": [
         "golang.go",
         "DavidAnson.vscode-markdownlint",
-        "yzhang.markdown-all-in-one",
-        "EditorConfig.EditorConfig"
+        "yzhang.markdown-all-in-one"
       ]
     }
   },
