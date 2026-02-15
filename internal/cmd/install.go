@@ -25,8 +25,9 @@ target directory, organised into agents/ and skills/ directories.
 When --for is specified, files are placed in the assistant-specific
 location (e.g. .github/agents/ for GitHub Copilot, .claude/agents/ for Claude).
 
-An AGENTS.md routing file is created or updated at the root of the
-target to help AI assistants discover installed agents.
+An AGENTS.md routing file is created at the root of the target to help
+AI assistants discover installed agents. If AGENTS.md already exists,
+it is left unchanged.
 
 Existing files are skipped unless --force is used. Use --dry-run to
 preview changes without writing any files.`,

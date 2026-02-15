@@ -23,10 +23,7 @@ description from its SKILL.md manifest.
 Use this command to discover what packages are available before running
 install, or to check which assistants are supported by the --for flag.`,
 		Example: `  # List all available packages and assistants
-  code-minions list
-
-  # Output as JSON (for scripting)
-  code-minions list --json`,
+  code-minions list`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Collect package data
 			type packageEntry struct {

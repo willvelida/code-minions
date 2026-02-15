@@ -19,12 +19,14 @@ func newUninstallCommand(content fs.FS) *cobra.Command {
 		Use:   "uninstall",
 		Short: "Remove installed agents and skills from your repository",
 		Long: `Remove previously installed agent and skill files from your repository.
-Only files that match the built-in package registry are removed — your
-own custom files are not touched.
+Only files at paths derived from the built-in package registry are
+targeted for removal. This may delete locally modified versions of
+those files, but files outside these known paths are not touched.
 
-A confirmation prompt is shown before any files are deleted. Use --yes
-to skip the prompt in CI/scripting environments. Use --dry-run to see
-what would be removed without deleting anything.
+In interactive mode a confirmation prompt is shown before any files are
+deleted. Non-interactive output modes (--json, --quiet) do not prompt
+and require --yes to proceed. Use --dry-run to see what would be
+removed without deleting anything.
 
 The --for flag is required when uninstalling all packages, so that
 files are found in the correct assistant-specific location.`,
