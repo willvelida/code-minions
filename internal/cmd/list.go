@@ -16,6 +16,14 @@ func newListCommand(content fs.FS) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List available packages",
+		Long: `Display all available packages in the built-in registry and the
+supported coding assistants. Each package includes its name and a short
+description from its SKILL.md manifest.
+
+Use this command to discover what packages are available before running
+install, or to check which assistants are supported by the --for flag.`,
+		Example: `  # List all available packages and assistants
+  code-minions list`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Collect package data
 			type packageEntry struct {
