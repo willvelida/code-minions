@@ -122,7 +122,7 @@ AGENTS.md is not modified during updates.`,
 			// Quiet mode — only report errors to stderr
 			if mode == OutputQuiet {
 				for _, e := range combinedResult.Errors {
-					fmt.Fprintf(os.Stderr, "  error: %s\n", e)
+					fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
 				}
 				if len(combinedResult.Errors) > 0 {
 					return fmt.Errorf("update completed with %d errors", len(combinedResult.Errors))

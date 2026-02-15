@@ -43,7 +43,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 
 			mode := getOutputMode(cmd)
 
-			if dryRun && mode == OutputNormal || dryRun && mode == OutputVerbose {
+			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
 				fmt.Println()
 			}
@@ -139,7 +139,7 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 			// Quiet mode — only report errors to stderr
 			if mode == OutputQuiet {
 				for _, e := range combinedResult.Errors {
-					fmt.Fprintf(os.Stderr, "  error: %s\n", e)
+					fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
 				}
 				if len(combinedResult.Errors) > 0 {
 					return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
