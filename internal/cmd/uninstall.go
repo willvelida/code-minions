@@ -161,6 +161,18 @@ files are found in the correct assistant-specific location.`,
 				combinedResult.DirsCleaned = append(combinedResult.DirsCleaned, result.DirsCleaned...)
 			}
 
+			// Update manifest to remove uninstalled packages (skip for dry-run)
+			if !dryRun && len(combinedResult.Removed) > 0 {
+				manifest, _ := installer.LoadManifest(target)
+				for _, pkgDir := range packageDirs {
+					pkgName := strings.TrimPrefix(pkgDir, "packages/")
+					installer.RecordUninstall(manifest, pkgName)
+				}
+				if err := installer.SaveManifest(target, manifest); err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+				}
+			}
+
 			// JSON output — handle AGENTS.md non-interactively, then marshal
 			if mode == OutputJSON {
 				if len(packageDirs) > 0 {

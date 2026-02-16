@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/registry"
 )
 
 func newInstallCommand(content fs.FS) *cobra.Command {
@@ -120,6 +121,36 @@ preview changes without writing any files.`,
 					combinedResult.Copied = append(combinedResult.Copied, agentsMDPath)
 				} else {
 					combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
+				}
+			}
+
+			// Record installation in manifest (skip for dry-run)
+			if !dryRun && len(combinedResult.Copied) > 0 {
+				src := registry.NewEmbeddedSource(content)
+				manifest, _ := installer.LoadManifest(target)
+				for _, pkgDir := range packageDirs {
+					pkgName := strings.TrimPrefix(pkgDir, "packages/")
+					var version string
+					if pkg, err := src.GetPackage(pkgName); err == nil {
+						version = pkg.Version
+					}
+					// Collect files that belong to this package
+					prefix := pkgName + "/"
+					var pkgFiles []string
+					for _, f := range combinedResult.Copied {
+						if strings.HasPrefix(f, "agents/"+pkgName) ||
+							strings.HasPrefix(f, "skills/"+pkgName) ||
+							strings.HasPrefix(f, ".github/agents/"+pkgName) ||
+							strings.HasPrefix(f, ".claude/agents/"+pkgName) ||
+							strings.HasPrefix(f, ".claude/skills/"+pkgName) ||
+							strings.Contains(f, prefix) {
+							pkgFiles = append(pkgFiles, f)
+						}
+					}
+					installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
+				}
+				if err := installer.SaveManifest(target, manifest); err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
 				}
 			}
 
