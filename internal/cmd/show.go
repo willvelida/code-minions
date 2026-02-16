@@ -61,25 +61,25 @@ Use 'code-minions list' to see all available package names.`,
 			if pkg.Version != "" {
 				_, _ = dim.Fprintf(w, " (%s)", pkg.Version)
 			}
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 			_, _ = dim.Fprintln(w, strings.Repeat("-", 60))
 
 			if pkg.Description != "" {
-				fmt.Fprintf(w, "  %s\n\n", pkg.Description)
+				_, _ = fmt.Fprintf(w, "  %s\n\n", pkg.Description)
 			}
 
 			// Metadata
 			if pkg.Author != "" {
 				_, _ = dim.Fprint(w, "  Author:        ")
-				fmt.Fprintln(w, pkg.Author)
+				_, _ = fmt.Fprintln(w, pkg.Author)
 			}
 			if pkg.License != "" {
 				_, _ = dim.Fprint(w, "  License:       ")
-				fmt.Fprintln(w, pkg.License)
+				_, _ = fmt.Fprintln(w, pkg.License)
 			}
 			if len(pkg.Compatibility) > 0 {
 				_, _ = dim.Fprint(w, "  Compatibility: ")
-				fmt.Fprintln(w, strings.Join(pkg.Compatibility, ", "))
+				_, _ = fmt.Fprintln(w, strings.Join(pkg.Compatibility, ", "))
 			}
 
 			// Contents
@@ -87,7 +87,7 @@ Use 'code-minions list' to see all available package names.`,
 				if len(items) == 0 {
 					return
 				}
-				fmt.Fprintln(w)
+				_, _ = fmt.Fprintln(w)
 				_, _ = cyan.Fprintf(w, "  %s (%d)\n", label, len(items))
 				for _, item := range items {
 					_, _ = green.Fprintf(w, "    %s\n", item)
@@ -102,7 +102,7 @@ Use 'code-minions list' to see all available package names.`,
 
 			// Dependencies
 			if len(pkg.Dependencies) > 0 {
-				fmt.Fprintln(w)
+				_, _ = fmt.Fprintln(w)
 				_, _ = cyan.Fprintln(w, "  Dependencies")
 				for _, dep := range pkg.Dependencies {
 					depStr := dep.Name
@@ -120,7 +120,7 @@ Use 'code-minions list' to see all available package names.`,
 			verbosePrintf(cmd, mode, "\nsource: embedded\n")
 			verbosePrintf(cmd, mode, "manifest: packages/%s/package.yaml\n", name)
 
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 			return nil
 		},
 	}

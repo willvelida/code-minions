@@ -127,7 +127,10 @@ preview changes without writing any files.`,
 			// Record installation in manifest (skip for dry-run)
 			if !dryRun && len(combinedResult.Copied) > 0 {
 				src := registry.NewEmbeddedSource(content)
-				manifest, _ := installer.LoadManifest(target)
+				manifest, err := installer.LoadManifest(target)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
+				}
 				for _, pkgDir := range packageDirs {
 					pkgName := strings.TrimPrefix(pkgDir, "packages/")
 					var version string
@@ -135,15 +138,16 @@ preview changes without writing any files.`,
 						version = pkg.Version
 					}
 					// Collect files that belong to this package
-					prefix := pkgName + "/"
 					var pkgFiles []string
 					for _, f := range combinedResult.Copied {
-						if strings.HasPrefix(f, "agents/"+pkgName) ||
-							strings.HasPrefix(f, "skills/"+pkgName) ||
-							strings.HasPrefix(f, ".github/agents/"+pkgName) ||
-							strings.HasPrefix(f, ".claude/agents/"+pkgName) ||
-							strings.HasPrefix(f, ".claude/skills/"+pkgName) ||
-							strings.Contains(f, prefix) {
+						if strings.HasPrefix(f, "agents/"+pkgName+"/") ||
+							strings.HasPrefix(f, "agents/"+pkgName+".") ||
+							strings.HasPrefix(f, "skills/"+pkgName+"/") ||
+							strings.HasPrefix(f, ".github/agents/"+pkgName+"/") ||
+							strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
+							strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
+							strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
+							strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") {
 							pkgFiles = append(pkgFiles, f)
 						}
 					}

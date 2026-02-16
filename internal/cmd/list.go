@@ -117,9 +117,7 @@ install, or to check which assistants are supported by the --for flag.`,
 				if p.Description != "" {
 					_, _ = dim.Fprintf(w, "  %s", truncateDesc(p.Description, 80))
 				}
-				fmt.Fprintln(w)
-
-				// Show content summary when --detail is set
+				_, _ = fmt.Fprintln(w)
 				if detail && p.Contents != nil {
 					contentsSummary(w, green, dim, p.Contents)
 				}
@@ -130,10 +128,10 @@ install, or to check which assistants are supported by the --for flag.`,
 			for _, a := range assistants {
 				_, _ = cyan.Fprintf(w, "  %-15s", a.Name)
 				_, _ = dim.Fprintf(w, "  %s", a.Description)
-				fmt.Fprintln(w)
+				_, _ = fmt.Fprintln(w)
 			}
 
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 			return nil
 		},
 	}

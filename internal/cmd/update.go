@@ -92,7 +92,10 @@ AGENTS.md is not modified during updates.`,
 			// Update manifest with new versions (skip for dry-run)
 			if !dryRun && len(combinedResult.Copied) > 0 {
 				src := registry.NewEmbeddedSource(content)
-				manifest, _ := installer.LoadManifest(target)
+				manifest, err := installer.LoadManifest(target)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
+				}
 				for _, pkgDir := range packageDirs {
 					pkgName := strings.TrimPrefix(pkgDir, "packages/")
 					var version string
@@ -101,7 +104,14 @@ AGENTS.md is not modified during updates.`,
 					}
 					var pkgFiles []string
 					for _, f := range combinedResult.Copied {
-						if strings.Contains(f, pkgName) {
+						if strings.HasPrefix(f, "agents/"+pkgName+"/") ||
+							strings.HasPrefix(f, "agents/"+pkgName+".") ||
+							strings.HasPrefix(f, "skills/"+pkgName+"/") ||
+							strings.HasPrefix(f, ".github/agents/"+pkgName+"/") ||
+							strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
+							strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
+							strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
+							strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") {
 							pkgFiles = append(pkgFiles, f)
 						}
 					}

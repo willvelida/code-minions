@@ -162,9 +162,6 @@ func TestEmbeddedSourceDownloadPackage(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should be able to read files relative to the package root
-	data, err := fstest.MapFS(nil).Open(".")
-	_ = data
 	// Just verify the sub-filesystem is not nil
 	if sub == nil {
 		t.Fatal("expected non-nil sub-filesystem")

@@ -42,9 +42,6 @@ Use 'code-minions show <package>' to see full details for a result.`,
 			mode := getOutputMode(cmd)
 
 			if mode == OutputJSON {
-				if results == nil {
-					results = nil
-				}
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
 					Query   string               `json:"query"`
 					Results []searchResultOutput `json:"results"`
@@ -85,12 +82,12 @@ Use 'code-minions show <package>' to see full details for a result.`,
 					}
 					_, _ = dim.Fprintf(w, "  %s", desc)
 				}
-				fmt.Fprintln(w)
+				_, _ = fmt.Fprintln(w)
 
 				verbosePrintf(cmd, mode, "    kind: %s, source: %s\n", r.Kind, r.Source)
 			}
 
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 			return nil
 		},
 	}
