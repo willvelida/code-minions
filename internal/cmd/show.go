@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"strings"
@@ -32,8 +33,14 @@ Use 'code-minions list' to see all available package names.`,
 			src := registry.NewEmbeddedSource(content)
 			pkg, err := src.GetPackage(name)
 			if err != nil {
+				if !errors.Is(err, registry.ErrNotFound) {
+					return fmt.Errorf("failed to read package %q: %w", name, err)
+				}
 				// List available packages in the error message
-				available, _ := src.ListPackages()
+				available, listErr := src.ListPackages()
+				if listErr != nil {
+					return fmt.Errorf("package %q not found (and failed to list packages: %w)", name, listErr)
+				}
 				var names []string
 				for _, p := range available {
 					names = append(names, p.Name)
@@ -118,7 +125,11 @@ Use 'code-minions list' to see all available package names.`,
 
 			// Verbose: show source info
 			verbosePrintf(cmd, mode, "\nsource: embedded\n")
-			verbosePrintf(cmd, mode, "manifest: packages/%s/package.yaml\n", name)
+			if pkg.Version != "" {
+				verbosePrintf(cmd, mode, "manifest: packages/%s/package.yaml\n", name)
+			} else {
+				verbosePrintf(cmd, mode, "definition: fallback (from SKILL.md + directory walk)\n")
+			}
 
 			_, _ = fmt.Fprintln(w)
 			return nil

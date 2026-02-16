@@ -111,7 +111,10 @@ AGENTS.md is not modified during updates.`,
 								strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
 								strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
 								strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
-								strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") {
+								strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".opencode/agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".opencode/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".opencode/skills/"+pkgName+"/") {
 								pkgFiles = append(pkgFiles, f)
 							}
 						}

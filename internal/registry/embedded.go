@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"strings"
@@ -62,7 +63,10 @@ func (s *EmbeddedSource) DownloadPackage(name string, _ string) (fs.FS, error) {
 
 	// Verify the package exists
 	if _, err := fs.Stat(s.content, pkgDir); err != nil {
-		return nil, fmt.Errorf("package %q not found: %w", name, err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("package %q: %w", name, ErrNotFound)
+		}
+		return nil, fmt.Errorf("package %q: %w", name, err)
 	}
 
 	sub, err := fs.Sub(s.content, pkgDir)
@@ -169,8 +173,11 @@ func (s *EmbeddedSource) buildFallbackPackage(name string) (*model.Package, erro
 	pkgDir := "packages/" + name
 	var agents, skills []string
 
-	_ = fs.WalkDir(s.content, pkgDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+	if walkErr := fs.WalkDir(s.content, pkgDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
 			return nil
 		}
 
@@ -183,7 +190,9 @@ func (s *EmbeddedSource) buildFallbackPackage(name string) (*model.Package, erro
 			skills = append(skills, rel)
 		}
 		return nil
-	})
+	}); walkErr != nil {
+		return nil, fmt.Errorf("failed to walk package %q: %w", name, walkErr)
+	}
 
 	if len(agents) > 0 {
 		pkg.Contents.Agents = agents
