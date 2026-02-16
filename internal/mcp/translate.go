@@ -154,6 +154,9 @@ func Translate(opts TranslateOptions) (*TranslateResult, error) {
 	}
 
 	sort.Strings(allWarnings)
+
+	// Overwrite mergeResult.Warnings with the unified set so callers
+	// see all warnings (reader + translator + merge + secrets) in one place.
 	mergeResult.Warnings = allWarnings
 
 	// Step 8: Write (unless dry-run)

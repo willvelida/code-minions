@@ -158,7 +158,7 @@ func (r *OpenCodeReader) Read(data []byte) (*Config, []string, error) {
 	var warnings []string
 
 	// Sort for deterministic output
-	names := sortedMapKeys(servers)
+	names := sortedKeys(servers)
 
 	for _, name := range names {
 		entry := servers[name]
@@ -244,7 +244,7 @@ func readStandardFormat(servers map[string]map[string]any, assistantName string)
 	cfg := &Config{Servers: make(map[string]Server)}
 	var warnings []string
 
-	names := sortedMapKeys(servers)
+	names := sortedKeys(servers)
 
 	for _, name := range names {
 		entry := servers[name]
@@ -338,8 +338,10 @@ func toStringMap(v any) (map[string]string, error) {
 	}
 }
 
-// sortedMapKeys returns the keys of a map[string]T sorted alphabetically.
-func sortedMapKeys[V any](m map[string]V) []string {
+// sortedKeys returns the keys of a map[string]T sorted alphabetically.
+// NOTE: intentionally duplicated from internal/cmd/output.go to avoid
+// a cross-package dependency between mcp and cmd.
+func sortedKeys[V any](m map[string]V) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

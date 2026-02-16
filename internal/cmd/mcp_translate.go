@@ -61,12 +61,14 @@ to preview changes without writing any files.`,
 			}
 
 			rawTargets := strings.Split(toRaw, ",")
+			seen := make(map[string]bool)
 			var targets []string
 			for _, t := range rawTargets {
 				t = strings.TrimSpace(t)
-				if t == "" {
+				if t == "" || seen[t] {
 					continue
 				}
+				seen[t] = true
 				targets = append(targets, t)
 			}
 			if len(targets) == 0 {
