@@ -1,0 +1,15 @@
+# MCP servers used by the git-workflow package.
+# These provide the agent with direct access to GitHub's API for
+# creating branches, pull requests, releases, and other git operations.
+
+servers:
+  github:
+    description: GitHub API access via Model Context Protocol
+    transport: stdio
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-github"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ""
+    required: false

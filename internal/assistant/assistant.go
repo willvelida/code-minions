@@ -7,32 +7,41 @@ import (
 	"strings"
 )
 
-// Config describes a coding assistant's directory layout for agents and skills.
+// Config describes a coding assistant's directory layout for agents and skills,
+// and its MCP configuration file location.
 type Config struct {
-	Name        string // Assistant identifier, e.g. "copilot", "claude", "opencode"
-	Description string // Human-readable label, e.g. "GitHub Copilot"
-	AgentDir    string // Where agent .md files go, e.g. ".github/agents"
-	SkillDir    string // Where skill directories go, e.g. "skills"
+	Name          string // Assistant identifier, e.g. "copilot", "claude", "opencode"
+	Description   string // Human-readable label, e.g. "GitHub Copilot"
+	AgentDir      string // Where agent .md files go, e.g. ".github/agents"
+	SkillDir      string // Where skill directories go, e.g. "skills"
+	MCPConfigPath string // Where MCP server config lives, e.g. ".vscode/mcp.json"
+	MCPConfigKey  string // Top-level JSON key for MCP servers, e.g. "servers"
 }
 
 var configs = map[string]Config{
 	"copilot": {
-		Name:        "copilot",
-		Description: "GitHub Copilot",
-		AgentDir:    ".github/agents",
-		SkillDir:    "skills",
+		Name:          "copilot",
+		Description:   "GitHub Copilot",
+		AgentDir:      ".github/agents",
+		SkillDir:      "skills",
+		MCPConfigPath: ".vscode/mcp.json",
+		MCPConfigKey:  "servers",
 	},
 	"claude": {
-		Name:        "claude",
-		Description: "Claude Code",
-		AgentDir:    ".claude/agents",
-		SkillDir:    ".claude/skills",
+		Name:          "claude",
+		Description:   "Claude Code",
+		AgentDir:      ".claude/agents",
+		SkillDir:      ".claude/skills",
+		MCPConfigPath: ".claude/settings.local.json",
+		MCPConfigKey:  "mcpServers",
 	},
 	"opencode": {
-		Name:        "opencode",
-		Description: "OpenCode",
-		AgentDir:    ".opencode/agents",
-		SkillDir:    ".opencode/skills",
+		Name:          "opencode",
+		Description:   "OpenCode",
+		AgentDir:      ".opencode/agents",
+		SkillDir:      ".opencode/skills",
+		MCPConfigPath: "opencode.json",
+		MCPConfigKey:  "mcp",
 	},
 }
 

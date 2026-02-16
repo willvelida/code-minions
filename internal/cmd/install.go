@@ -6,12 +6,14 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/mcp"
 	"github.com/willvelida/code-minions/internal/registry"
 )
 
@@ -124,6 +126,29 @@ preview changes without writing any files.`,
 				}
 			}
 
+			// --- MCP server processing ---
+			// When --for is set, translate each package's mcp.yaml into
+			// the assistant's native JSON format and merge it in.
+			mcpResults := make(map[string]*mcp.InstallResult) // package name → result
+			if forFlag != "" {
+				translator, err := mcp.NewTranslator(forFlag)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP: %v", err))
+				} else {
+					for _, pkgDir := range packageDirs {
+						pkgName := strings.TrimPrefix(pkgDir, "packages/")
+						mcpResult, err := mcp.Install(content, pkgDir, target, translator, force, dryRun)
+						if err != nil {
+							combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP (%s): %v", pkgName, err))
+							continue
+						}
+						if mcpResult != nil {
+							mcpResults[pkgName] = mcpResult
+						}
+					}
+				}
+			}
+
 			// Record installation in manifest (skip for dry-run)
 			if !dryRun && len(combinedResult.Copied) > 0 {
 				src := registry.NewEmbeddedSource(content)
@@ -155,6 +180,17 @@ preview changes without writing any files.`,
 							}
 						}
 						installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
+
+						// Attach MCP server names to the manifest entry
+						if mcpResult, ok := mcpResults[pkgName]; ok && len(mcpResult.ServerNames) > 0 {
+							sort.Strings(mcpResult.ServerNames)
+							for i := range manifest.Packages {
+								if manifest.Packages[i].Name == pkgName {
+									manifest.Packages[i].MCPServers = mcpResult.ServerNames
+									break
+								}
+							}
+						}
 					}
 					if err := installer.SaveManifest(target, manifest); err != nil {
 						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
@@ -176,10 +212,37 @@ preview changes without writing any files.`,
 				if errs == nil {
 					errs = []string{}
 				}
+
+				// Build MCP section for JSON
+				type mcpJSONEntry struct {
+					Package    string   `json:"package"`
+					ConfigPath string   `json:"config_path"`
+					Added      []string `json:"added"`
+					Skipped    []string `json:"skipped"`
+					Conflicts  []string `json:"conflicts"`
+					Warnings   []string `json:"warnings"`
+				}
+				var mcpEntries []mcpJSONEntry
+				for pkgName, mr := range mcpResults {
+					entry := mcpJSONEntry{
+						Package:    pkgName,
+						ConfigPath: mr.ConfigPath,
+						Added:      nonNil(mr.Merge.Added),
+						Skipped:    nonNil(mr.Merge.Skipped),
+						Conflicts:  nonNil(mr.Merge.Conflict),
+						Warnings:   nonNil(mr.Merge.Warnings),
+					}
+					mcpEntries = append(mcpEntries, entry)
+				}
+				if mcpEntries == nil {
+					mcpEntries = []mcpJSONEntry{}
+				}
+
 				result := struct {
-					Copied  []string `json:"copied"`
-					Skipped []string `json:"skipped"`
-					Errors  []string `json:"errors"`
+					Copied  []string       `json:"copied"`
+					Skipped []string       `json:"skipped"`
+					Errors  []string       `json:"errors"`
+					MCP     []mcpJSONEntry `json:"mcp"`
 					Summary struct {
 						Copied  int `json:"copied"`
 						Skipped int `json:"skipped"`
@@ -189,6 +252,7 @@ preview changes without writing any files.`,
 					Copied:  copied,
 					Skipped: skipped,
 					Errors:  errs,
+					MCP:     mcpEntries,
 				}
 				result.Summary.Copied = len(combinedResult.Copied)
 				result.Summary.Skipped = len(combinedResult.Skipped)
@@ -235,6 +299,31 @@ preview changes without writing any files.`,
 			}
 			for _, e := range combinedResult.Errors {
 				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+			}
+
+			// MCP server results
+			if len(mcpResults) > 0 {
+				cyan := color.New(color.FgCyan)
+				fmt.Println()
+				_, _ = bold.Println("MCP servers:")
+				for pkgName, mr := range mcpResults {
+					for _, s := range mr.Merge.Added {
+						if dryRun {
+							_, _ = yellow.Printf("  would add to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
+						} else {
+							_, _ = cyan.Printf("  added to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
+						}
+					}
+					for _, s := range mr.Merge.Skipped {
+						_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
+					}
+					for _, s := range mr.Merge.Conflict {
+						_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
+					}
+					for _, w := range mr.Merge.Warnings {
+						_, _ = yellow.Printf("  warning: %s\n", w)
+					}
+				}
 			}
 
 			// Summary

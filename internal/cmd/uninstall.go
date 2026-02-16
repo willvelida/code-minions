@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/mcp"
 )
 
 func newUninstallCommand(content fs.FS) *cobra.Command {
@@ -161,6 +162,44 @@ files are found in the correct assistant-specific location.`,
 				combinedResult.DirsCleaned = append(combinedResult.DirsCleaned, result.DirsCleaned...)
 			}
 
+			// --- MCP server removal ---
+			// Look up installed MCP server names from the manifest and remove
+			// them from the assistant's config file.
+			var mcpUninstallResults []*mcp.UninstallResult
+			if forFlag != "" {
+				translator, err := mcp.NewTranslator(forFlag)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP: %v", err))
+				} else {
+					manifest, err := installer.LoadManifest(target)
+					if err != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP manifest load: %v", err))
+					} else {
+						for _, pkgDir := range packageDirs {
+							pkgName := strings.TrimPrefix(pkgDir, "packages/")
+							// Find the package in the manifest to get its MCPServers
+							var serverNames []string
+							for _, p := range manifest.Packages {
+								if p.Name == pkgName {
+									serverNames = p.MCPServers
+									break
+								}
+							}
+							if len(serverNames) > 0 {
+								mcpResult, err := mcp.Uninstall(target, translator, serverNames, dryRun)
+								if err != nil {
+									combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP (%s): %v", pkgName, err))
+									continue
+								}
+								if mcpResult != nil {
+									mcpUninstallResults = append(mcpUninstallResults, mcpResult)
+								}
+							}
+						}
+					}
+				}
+			}
+
 			// Update manifest to remove uninstalled packages (skip for dry-run)
 			if !dryRun && len(combinedResult.Removed) > 0 {
 				manifest, err := installer.LoadManifest(target)
@@ -296,6 +335,25 @@ files are found in the correct assistant-specific location.`,
 			}
 			for _, e := range combinedResult.Errors {
 				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+			}
+
+			// MCP server removal results
+			if len(mcpUninstallResults) > 0 {
+				cyan := color.New(color.FgCyan)
+				fmt.Println()
+				_, _ = bold.Println("MCP servers:")
+				for _, mr := range mcpUninstallResults {
+					for _, s := range mr.Removed {
+						if dryRun {
+							_, _ = yellow.Printf("  would remove from %s: %s\n", mr.ConfigPath, s)
+						} else {
+							_, _ = cyan.Printf("  removed from %s: %s\n", mr.ConfigPath, s)
+						}
+					}
+					for _, s := range mr.NotFound {
+						_, _ = dim.Printf("  not found in %s: %s\n", mr.ConfigPath, s)
+					}
+				}
 			}
 
 			if len(packageDirs) > 0 {

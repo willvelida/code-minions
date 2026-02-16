@@ -12,6 +12,7 @@ import (
 // directory (e.g. package manifests are metadata, not installable content).
 var SkipFiles = map[string]bool{
 	"package.yaml": true,
+	"mcp.yaml":     true,
 }
 
 // Installer copies embedded package content to a target directory.

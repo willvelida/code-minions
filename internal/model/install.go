@@ -19,6 +19,7 @@ type InstalledPackage struct {
 	InstalledAt string   `json:"installed_at"`
 	Persona     string   `json:"persona,omitempty"`
 	Files       []string `json:"files"`
+	MCPServers  []string `json:"mcp_servers,omitempty"`
 }
 
 // InstalledPersona records a single installed persona.

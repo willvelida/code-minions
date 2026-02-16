@@ -53,3 +53,12 @@ func quietWarning(cmd *cobra.Command, mode OutputMode) {
 	}
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: --quiet has no effect on '%s' (the command exists to display information)\n", cmd.Name())
 }
+
+// nonNil returns s if non-nil, or an empty slice otherwise.
+// Useful for JSON serialisation where null arrays are unwanted.
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
