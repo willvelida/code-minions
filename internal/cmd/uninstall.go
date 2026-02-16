@@ -166,13 +166,14 @@ files are found in the correct assistant-specific location.`,
 				manifest, err := installer.LoadManifest(target)
 				if err != nil {
 					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
-				}
-				for _, pkgDir := range packageDirs {
-					pkgName := strings.TrimPrefix(pkgDir, "packages/")
-					installer.RecordUninstall(manifest, pkgName)
-				}
-				if err := installer.SaveManifest(target, manifest); err != nil {
-					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+				} else {
+					for _, pkgDir := range packageDirs {
+						pkgName := strings.TrimPrefix(pkgDir, "packages/")
+						installer.RecordUninstall(manifest, pkgName)
+					}
+					if err := installer.SaveManifest(target, manifest); err != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+					}
 				}
 			}
 

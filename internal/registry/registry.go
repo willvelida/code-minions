@@ -77,8 +77,10 @@ func (r *Registry) ListPackages() ([]model.Package, error) {
 	return all, nil
 }
 
-// Search queries all sources and merges results.
+// Search queries all sources and merges results, deduplicated by package name.
+// When the same package appears in multiple sources, the first source wins.
 func (r *Registry) Search(query string) ([]model.SearchResult, error) {
+	seen := make(map[string]bool)
 	var all []model.SearchResult
 
 	for _, src := range r.sources {
@@ -86,7 +88,12 @@ func (r *Registry) Search(query string) ([]model.SearchResult, error) {
 		if err != nil {
 			return nil, fmt.Errorf("source %q: %w", src.Name(), err)
 		}
-		all = append(all, results...)
+		for _, res := range results {
+			if !seen[res.Name] {
+				seen[res.Name] = true
+				all = append(all, res)
+			}
+		}
 	}
 
 	return all, nil

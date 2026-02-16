@@ -130,31 +130,32 @@ preview changes without writing any files.`,
 				manifest, err := installer.LoadManifest(target)
 				if err != nil {
 					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
-				}
-				for _, pkgDir := range packageDirs {
-					pkgName := strings.TrimPrefix(pkgDir, "packages/")
-					var version string
-					if pkg, err := src.GetPackage(pkgName); err == nil {
-						version = pkg.Version
-					}
-					// Collect files that belong to this package
-					var pkgFiles []string
-					for _, f := range combinedResult.Copied {
-						if strings.HasPrefix(f, "agents/"+pkgName+"/") ||
-							strings.HasPrefix(f, "agents/"+pkgName+".") ||
-							strings.HasPrefix(f, "skills/"+pkgName+"/") ||
-							strings.HasPrefix(f, ".github/agents/"+pkgName+"/") ||
-							strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
-							strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
-							strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
-							strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") {
-							pkgFiles = append(pkgFiles, f)
+				} else {
+					for _, pkgDir := range packageDirs {
+						pkgName := strings.TrimPrefix(pkgDir, "packages/")
+						var version string
+						if pkg, err := src.GetPackage(pkgName); err == nil {
+							version = pkg.Version
 						}
+						// Collect files that belong to this package
+						var pkgFiles []string
+						for _, f := range combinedResult.Copied {
+							if strings.HasPrefix(f, "agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, "agents/"+pkgName+".") ||
+								strings.HasPrefix(f, "skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".github/agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") {
+								pkgFiles = append(pkgFiles, f)
+							}
+						}
+						installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
 					}
-					installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
-				}
-				if err := installer.SaveManifest(target, manifest); err != nil {
-					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+					if err := installer.SaveManifest(target, manifest); err != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+					}
 				}
 			}
 
