@@ -1,0 +1,31 @@
+name: creating-agent-skill
+version: 0.1.0
+description: >-
+  Create and review Agent Skills that follow the open Agent Skills
+  specification and best practices.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/creating-agent-skill.agent.md
+  skills:
+    - skills/creating-agent-skill/SKILL.md
+  actions:
+    - skills/creating-agent-skill/actions/create.md
+    - skills/creating-agent-skill/actions/review.md
+  standards:
+    - skills/creating-agent-skill/standards/checklist.md
+    - skills/creating-agent-skill/standards/clarifying-questions.md
+    - skills/creating-agent-skill/standards/descriptions.md
+    - skills/creating-agent-skill/standards/instructions.md
+    - skills/creating-agent-skill/standards/naming.md
+    - skills/creating-agent-skill/standards/specification.md
+    - skills/creating-agent-skill/standards/structure.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []

@@ -1,0 +1,31 @@
+name: creating-documentation
+version: 0.1.0
+description: >-
+  Create and review README files and repository documentation that
+  follows best practices for clarity, accessibility, and
+  discoverability.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/creating-documentation.agent.md
+  skills:
+    - skills/creating-documentation/SKILL.md
+  actions:
+    - skills/creating-documentation/actions/create-contributing.md
+    - skills/creating-documentation/actions/create-readme.md
+    - skills/creating-documentation/actions/review-documentation.md
+  standards:
+    - skills/creating-documentation/standards/accessibility.md
+    - skills/creating-documentation/standards/checklist.md
+    - skills/creating-documentation/standards/markdown.md
+    - skills/creating-documentation/standards/readme-structure.md
+    - skills/creating-documentation/standards/writing-style.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []
