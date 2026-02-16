@@ -14,7 +14,7 @@ import (
 type InstallResult struct {
 	ConfigPath  string       // Relative path written, e.g. ".vscode/mcp.json"
 	Merge       *MergeResult // Detailed merge outcome
-	ServerNames []string     // Canonical server names from mcp.yaml (for manifest tracking)
+	ServerNames []string     // Successfully installed server names (for manifest tracking)
 	DryRun      bool
 }
 

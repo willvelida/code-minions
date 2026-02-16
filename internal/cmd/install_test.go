@@ -541,3 +541,79 @@ func TestInstallMCPManifestRecordsServers(t *testing.T) {
 		t.Error("expected git-workflow in manifest packages")
 	}
 }
+
+// testContentFSMCPOnly returns a content FS with a package that contains
+// only an mcp.yaml (no agent/skill files). Used to verify that MCP-only
+// packages are still tracked in the manifest.
+func testContentFSMCPOnly() fstest.MapFS {
+	mcpYAML := `servers:
+  github:
+    description: GitHub API access via MCP
+    transport: stdio
+    command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-github"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ""
+    required: false
+`
+	return fstest.MapFS{
+		"packages/mcp-only/mcp.yaml": &fstest.MapFile{Data: []byte(mcpYAML)},
+	}
+}
+
+// TestInstallMCPOnlyPackageManifest verifies that a package with only an
+// mcp.yaml (no agent/skill files) is still recorded in the manifest.
+func TestInstallMCPOnlyPackageManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSMCPOnly()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "mcp-only",
+		"--for", "copilot",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// MCP config should be written
+	mcpConfig := filepath.Join(target, ".vscode", "mcp.json")
+	if _, err := os.ReadFile(mcpConfig); err != nil {
+		t.Fatalf("expected MCP config at %s: %v", mcpConfig, err)
+	}
+
+	// Manifest should track the package
+	manifestPath := filepath.Join(target, ".code-minions", "installed.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("expected manifest at %s: %v", manifestPath, err)
+	}
+
+	var manifest struct {
+		Packages []struct {
+			Name       string   `json:"name"`
+			MCPServers []string `json:"mcp_servers"`
+		} `json:"packages"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("invalid JSON in manifest: %v", err)
+	}
+
+	found := false
+	for _, pkg := range manifest.Packages {
+		if pkg.Name == "mcp-only" {
+			found = true
+			if len(pkg.MCPServers) != 1 || pkg.MCPServers[0] != "github" {
+				t.Errorf("MCPServers = %v, want [github]", pkg.MCPServers)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("expected mcp-only package in manifest despite no agent/skill files")
+	}
+}

@@ -571,3 +571,53 @@ func TestUninstallForCopilotMCPJSON(t *testing.T) {
 		t.Errorf("expected 0 errors, got %d: %v", result.Summary.Errors, result.Errors)
 	}
 }
+
+// TestUninstallMCPOnlyPackageRemovesManifest verifies that uninstalling an
+// MCP-only package (no agent/skill files) still removes the manifest entry.
+func TestUninstallMCPOnlyPackageRemovesManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSMCPOnly()
+
+	// Install the MCP-only package
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "mcp-only",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Verify manifest has the entry
+	manifestPath := filepath.Join(target, ".code-minions", "installed.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("expected manifest after install: %v", err)
+	}
+	if !strings.Contains(string(data), "mcp-only") {
+		t.Fatal("manifest should contain mcp-only after install")
+	}
+
+	// Uninstall
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "mcp-only",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v", err)
+	}
+
+	// Manifest entry should be removed
+	data, err = os.ReadFile(manifestPath)
+	if err != nil {
+		// Manifest file removed entirely — acceptable
+		return
+	}
+	if strings.Contains(string(data), "mcp-only") {
+		t.Error("manifest should not contain mcp-only after uninstall")
+	}
+}

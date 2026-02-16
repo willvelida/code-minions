@@ -201,7 +201,7 @@ files are found in the correct assistant-specific location.`,
 			}
 
 			// Update manifest to remove uninstalled packages (skip for dry-run)
-			if !dryRun && len(combinedResult.Removed) > 0 {
+			if !dryRun && (len(combinedResult.Removed) > 0 || len(mcpUninstallResults) > 0) {
 				manifest, err := installer.LoadManifest(target)
 				if err != nil {
 					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))

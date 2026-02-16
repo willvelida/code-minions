@@ -150,7 +150,7 @@ preview changes without writing any files.`,
 			}
 
 			// Record installation in manifest (skip for dry-run)
-			if !dryRun && len(combinedResult.Copied) > 0 {
+			if !dryRun && (len(combinedResult.Copied) > 0 || len(mcpResults) > 0) {
 				src := registry.NewEmbeddedSource(content)
 				manifest, err := installer.LoadManifest(target)
 				if err != nil {

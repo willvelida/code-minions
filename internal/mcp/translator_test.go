@@ -3,6 +3,8 @@ package mcp
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/willvelida/code-minions/internal/assistant"
 )
 
 // testStdioConfig returns a canonical Config with a single stdio server
@@ -374,6 +376,31 @@ func TestNewTranslator(t *testing.T) {
 			}
 			if tr == nil {
 				t.Error("expected non-nil translator")
+			}
+		})
+	}
+}
+
+// TestTranslatorConfigMatchesAssistant verifies that each translator's
+// ConfigPath() and ConfigKey() return the same values as the corresponding
+// assistant.Config. This prevents drift between the two sources.
+func TestTranslatorConfigMatchesAssistant(t *testing.T) {
+	names := []string{"copilot", "claude", "opencode"}
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			tr, err := NewTranslator(name)
+			if err != nil {
+				t.Fatalf("NewTranslator(%q): %v", name, err)
+			}
+			cfg, err := assistant.Get(name)
+			if err != nil {
+				t.Fatalf("assistant.Get(%q): %v", name, err)
+			}
+			if tr.ConfigPath() != cfg.MCPConfigPath {
+				t.Errorf("ConfigPath mismatch: translator=%q, assistant=%q", tr.ConfigPath(), cfg.MCPConfigPath)
+			}
+			if tr.ConfigKey() != cfg.MCPConfigKey {
+				t.Errorf("ConfigKey mismatch: translator=%q, assistant=%q", tr.ConfigKey(), cfg.MCPConfigKey)
 			}
 		})
 	}
