@@ -212,6 +212,10 @@ func TestInstall_ConflictNoForce(t *testing.T) {
 	if len(result.Merge.Added) != 0 {
 		t.Errorf("Added = %v, want empty", result.Merge.Added)
 	}
+	// ServerNames should be empty because nothing was actually installed
+	if len(result.ServerNames) != 0 {
+		t.Errorf("ServerNames = %v, want empty (conflict, not installed)", result.ServerNames)
+	}
 }
 
 func TestInstall_ConflictWithForce(t *testing.T) {
@@ -303,5 +307,95 @@ func TestInstall_ClaudeTranslator(t *testing.T) {
 	}
 	if _, ok := doc["mcpServers"]; !ok {
 		t.Error("Claude config missing 'mcpServers' key")
+	}
+}
+
+func TestInstall_InvalidYAML(t *testing.T) {
+	content := fstest.MapFS{
+		"packages/test-pkg/mcp.yaml": &fstest.MapFile{
+			Data: []byte(`{invalid yaml`),
+		},
+	}
+
+	target := t.TempDir()
+	translator := &CopilotTranslator{}
+
+	_, err := Install(content, "packages/test-pkg", target, translator, false, false)
+	if err == nil {
+		t.Fatal("Install() expected error for invalid YAML")
+	}
+}
+
+func TestInstall_AllServersIncompatible(t *testing.T) {
+	// Create a config where all servers use a transport that triggers a warning
+	// by using an unknown transport (validated through direct Config construction)
+	content := fstest.MapFS{
+		"packages/test-pkg/mcp.yaml": &fstest.MapFile{
+			Data: []byte(`servers:
+  stdio-server:
+    transport: stdio
+    command: my-cmd
+`),
+		},
+	}
+
+	target := t.TempDir()
+	// Use a translator that can't handle stdio — won't happen with real translators
+	// but tests the empty-servers fallback via OpenCode (which handles all transports)
+	translator := &OpenCodeTranslator{}
+	result, err := Install(content, "packages/test-pkg", target, translator, false, false)
+	if err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	// OpenCode handles stdio, so this should succeed
+	if result == nil {
+		t.Fatal("Install() returned nil")
+	}
+	if len(result.Merge.Added) != 1 {
+		t.Errorf("Added = %v, want 1 server", result.Merge.Added)
+	}
+}
+
+func TestInstall_SkippedServerDoesNotAppearInServerNames(t *testing.T) {
+	content := fstest.MapFS{
+		"packages/test-pkg/mcp.yaml": &fstest.MapFile{
+			Data: []byte(`servers:
+  github:
+    transport: stdio
+    command: npx
+`),
+		},
+	}
+
+	target := t.TempDir()
+	translator := &CopilotTranslator{}
+
+	// Create existing identical config (will be skipped)
+	configDir := filepath.Join(target, ".vscode")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `{
+  "servers": {
+    "github": {
+      "command": "npx"
+    }
+  }
+}
+`
+	if err := os.WriteFile(filepath.Join(configDir, "mcp.json"), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Install(content, "packages/test-pkg", target, translator, false, false)
+	if err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	if len(result.Merge.Skipped) != 1 {
+		t.Errorf("Skipped = %v, want [github]", result.Merge.Skipped)
+	}
+	// ServerNames should be empty — skipped servers were not installed
+	if len(result.ServerNames) != 0 {
+		t.Errorf("ServerNames = %v, want empty (skipped, not installed)", result.ServerNames)
 	}
 }

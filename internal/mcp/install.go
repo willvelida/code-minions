@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // InstallResult captures what happened during MCP installation for a
@@ -56,12 +57,6 @@ func Install(content fs.FS, packageDir, targetDir string, translator Translator,
 		return result, nil
 	}
 
-	// Collect canonical server names (for manifest tracking)
-	var serverNames []string
-	for name := range cfg.Servers {
-		serverNames = append(serverNames, name)
-	}
-
 	// Step 3: read existing config file
 	configPath := filepath.Join(targetDir, translator.ConfigPath())
 	var existing []byte
@@ -77,8 +72,9 @@ func Install(content fs.FS, packageDir, targetDir string, translator Translator,
 		return nil, fmt.Errorf("MCP merge failed for %s: %w", translator.ConfigPath(), err)
 	}
 
-	// Append translation warnings to merge warnings
+	// Append translation warnings to merge warnings and sort for deterministic output
 	mergeResult.Warnings = append(translateWarnings, mergeResult.Warnings...)
+	sort.Strings(mergeResult.Warnings)
 
 	// Step 5: write (unless dry-run)
 	if !dryRun && (len(mergeResult.Added) > 0) {
@@ -93,7 +89,7 @@ func Install(content fs.FS, packageDir, targetDir string, translator Translator,
 	return &InstallResult{
 		ConfigPath:  translator.ConfigPath(),
 		Merge:       mergeResult,
-		ServerNames: serverNames,
+		ServerNames: mergeResult.Added,
 		DryRun:      dryRun,
 	}, nil
 }

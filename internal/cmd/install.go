@@ -181,12 +181,14 @@ preview changes without writing any files.`,
 						}
 						installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
 
-						// Attach MCP server names to the manifest entry
-						if mcpResult, ok := mcpResults[pkgName]; ok && len(mcpResult.ServerNames) > 0 {
-							sort.Strings(mcpResult.ServerNames)
+						// Attach only actually-added MCP server names to the manifest entry
+						if mcpResult, ok := mcpResults[pkgName]; ok && len(mcpResult.Merge.Added) > 0 {
+							addedServers := make([]string, len(mcpResult.Merge.Added))
+							copy(addedServers, mcpResult.Merge.Added)
+							sort.Strings(addedServers)
 							for i := range manifest.Packages {
 								if manifest.Packages[i].Name == pkgName {
-									manifest.Packages[i].MCPServers = mcpResult.ServerNames
+									manifest.Packages[i].MCPServers = addedServers
 									break
 								}
 							}
@@ -223,7 +225,9 @@ preview changes without writing any files.`,
 					Warnings   []string `json:"warnings"`
 				}
 				var mcpEntries []mcpJSONEntry
-				for pkgName, mr := range mcpResults {
+				mcpPkgNames := sortedKeys(mcpResults)
+				for _, pkgName := range mcpPkgNames {
+					mr := mcpResults[pkgName]
 					entry := mcpJSONEntry{
 						Package:    pkgName,
 						ConfigPath: mr.ConfigPath,
@@ -306,7 +310,9 @@ preview changes without writing any files.`,
 				cyan := color.New(color.FgCyan)
 				fmt.Println()
 				_, _ = bold.Println("MCP servers:")
-				for pkgName, mr := range mcpResults {
+				mcpPkgNames := sortedKeys(mcpResults)
+				for _, pkgName := range mcpPkgNames {
+					mr := mcpResults[pkgName]
 					for _, s := range mr.Merge.Added {
 						if dryRun {
 							_, _ = yellow.Printf("  would add to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)

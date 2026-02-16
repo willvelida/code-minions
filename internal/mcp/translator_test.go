@@ -39,6 +39,25 @@ func testHTTPConfig() *Config {
 	}
 }
 
+// testSSEConfig returns a canonical Config with an SSE server.
+func testSSEConfig() *Config {
+	return &Config{
+		Servers: map[string]Server{
+			"sse-api": {
+				Description: "SSE endpoint",
+				Transport:   TransportSSE,
+				URL:         "https://sse.example.com/events",
+				Headers: map[string]string{
+					"Authorization": "Bearer token",
+				},
+				Env: map[string]string{
+					"API_KEY": "secret",
+				},
+			},
+		},
+	}
+}
+
 // --- Copilot ---
 
 func TestCopilotTranslator_Stdio(t *testing.T) {
@@ -88,6 +107,58 @@ func TestCopilotTranslator_HTTP(t *testing.T) {
 	}
 	if m["url"] != "https://mcp.example.com/v1" {
 		t.Errorf("url: got %v", m["url"])
+	}
+	// Verify headers are included
+	headers := m["headers"].(map[string]string)
+	if headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", headers)
+	}
+}
+
+func TestCopilotTranslator_SSE(t *testing.T) {
+	tr := &CopilotTranslator{}
+	servers, _, err := tr.Translate(testSSEConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["sse-api"].(map[string]any)
+	if api["url"] != "https://sse.example.com/events" {
+		t.Errorf("url: got %v", api["url"])
+	}
+	// SSE should NOT have type field (unlike streamable-http)
+	if _, hasType := api["type"]; hasType {
+		t.Error("SSE should not have 'type' field in Copilot format")
+	}
+	// Verify headers and env
+	headers := api["headers"].(map[string]string)
+	if headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", headers)
+	}
+	env := api["env"].(map[string]string)
+	if env["API_KEY"] != "secret" {
+		t.Errorf("env: got %v", env)
+	}
+}
+
+func TestCopilotTranslator_HTTPWithEnv(t *testing.T) {
+	cfg := &Config{
+		Servers: map[string]Server{
+			"api": {
+				Transport: TransportStreamableHTTP,
+				URL:       "https://api.example.com",
+				Env:       map[string]string{"TOKEN": "val"},
+			},
+		},
+	}
+	tr := &CopilotTranslator{}
+	servers, _, err := tr.Translate(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	m := servers["api"].(map[string]any)
+	if m["env"] == nil {
+		t.Error("expected env field on HTTP server")
 	}
 }
 
@@ -159,6 +230,24 @@ func TestClaudeTranslator_HTTP(t *testing.T) {
 	}
 }
 
+func TestClaudeTranslator_SSE(t *testing.T) {
+	tr := &ClaudeTranslator{}
+	servers, _, err := tr.Translate(testSSEConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["sse-api"].(map[string]any)
+	if api["url"] != "https://sse.example.com/events" {
+		t.Errorf("url: got %v", api["url"])
+	}
+	// Claude should include env for SSE
+	env := api["env"].(map[string]string)
+	if env["API_KEY"] != "secret" {
+		t.Errorf("env: got %v", env)
+	}
+}
+
 func TestClaudeTranslator_ConfigPath(t *testing.T) {
 	tr := &ClaudeTranslator{}
 	if tr.ConfigPath() != ".claude/settings.local.json" {
@@ -219,6 +308,32 @@ func TestOpenCodeTranslator_HTTP(t *testing.T) {
 	}
 	if api["enabled"] != true {
 		t.Errorf("enabled: got %v", api["enabled"])
+	}
+	// Verify headers
+	headers := api["headers"].(map[string]string)
+	if headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", headers)
+	}
+}
+
+func TestOpenCodeTranslator_SSE(t *testing.T) {
+	tr := &OpenCodeTranslator{}
+	servers, _, err := tr.Translate(testSSEConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["sse-api"].(map[string]any)
+	if api["type"] != "remote" {
+		t.Errorf("type: got %v, want %q", api["type"], "remote")
+	}
+	if api["url"] != "https://sse.example.com/events" {
+		t.Errorf("url: got %v", api["url"])
+	}
+	// env → environment
+	env := api["environment"].(map[string]string)
+	if env["API_KEY"] != "secret" {
+		t.Errorf("environment: got %v", env)
 	}
 }
 

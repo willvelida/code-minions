@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -61,4 +62,15 @@ func nonNil(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+// sortedKeys returns the keys of a map sorted alphabetically.
+// Used to ensure deterministic iteration order for CLI output.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
