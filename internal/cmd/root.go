@@ -22,6 +22,8 @@ Available components:
 	cmd.AddCommand(newUninstallCommand(content))
 	cmd.AddCommand(newUpdateCommand(content))
 	cmd.AddCommand(newListCommand(content))
+	cmd.AddCommand(newShowCommand(content))
+	cmd.AddCommand(newSearchCommand(content))
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newCompletionCommand())
 

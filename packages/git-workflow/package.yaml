@@ -1,0 +1,37 @@
+name: git-workflow
+version: 0.1.0
+description: >-
+  Execute a complete git workflow for collaborative development
+  including branching, committing, syncing, pull requests, releases,
+  and hotfixes.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/git-workflow.agent.md
+  skills:
+    - skills/git-workflow/SKILL.md
+  actions:
+    - skills/git-workflow/actions/commit-changes.md
+    - skills/git-workflow/actions/create-feature-branch.md
+    - skills/git-workflow/actions/create-hotfix.md
+    - skills/git-workflow/actions/create-pull-request.md
+    - skills/git-workflow/actions/create-release.md
+    - skills/git-workflow/actions/initialize-repository.md
+    - skills/git-workflow/actions/merge-pull-request.md
+    - skills/git-workflow/actions/resolve-merge-conflicts.md
+    - skills/git-workflow/actions/sync-with-upstream.md
+  standards:
+    - skills/git-workflow/standards/branch-naming.md
+    - skills/git-workflow/standards/checklist.md
+    - skills/git-workflow/standards/code-review.md
+    - skills/git-workflow/standards/commit-messages.md
+    - skills/git-workflow/standards/merge-strategy.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []

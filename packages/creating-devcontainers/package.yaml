@@ -1,0 +1,31 @@
+name: creating-devcontainers
+version: 0.1.0
+description: >-
+  Create and review DevContainer configurations that follow
+  organisational standards for secure, reproducible development
+  environments.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/creating-devcontainers.agent.md
+  skills:
+    - skills/creating-devcontainers/SKILL.md
+  actions:
+    - skills/creating-devcontainers/actions/create.md
+    - skills/creating-devcontainers/actions/review.md
+  standards:
+    - skills/creating-devcontainers/standards/checklist.md
+    - skills/creating-devcontainers/standards/core.md
+    - skills/creating-devcontainers/standards/extensions.md
+    - skills/creating-devcontainers/standards/features.md
+    - skills/creating-devcontainers/standards/security.md
+    - skills/creating-devcontainers/standards/template.json
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []

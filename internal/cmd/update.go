@@ -6,11 +6,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/registry"
 )
 
 func newUpdateCommand(content fs.FS) *cobra.Command {
@@ -86,6 +88,43 @@ AGENTS.md is not modified during updates.`,
 			}
 
 			// No AGENTS.md handling — update leaves it untouched
+
+			// Update manifest with new versions (skip for dry-run)
+			if !dryRun && len(combinedResult.Copied) > 0 {
+				src := registry.NewEmbeddedSource(content)
+				manifest, err := installer.LoadManifest(target)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
+				} else {
+					for _, pkgDir := range packageDirs {
+						pkgName := strings.TrimPrefix(pkgDir, "packages/")
+						var version string
+						if pkg, err := src.GetPackage(pkgName); err == nil {
+							version = pkg.Version
+						}
+						var pkgFiles []string
+						for _, f := range combinedResult.Copied {
+							if strings.HasPrefix(f, "agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, "agents/"+pkgName+".") ||
+								strings.HasPrefix(f, "skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".github/agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".opencode/agents/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".opencode/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".opencode/skills/"+pkgName+"/") {
+								pkgFiles = append(pkgFiles, f)
+							}
+						}
+						installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
+					}
+					if err := installer.SaveManifest(target, manifest); err != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+					}
+				}
+			}
 
 			// JSON output
 			if mode == OutputJSON {

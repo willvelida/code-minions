@@ -1,0 +1,31 @@
+name: creating-agents
+version: 0.1.0
+description: >-
+  Create and review agent definition files that give AI coding agents
+  a clear persona, project knowledge, executable commands, code style
+  examples, and explicit boundaries.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/creating-agents.agent.md
+  skills:
+    - skills/creating-agents/SKILL.md
+  actions:
+    - skills/creating-agents/actions/create.md
+    - skills/creating-agents/actions/review.md
+  standards:
+    - skills/creating-agents/standards/agent-structure.md
+    - skills/creating-agents/standards/boundaries.md
+    - skills/creating-agents/standards/checklist.md
+    - skills/creating-agents/standards/code-style.md
+    - skills/creating-agents/standards/commands-and-tools.md
+    - skills/creating-agents/standards/persona.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []

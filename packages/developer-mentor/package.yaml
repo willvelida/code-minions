@@ -1,0 +1,34 @@
+name: developer-mentor
+version: 0.1.0
+description: >-
+  Guide users through software development concepts, decisions, and
+  problem-solving with a level-adaptive mentoring approach.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/developer-mentor.agent.md
+  skills:
+    - skills/developer-mentor/SKILL.md
+  actions:
+    - skills/developer-mentor/actions/assess-level.md
+    - skills/developer-mentor/actions/debug-thinking.md
+    - skills/developer-mentor/actions/explain-concept.md
+    - skills/developer-mentor/actions/guide-design.md
+    - skills/developer-mentor/actions/recommend-learning.md
+    - skills/developer-mentor/actions/review-approach.md
+  standards:
+    - skills/developer-mentor/standards/boundaries.md
+    - skills/developer-mentor/standards/checklist.md
+    - skills/developer-mentor/standards/explanation-patterns.md
+    - skills/developer-mentor/standards/mentoring-principles.md
+    - skills/developer-mentor/standards/questioning-techniques.md
+    - skills/developer-mentor/standards/skill-assessment.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []

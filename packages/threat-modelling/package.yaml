@@ -1,0 +1,31 @@
+name: threat-modelling
+version: 0.1.0
+description: >-
+  Analyse repositories and infrastructure to produce STRIDE-based
+  threat model documents with architecture diagrams, prioritised
+  threats, and mitigation recommendations.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/threat-modelling.agent.md
+  skills:
+    - skills/threat-modelling/SKILL.md
+  actions:
+    - skills/threat-modelling/actions/analyse-repository.md
+    - skills/threat-modelling/actions/assess-infrastructure.md
+    - skills/threat-modelling/actions/generate-threat-model.md
+    - skills/threat-modelling/actions/review-threat-model.md
+    - skills/threat-modelling/actions/update-threat-model.md
+  standards:
+    - skills/threat-modelling/standards/checklist.md
+    - skills/threat-modelling/standards/document-template.md
+    - skills/threat-modelling/standards/stride-framework.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []

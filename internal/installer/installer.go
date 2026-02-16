@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+// SkipFiles lists filenames that should never be copied to the target
+// directory (e.g. package manifests are metadata, not installable content).
+var SkipFiles = map[string]bool{
+	"package.yaml": true,
+}
+
 // Installer copies embedded package content to a target directory.
 type Installer struct {
 	Content     fs.FS
@@ -48,6 +54,11 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 					outputPath = strings.TrimPrefix(path, i.StripPrefix)
 					outputPath = strings.TrimPrefix(outputPath, "/")
 				}
+			}
+
+			// Skip metadata files that shouldn't be installed
+			if !d.IsDir() && SkipFiles[d.Name()] {
+				return nil
 			}
 
 			// Apply optional path mapping (e.g. agents/ → .github/agents/ for Copilot)

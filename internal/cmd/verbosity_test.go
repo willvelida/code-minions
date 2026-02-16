@@ -404,8 +404,8 @@ func TestListVerbose(t *testing.T) {
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "scanned:") {
-		t.Errorf("expected verbose scan paths in output, got:\n%s", output)
+	if !strings.Contains(output, "source: embedded") {
+		t.Errorf("expected verbose source info in output, got:\n%s", output)
 	}
 }
 

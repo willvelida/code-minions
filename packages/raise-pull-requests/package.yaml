@@ -1,0 +1,32 @@
+name: raise-pull-requests
+version: 0.1.0
+description: >-
+  Raise high-quality pull requests that are easy to review, provide
+  clear context, and follow team conventions.
+author: willvelida
+license: MIT
+
+contents:
+  agents:
+    - agents/raise-pull-requests.agent.md
+  skills:
+    - skills/raise-pull-requests/SKILL.md
+  actions:
+    - skills/raise-pull-requests/actions/prepare-pull-request.md
+    - skills/raise-pull-requests/actions/respond-to-review.md
+    - skills/raise-pull-requests/actions/review-pull-request.md
+    - skills/raise-pull-requests/actions/submit-pull-request.md
+    - skills/raise-pull-requests/actions/write-pr-description.md
+  standards:
+    - skills/raise-pull-requests/standards/checklist.md
+    - skills/raise-pull-requests/standards/pr-descriptions.md
+    - skills/raise-pull-requests/standards/pr-size.md
+    - skills/raise-pull-requests/standards/pull-request-template.md
+    - skills/raise-pull-requests/standards/self-review-checklist.md
+
+compatibility:
+  - copilot
+  - claude
+  - opencode
+
+dependencies: []
