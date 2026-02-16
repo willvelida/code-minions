@@ -42,6 +42,12 @@ type TranslateOptions struct {
 //  8. Write (unless dry-run)
 func Translate(opts TranslateOptions) (*TranslateResult, error) {
 	// Validate
+	if opts.From == "" {
+		return nil, fmt.Errorf("source assistant (--from) is required")
+	}
+	if opts.To == "" {
+		return nil, fmt.Errorf("target assistant (--to) is required")
+	}
 	if opts.From == opts.To {
 		return nil, fmt.Errorf("source and target assistant cannot be the same (%q)", opts.From)
 	}
@@ -82,11 +88,12 @@ func Translate(opts TranslateOptions) (*TranslateResult, error) {
 
 	if len(cfg.Servers) == 0 {
 		allWarnings = append(allWarnings, fmt.Sprintf("no MCP servers found in %s config", opts.From))
+		sort.Strings(allWarnings)
 		return &TranslateResult{
 			SourceAssistant: opts.From,
 			TargetAssistant: opts.To,
 			ConfigPath:      translator.ConfigPath(),
-			Merge:           &MergeResult{},
+			Merge:           &MergeResult{Warnings: allWarnings},
 			Warnings:        allWarnings,
 			DryRun:          opts.DryRun,
 		}, nil

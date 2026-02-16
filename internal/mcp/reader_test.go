@@ -783,14 +783,22 @@ func assertConfigsEqual(t *testing.T, a, b *Config) {
 		if sa.URL != sb.URL {
 			t.Errorf("server %q url: got %q, want %q", name, sb.URL, sa.URL)
 		}
-		for k, v := range sa.Env {
-			if sb.Env[k] != v {
-				t.Errorf("server %q env[%s]: got %q, want %q", name, k, sb.Env[k], v)
+		if len(sa.Env) != len(sb.Env) {
+			t.Errorf("server %q env length: got %d, want %d", name, len(sb.Env), len(sa.Env))
+		} else {
+			for k, v := range sa.Env {
+				if sb.Env[k] != v {
+					t.Errorf("server %q env[%s]: got %q, want %q", name, k, sb.Env[k], v)
+				}
 			}
 		}
-		for k, v := range sa.Headers {
-			if sb.Headers[k] != v {
-				t.Errorf("server %q headers[%s]: got %q, want %q", name, k, sb.Headers[k], v)
+		if len(sa.Headers) != len(sb.Headers) {
+			t.Errorf("server %q headers length: got %d, want %d", name, len(sb.Headers), len(sa.Headers))
+		} else {
+			for k, v := range sa.Headers {
+				if sb.Headers[k] != v {
+					t.Errorf("server %q headers[%s]: got %q, want %q", name, k, sb.Headers[k], v)
+				}
 			}
 		}
 	}

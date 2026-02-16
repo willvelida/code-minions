@@ -75,6 +75,15 @@ to preview changes without writing any files.`,
 				return fmt.Errorf("no valid targets specified in --to")
 			}
 
+			// Pre-validate: reject targets that match the source to avoid
+			// partial side-effects when earlier translations succeed but a
+			// later same-as-source target fails.
+			for _, to := range targets {
+				if to == from {
+					return fmt.Errorf("target %q is the same as source --from; cannot translate to self", to)
+				}
+			}
+
 			if target == "" {
 				target = "."
 			}
