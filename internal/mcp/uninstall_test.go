@@ -236,3 +236,46 @@ func TestUninstall_ClaudeTranslator(t *testing.T) {
 		t.Errorf("ConfigPath = %q, want .claude/settings.local.json", result.ConfigPath)
 	}
 }
+
+// TestUninstall_CleansEmptyParentDir verifies that when the config file is
+// removed (doc becomes empty), the parent directory is also cleaned up if empty.
+func TestUninstall_CleansEmptyParentDir(t *testing.T) {
+	target := t.TempDir()
+	translator := &CopilotTranslator{}
+
+	// Create .vscode/mcp.json with only MCP content (no other keys)
+	configDir := filepath.Join(target, ".vscode")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `{
+  "servers": {
+    "github": {
+      "command": "npx"
+    }
+  }
+}
+`
+	if err := os.WriteFile(filepath.Join(configDir, "mcp.json"), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Uninstall(target, translator, []string{"github"}, false)
+	if err != nil {
+		t.Fatalf("Uninstall() error = %v", err)
+	}
+	if len(result.Removed) != 1 {
+		t.Errorf("Removed = %v, want [github]", result.Removed)
+	}
+
+	// The config file should be removed (doc was empty)
+	configPath := filepath.Join(configDir, "mcp.json")
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		t.Error("config file should have been removed when doc is empty")
+	}
+
+	// The parent dir (.vscode) should also be cleaned up
+	if _, err := os.Stat(configDir); !os.IsNotExist(err) {
+		t.Error("empty parent directory should have been cleaned up")
+	}
+}

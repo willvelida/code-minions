@@ -320,3 +320,56 @@ func TestMerge_McpServersKey(t *testing.T) {
 		t.Error("expected 'mcpServers' key in output")
 	}
 }
+
+// TestMerge_EmptyEnvVarWarningsOnlyForAdded verifies that empty env var
+// warnings are only emitted for servers that were actually added, not for
+// servers that were skipped (identical) or conflicted.
+func TestMerge_EmptyEnvVarWarningsOnlyForAdded(t *testing.T) {
+	// Existing config has "existing-server" with a different command
+	existing := []byte(`{
+  "servers": {
+    "existing-server": {
+      "command": "old-cmd",
+      "env": { "OLD_TOKEN": "set" }
+    }
+  }
+}`)
+
+	translated := map[string]any{
+		// This server conflicts (different command) — should NOT warn
+		"existing-server": map[string]any{
+			"command": "new-cmd",
+			"env": map[string]any{
+				"EMPTY_VAR": "",
+			},
+		},
+		// This server is new — SHOULD warn
+		"new-server": map[string]any{
+			"command": "npx",
+			"env": map[string]any{
+				"NEW_EMPTY": "",
+			},
+		},
+	}
+
+	_, result, err := Merge(existing, translated, "servers", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// existing-server should be in Conflict (not Added)
+	if len(result.Conflict) != 1 || result.Conflict[0] != "existing-server" {
+		t.Errorf("Conflict = %v, want [existing-server]", result.Conflict)
+	}
+
+	// Only new-server should have a warning
+	if len(result.Warnings) != 1 {
+		t.Fatalf("expected 1 warning (for new-server only), got %d: %v", len(result.Warnings), result.Warnings)
+	}
+	if !strings.Contains(result.Warnings[0], "new-server") {
+		t.Errorf("warning should mention new-server, got: %s", result.Warnings[0])
+	}
+	if strings.Contains(result.Warnings[0], "existing-server") {
+		t.Errorf("warning should NOT mention existing-server (conflicted), got: %s", result.Warnings[0])
+	}
+}

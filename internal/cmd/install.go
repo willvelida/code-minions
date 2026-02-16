@@ -181,16 +181,15 @@ preview changes without writing any files.`,
 						}
 						installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
 
-						// Attach only actually-added MCP server names to the manifest entry
+						// Attach only actually-added MCP server names to the manifest entry.
+						// RecordInstall creates a fresh entry (without MCPServers), so we
+						// locate it via FindInstalled and set the field directly.
 						if mcpResult, ok := mcpResults[pkgName]; ok && len(mcpResult.Merge.Added) > 0 {
 							addedServers := make([]string, len(mcpResult.Merge.Added))
 							copy(addedServers, mcpResult.Merge.Added)
 							sort.Strings(addedServers)
-							for i := range manifest.Packages {
-								if manifest.Packages[i].Name == pkgName {
-									manifest.Packages[i].MCPServers = addedServers
-									break
-								}
+							if entry := installer.FindInstalled(manifest, pkgName); entry != nil {
+								entry.MCPServers = addedServers
 							}
 						}
 					}

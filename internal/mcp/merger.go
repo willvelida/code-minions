@@ -79,8 +79,16 @@ func Merge(existing []byte, translated map[string]any, configKey string, force b
 
 	doc[configKey] = existingServers
 
-	// Detect empty env vars across all translated servers and add warnings
+	// Detect empty env vars for newly-added servers only (skip warnings
+	// for servers that were skipped or conflicted — they weren't installed).
+	addedSet := make(map[string]bool, len(result.Added))
+	for _, n := range result.Added {
+		addedSet[n] = true
+	}
 	for _, name := range names {
+		if !addedSet[name] {
+			continue
+		}
 		serverMap, ok := translated[name].(map[string]any)
 		if !ok {
 			continue

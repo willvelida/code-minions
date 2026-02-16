@@ -94,10 +94,14 @@ func Uninstall(targetDir string, translator Translator, serverNames []string, dr
 		out = append(out, '\n')
 
 		// If the doc is now empty (only had MCP servers), remove the file
+		// and attempt to clean up the parent directory if it is now empty.
 		if len(doc) == 0 {
 			if err := os.Remove(configPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return nil, fmt.Errorf("failed to remove empty %s: %w", translator.ConfigPath(), err)
 			}
+			// Best-effort: remove empty parent dir (e.g. .vscode/, .claude/).
+			// os.Remove fails on non-empty dirs, which is the desired behaviour.
+			_ = os.Remove(filepath.Dir(configPath))
 		} else {
 			if err := os.WriteFile(configPath, out, 0644); err != nil {
 				return nil, fmt.Errorf("failed to write %s: %w", translator.ConfigPath(), err)
