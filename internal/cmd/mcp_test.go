@@ -24,17 +24,6 @@ func writeCopilotMCPConfig(t *testing.T, dir, content string) {
 	}
 }
 
-func writeClaudeMCPConfig(t *testing.T, dir, content string) {
-	t.Helper()
-	d := filepath.Join(dir, ".claude")
-	if err := os.MkdirAll(d, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(d, "settings.local.json"), []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 const testCopilotConfig = `{
   "servers": {
     "github": {

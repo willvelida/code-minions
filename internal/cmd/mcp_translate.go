@@ -60,9 +60,17 @@ to preview changes without writing any files.`,
 				return fmt.Errorf("--to is required")
 			}
 
-			targets := strings.Split(toRaw, ",")
-			for i := range targets {
-				targets[i] = strings.TrimSpace(targets[i])
+			rawTargets := strings.Split(toRaw, ",")
+			var targets []string
+			for _, t := range rawTargets {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				targets = append(targets, t)
+			}
+			if len(targets) == 0 {
+				return fmt.Errorf("no valid targets specified in --to")
 			}
 
 			if target == "" {
