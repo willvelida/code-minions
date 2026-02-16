@@ -7,28 +7,36 @@ import (
 
 func TestGetReturnsCorrectConfig(t *testing.T) {
 	tests := []struct {
-		name      string // Description shown in test output
-		assistant string // Input to Get()
-		agentDir  string // Expected AgentDir
-		skillDir  string // Expected SkillDir
+		name          string // Description shown in test output
+		assistant     string // Input to Get()
+		agentDir      string // Expected AgentDir
+		skillDir      string // Expected SkillDir
+		mcpConfigPath string // Expected MCPConfigPath
+		mcpConfigKey  string // Expected MCPConfigKey
 	}{
 		{
-			name:      "copilot uses .github/agents",
-			assistant: "copilot",
-			agentDir:  ".github/agents",
-			skillDir:  "skills",
+			name:          "copilot uses .github/agents",
+			assistant:     "copilot",
+			agentDir:      ".github/agents",
+			skillDir:      "skills",
+			mcpConfigPath: ".vscode/mcp.json",
+			mcpConfigKey:  "servers",
 		},
 		{
-			name:      "claude uses .claude directories",
-			assistant: "claude",
-			agentDir:  ".claude/agents",
-			skillDir:  ".claude/skills",
+			name:          "claude uses .claude directories",
+			assistant:     "claude",
+			agentDir:      ".claude/agents",
+			skillDir:      ".claude/skills",
+			mcpConfigPath: ".claude/settings.local.json",
+			mcpConfigKey:  "mcpServers",
 		},
 		{
-			name:      "opencode uses .opencode directories",
-			assistant: "opencode",
-			agentDir:  ".opencode/agents",
-			skillDir:  ".opencode/skills",
+			name:          "opencode uses .opencode directories",
+			assistant:     "opencode",
+			agentDir:      ".opencode/agents",
+			skillDir:      ".opencode/skills",
+			mcpConfigPath: "opencode.json",
+			mcpConfigKey:  "mcp",
 		},
 	}
 
@@ -48,6 +56,12 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			}
 			if cfg.SkillDir != tt.skillDir {
 				t.Errorf("SkillDir: got %q, want %q", cfg.SkillDir, tt.skillDir)
+			}
+			if cfg.MCPConfigPath != tt.mcpConfigPath {
+				t.Errorf("MCPConfigPath: got %q, want %q", cfg.MCPConfigPath, tt.mcpConfigPath)
+			}
+			if cfg.MCPConfigKey != tt.mcpConfigKey {
+				t.Errorf("MCPConfigKey: got %q, want %q", cfg.MCPConfigKey, tt.mcpConfigKey)
 			}
 		})
 	}

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -52,4 +53,24 @@ func quietWarning(cmd *cobra.Command, mode OutputMode) {
 		return
 	}
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: --quiet has no effect on '%s' (the command exists to display information)\n", cmd.Name())
+}
+
+// nonNil returns s if non-nil, or an empty slice otherwise.
+// Useful for JSON serialisation where null arrays are unwanted.
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+// sortedKeys returns the keys of a map sorted alphabetically.
+// Used to ensure deterministic iteration order for CLI output.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

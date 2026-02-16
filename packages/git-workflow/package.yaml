@@ -12,6 +12,8 @@ contents:
     - agents/git-workflow.agent.md
   skills:
     - skills/git-workflow/SKILL.md
+  mcp:
+    - mcp.yaml
   actions:
     - skills/git-workflow/actions/commit-changes.md
     - skills/git-workflow/actions/create-feature-branch.md

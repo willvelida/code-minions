@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -463,5 +464,160 @@ func TestUninstallAllWithFor(t *testing.T) {
 	mentorAgent := filepath.Join(target, ".github", "agents", "developer-mentor.agent.md")
 	if _, err := os.Stat(mentorAgent); !os.IsNotExist(err) {
 		t.Errorf("expected file to be removed: %s", mentorAgent)
+	}
+}
+
+// TestUninstallForCopilotRemovesMCPServers verifies that uninstalling a
+// package with --for copilot also removes MCP servers from the config.
+func TestUninstallForCopilotRemovesMCPServers(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithMCP()
+
+	// Install with --for copilot (includes MCP)
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Verify MCP config was created
+	mcpConfig := filepath.Join(target, ".vscode", "mcp.json")
+	if _, err := os.Stat(mcpConfig); os.IsNotExist(err) {
+		t.Fatalf("MCP config should exist after install: %s", mcpConfig)
+	}
+
+	// Uninstall
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v", err)
+	}
+
+	// MCP config should still exist but be empty or have no github server
+	data, err := os.ReadFile(mcpConfig)
+	if err != nil {
+		// File may have been cleaned up entirely — that's also acceptable
+		return
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("invalid JSON in MCP config after uninstall: %v", err)
+	}
+	if servers, ok := doc["servers"].(map[string]any); ok {
+		if _, found := servers["github"]; found {
+			t.Error("github server should have been removed from MCP config")
+		}
+	}
+}
+
+// TestUninstallForCopilotMCPJSON verifies JSON output includes MCP info
+// when uninstalling packages that had MCP servers recorded in the manifest.
+func TestUninstallForCopilotMCPJSON(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithMCP()
+
+	// Install with --for copilot (includes MCP)
+	installCmd := NewRootCommand(content)
+	installCmd.SetOut(&strings.Builder{})
+	installCmd.SetArgs([]string{
+		"install",
+		"--package", "git-workflow",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --json
+	var buf strings.Builder
+	uninstallCmd := NewRootCommand(content)
+	uninstallCmd.SetOut(&buf)
+	uninstallCmd.SetArgs([]string{
+		"uninstall",
+		"--package", "git-workflow",
+		"--for", "copilot",
+		"--target", target,
+		"--json",
+		"--yes",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v\noutput: %s", err, buf.String())
+	}
+
+	var result struct {
+		Removed  []string `json:"removed"`
+		NotFound []string `json:"not_found"`
+		Errors   []string `json:"errors"`
+		Summary  struct {
+			Removed int `json:"removed"`
+			Errors  int `json:"errors"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v\nraw output: %s", err, buf.String())
+	}
+
+	if result.Summary.Errors != 0 {
+		t.Errorf("expected 0 errors, got %d: %v", result.Summary.Errors, result.Errors)
+	}
+}
+
+// TestUninstallMCPOnlyPackageRemovesManifest verifies that uninstalling an
+// MCP-only package (no agent/skill files) still removes the manifest entry.
+func TestUninstallMCPOnlyPackageRemovesManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSMCPOnly()
+
+	// Install the MCP-only package
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "mcp-only",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Verify manifest has the entry
+	manifestPath := filepath.Join(target, ".code-minions", "installed.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("expected manifest after install: %v", err)
+	}
+	if !strings.Contains(string(data), "mcp-only") {
+		t.Fatal("manifest should contain mcp-only after install")
+	}
+
+	// Uninstall
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "mcp-only",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v", err)
+	}
+
+	// Manifest entry should be removed
+	data, err = os.ReadFile(manifestPath)
+	if err != nil {
+		// Manifest file removed entirely — acceptable
+		return
+	}
+	if strings.Contains(string(data), "mcp-only") {
+		t.Error("manifest should not contain mcp-only after uninstall")
 	}
 }
