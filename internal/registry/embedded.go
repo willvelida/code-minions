@@ -43,9 +43,7 @@ func (s *EmbeddedSource) ListPackages() ([]model.Package, error) {
 
 		pkg, err := s.readPackage(entry.Name())
 		if err != nil {
-			// If we can't read the package.yaml, build a minimal package
-			// from the directory name for backward compatibility.
-			pkg = &model.Package{Name: entry.Name()}
+			return nil, fmt.Errorf("failed to read package %q: %w", entry.Name(), err)
 		}
 		pkgs = append(pkgs, *pkg)
 	}
@@ -83,7 +81,7 @@ func (s *EmbeddedSource) ListPersonas() ([]model.Persona, error) {
 
 // GetPersona returns an error — embedded source does not ship personas.
 func (s *EmbeddedSource) GetPersona(name string) (*model.Persona, error) {
-	return nil, fmt.Errorf("persona %q not found in embedded source", name)
+	return nil, fmt.Errorf("persona %q: %w", name, ErrNotFound)
 }
 
 // ListTeams returns an empty list — embedded source does not ship teams.
@@ -93,7 +91,7 @@ func (s *EmbeddedSource) ListTeams() ([]model.Team, error) {
 
 // GetTeam returns an error — embedded source does not ship teams.
 func (s *EmbeddedSource) GetTeam(name string) (*model.Team, error) {
-	return nil, fmt.Errorf("team %q not found in embedded source", name)
+	return nil, fmt.Errorf("team %q: %w", name, ErrNotFound)
 }
 
 // Search performs a case-insensitive text search across package names
@@ -130,7 +128,7 @@ func (s *EmbeddedSource) readPackage(name string) (*model.Package, error) {
 		// Fall back: check if the directory exists at all
 		pkgDir := "packages/" + name
 		if _, statErr := fs.Stat(s.content, pkgDir); statErr != nil {
-			return nil, fmt.Errorf("package %q not found", name)
+			return nil, fmt.Errorf("package %q: %w", name, ErrNotFound)
 		}
 
 		// Directory exists but no package.yaml — build minimal package
@@ -140,6 +138,13 @@ func (s *EmbeddedSource) readPackage(name string) (*model.Package, error) {
 	var pkg model.Package
 	if err := yaml.Unmarshal(data, &pkg); err != nil {
 		return nil, fmt.Errorf("failed to parse package.yaml for %q: %w", name, err)
+	}
+
+	// Ensure manifest name matches the directory-based package name.
+	if pkg.Name == "" {
+		pkg.Name = name
+	} else if pkg.Name != name {
+		return nil, fmt.Errorf("package.yaml name %q does not match directory name %q", pkg.Name, name)
 	}
 
 	return &pkg, nil

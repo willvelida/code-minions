@@ -1,11 +1,17 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/willvelida/code-minions/internal/model"
 )
+
+// ErrNotFound is a sentinel error returned by Source implementations
+// when the requested entity does not exist. Registry methods use this
+// to distinguish "not found" (try next source) from real failures.
+var ErrNotFound = errors.New("not found")
 
 // Registry aggregates multiple Sources and resolves packages,
 // personas, and teams across all of them. Sources are tried in
@@ -29,6 +35,9 @@ func (r *Registry) ResolvePackage(name string) (*model.Package, Source, error) {
 		if err == nil && pkg != nil {
 			return pkg, src, nil
 		}
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return nil, nil, fmt.Errorf("source %q: %w", src.Name(), err)
+		}
 	}
 	return nil, nil, fmt.Errorf("package %q not found in any source", name)
 }
@@ -40,6 +49,9 @@ func (r *Registry) ResolvePersona(name string) (*model.Persona, Source, error) {
 		if err == nil && persona != nil {
 			return persona, src, nil
 		}
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return nil, nil, fmt.Errorf("source %q: %w", src.Name(), err)
+		}
 	}
 	return nil, nil, fmt.Errorf("persona %q not found in any source", name)
 }
@@ -50,6 +62,9 @@ func (r *Registry) ResolveTeam(name string) (*model.Team, Source, error) {
 		team, err := src.GetTeam(name)
 		if err == nil && team != nil {
 			return team, src, nil
+		}
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return nil, nil, fmt.Errorf("source %q: %w", src.Name(), err)
 		}
 	}
 	return nil, nil, fmt.Errorf("team %q not found in any source", name)
@@ -77,8 +92,8 @@ func (r *Registry) ListPackages() ([]model.Package, error) {
 	return all, nil
 }
 
-// Search queries all sources and merges results, deduplicated by package name.
-// When the same package appears in multiple sources, the first source wins.
+// Search queries all sources and merges results, deduplicated by kind+name.
+// When the same entity appears in multiple sources, the first source wins.
 func (r *Registry) Search(query string) ([]model.SearchResult, error) {
 	seen := make(map[string]bool)
 	var all []model.SearchResult
@@ -89,8 +104,9 @@ func (r *Registry) Search(query string) ([]model.SearchResult, error) {
 			return nil, fmt.Errorf("source %q: %w", src.Name(), err)
 		}
 		for _, res := range results {
-			if !seen[res.Name] {
-				seen[res.Name] = true
+			key := res.Kind + ":" + res.Name
+			if !seen[key] {
+				seen[key] = true
 				all = append(all, res)
 			}
 		}

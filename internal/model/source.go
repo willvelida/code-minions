@@ -2,9 +2,9 @@ package model
 
 // SearchResult represents a search hit from a source.
 type SearchResult struct {
-	Kind        string `json:"kind"` // "package", "persona", "team"
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Version     string `json:"version"`
-	Source      string `json:"source"` // Source name
+	Kind        string `yaml:"kind" json:"kind"` // "package", "persona", "team"
+	Name        string `yaml:"name" json:"name"`
+	Description string `yaml:"description" json:"description"`
+	Version     string `yaml:"version" json:"version"`
+	Source      string `yaml:"source" json:"source"` // Source name
 }
