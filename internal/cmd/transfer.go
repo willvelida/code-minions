@@ -104,7 +104,10 @@ because it contains assistant-specific paths.`,
 			}
 
 			// Step 3: Regenerate AGENTS.md in target layout
-			toCfg, _ := assistant.Get(to)
+			toCfg, err := assistant.Get(to)
+			if err != nil {
+				return fmt.Errorf("failed to get assistant config for %s: %w", to, err)
+			}
 			agentsMDPath := toCfg.NewPathMapper()("agents/AGENTS.md")
 
 			handlerStdout := io.Writer(os.Stdout)

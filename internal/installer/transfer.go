@@ -269,8 +269,7 @@ func Transfer(opts TransferOptions) (*TransferResult, error) {
 	return result, nil
 }
 
-// cleanEmptyDirs removes empty directories from deepest to shallowest.
-// This is a package-level function reused by both Uninstall and Transfer.
+// cleanTransferDirs removes empty directories from deepest to shallowest.
 // Note: the original cleanEmptyDirs in uninstall.go returns []string;
 // this version is used internally by Transfer which tracks cleaned files separately.
 func cleanTransferDirs(dirs []string) {

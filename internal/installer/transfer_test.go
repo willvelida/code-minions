@@ -509,8 +509,12 @@ func TestTransferSourceDirsEmptyWarning(t *testing.T) {
 	tmp := t.TempDir()
 
 	// Create empty directories
-	os.MkdirAll(filepath.Join(tmp, ".github", "agents"), 0755)
-	os.MkdirAll(filepath.Join(tmp, "skills"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmp, ".github", "agents"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "skills"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	result, err := Transfer(TransferOptions{
 		FromAssistant: "copilot",
