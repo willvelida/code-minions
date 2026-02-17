@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/willvelida/code-minions/internal/assistant"
@@ -48,7 +49,7 @@ func (g *ClaudeGrouping) Generate() ([]string, error) {
 
 	// The file goes in the assistant's agent directory.
 	// For Claude: .claude/agents/senior-dev.agent.md
-	outputPath := g.Config.AgentDir + "/" + persona.Name + ".agent.md"
+	outputPath := path.Join(g.Config.AgentDir, persona.Name+".agent.md")
 
 	err := writeGeneratedFile(g.Target, outputPath, []byte(content), g.DryRun, g.Force)
 	if err != nil {

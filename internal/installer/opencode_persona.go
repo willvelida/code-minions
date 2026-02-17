@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/willvelida/code-minions/internal/assistant"
@@ -45,7 +46,7 @@ func (g *OpenCodeGrouping) Generate() ([]string, error) {
 
 	// For OpenCode: .opencode/agents/senior-dev.md
 	// Note: OpenCode uses .md (not .agent.md) for agent files.
-	outputPath := g.Config.AgentDir + "/" + persona.Name + ".md"
+	outputPath := path.Join(g.Config.AgentDir, persona.Name+".md")
 
 	err := writeGeneratedFile(g.Target, outputPath, []byte(content), g.DryRun, g.Force)
 	if err != nil {

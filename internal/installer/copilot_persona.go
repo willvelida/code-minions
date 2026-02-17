@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/willvelida/code-minions/internal/assistant"
@@ -63,7 +64,7 @@ func (g *CopilotGrouping) Generate() ([]string, error) {
 
 	// The file goes in the assistant's agent directory.
 	// For Copilot: .github/agents/senior-dev.agent.md
-	outputPath := g.Config.AgentDir + "/" + persona.Name + ".agent.md"
+	outputPath := path.Join(g.Config.AgentDir, persona.Name+".agent.md")
 
 	err := writeGeneratedFile(g.Target, outputPath, []byte(content), g.DryRun, g.Force)
 	if err != nil {
@@ -108,8 +109,8 @@ func (g *CopilotGrouping) buildAgentContent() string {
 		displayName := toTitleCase(name)
 
 		// Agent path (as Copilot would see it after path mapping)
-		agentPath := g.Config.AgentDir + "/" + name + ".agent.md"
-		skillPath := g.Config.SkillDir + "/" + name + "/SKILL.md"
+		agentPath := path.Join(g.Config.AgentDir, name+".agent.md")
+		skillPath := path.Join(g.Config.SkillDir, name, "SKILL.md")
 
 		fmt.Fprintf(&sb, "- **%s** — Agent: [%s](%s), Skill: [%s](%s)", displayName, agentPath, agentPath, skillPath, skillPath)
 
