@@ -464,3 +464,198 @@ func TestTransferMissingSourceDirsErrors(t *testing.T) {
 		t.Errorf("error = %q, want substring 'no agent or skill files found'", err.Error())
 	}
 }
+
+// TestTransferVerboseMode exercises the verbose output rendering path.
+func TestTransferVerboseMode(t *testing.T) {
+	target := t.TempDir()
+	seedTransferSource(t, target, "copilot")
+
+	// Pre-create one destination file so we get a skip + verbose hint
+	claudeAgent := filepath.Join(target, ".claude", "agents", "my-agent.agent.md")
+	if err := os.MkdirAll(filepath.Dir(claudeAgent), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(claudeAgent, []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	content := testContentFS()
+	root := NewRootCommand(content)
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+	root.SetArgs([]string{
+		"transfer",
+		"--from", "copilot",
+		"--to", "claude",
+		"--target", target,
+		"--verbose",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify transfer still works — skill should be copied
+	claudeSkill := filepath.Join(target, ".claude", "skills", "my-skill", "SKILL.md")
+	if _, err := os.Stat(claudeSkill); os.IsNotExist(err) {
+		t.Errorf("expected skill at Claude path: %s", claudeSkill)
+	}
+}
+
+// TestTransferJSONWithCleanup verifies JSON output includes cleaned files.
+func TestTransferJSONWithCleanup(t *testing.T) {
+	target := t.TempDir()
+	seedTransferSource(t, target, "copilot")
+
+	content := testContentFS()
+	root := NewRootCommand(content)
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+
+	var buf strings.Builder
+	root.SetOut(&buf)
+	root.SetArgs([]string{
+		"transfer",
+		"--from", "copilot",
+		"--to", "claude",
+		"--target", target,
+		"--json",
+		"--cleanup",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Cleanup bool `json:"cleanup"`
+		Files   struct {
+			Copied  []string `json:"copied"`
+			Cleaned []string `json:"cleaned"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+		t.Fatalf("failed to parse JSON output: %v\nraw: %s", err, buf.String())
+	}
+	if !result.Cleanup {
+		t.Error("cleanup should be true")
+	}
+	if len(result.Files.Cleaned) == 0 {
+		t.Error("expected at least one cleaned file")
+	}
+	if len(result.Files.Copied) == 0 {
+		t.Error("expected at least one copied file")
+	}
+}
+
+// TestTransferCleanupDryRun verifies --cleanup with --dry-run previews deletions.
+func TestTransferCleanupDryRun(t *testing.T) {
+	target := t.TempDir()
+	seedTransferSource(t, target, "copilot")
+
+	content := testContentFS()
+	root := NewRootCommand(content)
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+	root.SetArgs([]string{
+		"transfer",
+		"--from", "copilot",
+		"--to", "claude",
+		"--target", target,
+		"--cleanup",
+		"--dry-run",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Source files should still exist (dry-run)
+	copilotAgent := filepath.Join(target, ".github", "agents", "my-agent.agent.md")
+	if _, err := os.Stat(copilotAgent); os.IsNotExist(err) {
+		t.Errorf("source should still exist after --cleanup --dry-run: %s", copilotAgent)
+	}
+
+	// Destination should NOT exist (dry-run)
+	claudeAgent := filepath.Join(target, ".claude", "agents", "my-agent.agent.md")
+	if _, err := os.Stat(claudeAgent); !os.IsNotExist(err) {
+		t.Errorf("destination should not exist after --dry-run: %s", claudeAgent)
+	}
+}
+
+// TestTransferJSONSkippedFiles verifies JSON output includes skipped files.
+func TestTransferJSONSkippedFiles(t *testing.T) {
+	target := t.TempDir()
+	seedTransferSource(t, target, "copilot")
+
+	// Pre-create destination agent to trigger a skip
+	claudeAgent := filepath.Join(target, ".claude", "agents", "my-agent.agent.md")
+	if err := os.MkdirAll(filepath.Dir(claudeAgent), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(claudeAgent, []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	content := testContentFS()
+	root := NewRootCommand(content)
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+
+	var buf strings.Builder
+	root.SetOut(&buf)
+	root.SetArgs([]string{
+		"transfer",
+		"--from", "copilot",
+		"--to", "claude",
+		"--target", target,
+		"--json",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Files struct {
+			Copied  []string `json:"copied"`
+			Skipped []string `json:"skipped"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+		t.Fatalf("failed to parse JSON output: %v\nraw: %s", err, buf.String())
+	}
+	if len(result.Files.Skipped) == 0 {
+		t.Error("expected at least one skipped file")
+	}
+}
+
+// TestTransferOpencodeTocopilot exercises a third permutation at the CLI level.
+func TestTransferOpencodeToCopilot(t *testing.T) {
+	target := t.TempDir()
+	seedTransferSource(t, target, "opencode")
+
+	content := testContentFS()
+	root := NewRootCommand(content)
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+	root.SetArgs([]string{
+		"transfer",
+		"--from", "opencode",
+		"--to", "copilot",
+		"--target", target,
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	copilotAgent := filepath.Join(target, ".github", "agents", "my-agent.agent.md")
+	if _, err := os.Stat(copilotAgent); os.IsNotExist(err) {
+		t.Errorf("expected agent at Copilot path: %s", copilotAgent)
+	}
+	copilotSkill := filepath.Join(target, "skills", "my-skill", "SKILL.md")
+	if _, err := os.Stat(copilotSkill); os.IsNotExist(err) {
+		t.Errorf("expected skill at Copilot path: %s", copilotSkill)
+	}
+}

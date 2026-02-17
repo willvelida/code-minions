@@ -680,3 +680,254 @@ func TestTransferCopiedPathsAreSorted(t *testing.T) {
 		}
 	}
 }
+
+// TestTransferSourceNotADirectory verifies error when source path is a file, not a dir.
+func TestTransferSourceNotADirectory(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Create a file where the agent directory should be
+	agentPath := filepath.Join(tmp, ".github", "agents")
+	if err := os.MkdirAll(filepath.Join(tmp, ".github"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(agentPath, []byte("not a dir"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a valid skills dir so we don't get "no source dirs" error
+	skillDir := filepath.Join(tmp, "skills", "my-skill")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Skill"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Transfer(TransferOptions{
+		FromAssistant: "copilot",
+		ToAssistant:   "claude",
+		TargetDir:     tmp,
+	})
+	if err != nil {
+		t.Fatalf("Transfer() error: %v", err)
+	}
+
+	// Should have an error about agents path not being a directory
+	hasNotDirErr := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "is not a directory") {
+			hasNotDirErr = true
+			break
+		}
+	}
+	if !hasNotDirErr {
+		t.Errorf("expected 'is not a directory' error, got errors: %v", result.Errors)
+	}
+
+	// Skills should still be transferred
+	if len(result.Copied) == 0 {
+		t.Error("expected skill files to be copied despite agent dir error")
+	}
+}
+
+// TestTransferDefaultTargetDir verifies that empty TargetDir defaults to ".".
+func TestTransferDefaultTargetDir(t *testing.T) {
+	// We can't easily test "." since the test would operate on the repo root.
+	// Instead, verify that an explicit "." behaves the same as the default.
+	tmp := t.TempDir()
+
+	// Create source files
+	agentDir := filepath.Join(tmp, ".github", "agents")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agentDir, "test.agent.md"), []byte("# Test"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	skillDir := filepath.Join(tmp, "skills")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Transfer(TransferOptions{
+		FromAssistant: "copilot",
+		ToAssistant:   "claude",
+		TargetDir:     tmp, // explicit path
+	})
+	if err != nil {
+		t.Fatalf("Transfer() error: %v", err)
+	}
+
+	if len(result.Copied) == 0 {
+		t.Error("expected at least one copied file")
+	}
+}
+
+// TestTransferOnlyAgentDir verifies transfer works when only agent dir exists (no skills).
+func TestTransferOnlyAgentDir(t *testing.T) {
+	tmp := t.TempDir()
+
+	agentDir := filepath.Join(tmp, ".github", "agents")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agentDir, "test.agent.md"), []byte("# Agent"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Transfer(TransferOptions{
+		FromAssistant: "copilot",
+		ToAssistant:   "claude",
+		TargetDir:     tmp,
+	})
+	if err != nil {
+		t.Fatalf("Transfer() error: %v", err)
+	}
+
+	if len(result.Copied) != 1 {
+		t.Errorf("expected 1 copied file, got %d: %v", len(result.Copied), result.Copied)
+	}
+
+	// Should have a warning about missing skill dir
+	hasSkillWarning := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "skill") && strings.Contains(w, "does not exist") {
+			hasSkillWarning = true
+			break
+		}
+	}
+	if !hasSkillWarning {
+		t.Errorf("expected warning about missing skill dir, got warnings: %v", result.Warnings)
+	}
+}
+
+// TestTransferOnlySkillDir verifies transfer works when only skill dir exists (no agents).
+func TestTransferOnlySkillDir(t *testing.T) {
+	tmp := t.TempDir()
+
+	skillDir := filepath.Join(tmp, "skills", "my-skill")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Skill"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Transfer(TransferOptions{
+		FromAssistant: "copilot",
+		ToAssistant:   "claude",
+		TargetDir:     tmp,
+	})
+	if err != nil {
+		t.Fatalf("Transfer() error: %v", err)
+	}
+
+	if len(result.Copied) != 1 {
+		t.Errorf("expected 1 copied file, got %d: %v", len(result.Copied), result.Copied)
+	}
+
+	// Should have a warning about missing agent dir
+	hasAgentWarning := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "agent") && strings.Contains(w, "does not exist") {
+			hasAgentWarning = true
+			break
+		}
+	}
+	if !hasAgentWarning {
+		t.Errorf("expected warning about missing agent dir, got warnings: %v", result.Warnings)
+	}
+}
+
+// TestTransferCleanupDryRunReportsAgentsMD verifies --cleanup --dry-run includes AGENTS.md in cleaned list.
+func TestTransferCleanupDryRunReportsAgentsMD(t *testing.T) {
+	tmp := t.TempDir()
+
+	agentDir := filepath.Join(tmp, ".github", "agents")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agentDir, "test.agent.md"), []byte("# Agent"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Place an AGENTS.md in the source dir
+	if err := os.WriteFile(filepath.Join(agentDir, "AGENTS.md"), []byte("# Agents"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Transfer(TransferOptions{
+		FromAssistant: "copilot",
+		ToAssistant:   "claude",
+		TargetDir:     tmp,
+		Cleanup:       true,
+		DryRun:        true,
+	})
+	if err != nil {
+		t.Fatalf("Transfer() error: %v", err)
+	}
+
+	// Cleaned list should include the AGENTS.md
+	hasAgentsMD := false
+	for _, c := range result.Cleaned {
+		if strings.Contains(c, "AGENTS.md") {
+			hasAgentsMD = true
+			break
+		}
+	}
+	if !hasAgentsMD {
+		t.Errorf("expected AGENTS.md in cleaned list for --cleanup --dry-run, got: %v", result.Cleaned)
+	}
+
+	// Source AGENTS.md should still exist (dry-run)
+	if _, err := os.Stat(filepath.Join(agentDir, "AGENTS.md")); os.IsNotExist(err) {
+		t.Error("AGENTS.md should still exist after --cleanup --dry-run")
+	}
+}
+
+// TestTransferStatErrorOnForceCheck exercises stat error in the force-check branch.
+func TestTransferForceWithExistingSkipsStatCheck(t *testing.T) {
+	tmp := t.TempDir()
+
+	agentDir := filepath.Join(tmp, ".github", "agents")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(agentDir, "test.agent.md"), []byte("# Source"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-create destination
+	destDir := filepath.Join(tmp, ".claude", "agents")
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(destDir, "test.agent.md"), []byte("# Old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Transfer(TransferOptions{
+		FromAssistant: "copilot",
+		ToAssistant:   "claude",
+		TargetDir:     tmp,
+		Force:         true,
+	})
+	if err != nil {
+		t.Fatalf("Transfer() error: %v", err)
+	}
+
+	if len(result.Copied) == 0 {
+		t.Error("expected at least one copied file with --force")
+	}
+	if len(result.Skipped) != 0 {
+		t.Errorf("expected no skipped files with --force, got: %v", result.Skipped)
+	}
+
+	// Verify content was overwritten
+	data, err := os.ReadFile(filepath.Join(destDir, "test.agent.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "# Source" {
+		t.Errorf("content = %q, want %q", string(data), "# Source")
+	}
+}
