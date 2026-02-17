@@ -659,3 +659,48 @@ func TestTransferOpencodeToCopilot(t *testing.T) {
 		t.Errorf("expected skill at Copilot path: %s", copilotSkill)
 	}
 }
+
+// TestTransferRegeneratesAgentsMD verifies that an existing stale AGENTS.md
+// in the target layout is overwritten with fresh content during transfer.
+func TestTransferRegeneratesAgentsMD(t *testing.T) {
+	target := t.TempDir()
+	seedTransferSource(t, target, "copilot")
+
+	// Place a stale AGENTS.md in the target Claude layout
+	claudeAgentsDir := filepath.Join(target, ".claude", "agents")
+	if err := os.MkdirAll(claudeAgentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	staleContent := "# Stale old content that should be replaced"
+	if err := os.WriteFile(filepath.Join(claudeAgentsDir, "AGENTS.md"), []byte(staleContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	content := testContentFS()
+	root := NewRootCommand(content)
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+	root.SetArgs([]string{
+		"transfer",
+		"--from", "copilot",
+		"--to", "claude",
+		"--target", target,
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// AGENTS.md should have been regenerated, not kept stale
+	agentsMDPath := filepath.Join(claudeAgentsDir, "AGENTS.md")
+	data, err := os.ReadFile(agentsMDPath)
+	if err != nil {
+		t.Fatalf("expected AGENTS.md to exist: %v", err)
+	}
+	if string(data) == staleContent {
+		t.Error("AGENTS.md should have been regenerated, but still contains stale content")
+	}
+	if len(data) == 0 {
+		t.Error("AGENTS.md should not be empty after regeneration")
+	}
+}

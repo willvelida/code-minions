@@ -210,7 +210,7 @@ code-minions transfer --from claude --to opencode --target ./my-project
 
 Files are copied by default — the source layout is left in place. Use `--cleanup` to delete the source files after a successful copy.
 
-MCP server configurations are automatically translated between the source and target formats when present. An `AGENTS.md` routing file is regenerated (not copied) in the target layout because it contains assistant-specific paths.
+MCP server configurations are automatically translated between the source and target formats when present. An `AGENTS.md` routing file is always regenerated (not copied) in the target layout because it contains assistant-specific paths.
 
 ### Transfer flags
 

@@ -29,13 +29,16 @@ type TransferResult struct {
 	Warnings []string // Non-fatal warnings (e.g. missing source dirs)
 }
 
-// transferSkipFiles lists filenames that should not be transferred.
-// AGENTS.md is excluded because it is regenerated for the target layout.
-var transferSkipFiles = map[string]bool{
-	"package.yaml": true,
-	"mcp.yaml":     true,
-	"AGENTS.md":    true,
-}
+// transferSkipFiles is derived from the shared SkipFiles list, plus
+// AGENTS.md which is excluded because it is regenerated for the target layout.
+var transferSkipFiles = func() map[string]bool {
+	m := make(map[string]bool, len(SkipFiles)+1)
+	for name, skip := range SkipFiles {
+		m[name] = skip
+	}
+	m["AGENTS.md"] = true
+	return m
+}()
 
 // Transfer copies agent and skill files from one assistant's layout to another.
 //
@@ -229,13 +232,11 @@ func Transfer(opts TransferOptions) (*TransferResult, error) {
 				relPath, _ := filepath.Rel(opts.TargetDir, p)
 				result.Cleaned = append(result.Cleaned, filepath.ToSlash(relPath))
 			}
-			// Also report AGENTS.md cleanup in dry-run
-			for _, dir := range sourceDirs {
-				agentsMD := filepath.Join(opts.TargetDir, dir, "AGENTS.md")
-				if _, err := os.Stat(agentsMD); err == nil {
-					relPath, _ := filepath.Rel(opts.TargetDir, agentsMD)
-					result.Cleaned = append(result.Cleaned, filepath.ToSlash(relPath))
-				}
+			// Also report AGENTS.md cleanup in dry-run (agent dir only)
+			agentsMD := filepath.Join(opts.TargetDir, fromCfg.AgentDir, "AGENTS.md")
+			if _, err := os.Stat(agentsMD); err == nil {
+				relPath, _ := filepath.Rel(opts.TargetDir, agentsMD)
+				result.Cleaned = append(result.Cleaned, filepath.ToSlash(relPath))
 			}
 		} else {
 			// Delete successfully copied source files
@@ -248,16 +249,16 @@ func Transfer(opts TransferOptions) (*TransferResult, error) {
 				}
 			}
 
-			// Also remove AGENTS.md from source dirs during cleanup
-			for _, dir := range sourceDirs {
-				agentsMD := filepath.Join(opts.TargetDir, dir, "AGENTS.md")
-				if _, err := os.Stat(agentsMD); err == nil {
-					if err := os.Remove(agentsMD); err != nil {
-						result.Errors = append(result.Errors, fmt.Sprintf("cleanup: failed to remove %s: %v", agentsMD, err))
-					} else {
-						relPath, _ := filepath.Rel(opts.TargetDir, agentsMD)
-						result.Cleaned = append(result.Cleaned, filepath.ToSlash(relPath))
-					}
+			// Remove AGENTS.md from the source agent dir only — the install
+			// flow only creates it under the agent dir, so cleaning the skill
+			// dir could delete an unrelated user file.
+			agentsMD := filepath.Join(opts.TargetDir, fromCfg.AgentDir, "AGENTS.md")
+			if _, err := os.Stat(agentsMD); err == nil {
+				if err := os.Remove(agentsMD); err != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("cleanup: failed to remove %s: %v", agentsMD, err))
+				} else {
+					relPath, _ := filepath.Rel(opts.TargetDir, agentsMD)
+					result.Cleaned = append(result.Cleaned, filepath.ToSlash(relPath))
 				}
 			}
 

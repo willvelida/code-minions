@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -30,8 +31,9 @@ Files are copied by default — the source layout is left in place. Use
 MCP server configurations are automatically translated between the source
 and target assistant formats when present.
 
-An AGENTS.md routing file is regenerated (not copied) in the target layout
-because it contains assistant-specific paths.`,
+An AGENTS.md routing file is always regenerated (not copied) in the target
+layout because it contains assistant-specific paths.`,
+
 		Example: `  # Transfer from Copilot to Claude
   code-minions transfer --from copilot --to claude
 
@@ -103,12 +105,18 @@ because it contains assistant-specific paths.`,
 				mcpResult = nil
 			}
 
-			// Step 3: Regenerate AGENTS.md in target layout
+			// Step 3: Regenerate AGENTS.md in target layout.
+			// Remove any existing copy first so OnInstall always writes a fresh
+			// file with the correct assistant-specific paths.
 			toCfg, err := assistant.Get(to)
 			if err != nil {
 				return fmt.Errorf("failed to get assistant config for %s: %w", to, err)
 			}
 			agentsMDPath := toCfg.NewPathMapper()("agents/AGENTS.md")
+
+			if !dryRun {
+				_ = os.Remove(filepath.Join(target, agentsMDPath))
+			}
 
 			handlerStdout := io.Writer(os.Stdout)
 			if mode == OutputJSON || mode == OutputQuiet {
