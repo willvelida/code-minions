@@ -93,3 +93,53 @@ func Install(content fs.FS, packageDir, targetDir string, translator Translator,
 		DryRun:      dryRun,
 	}, nil
 }
+
+// InstallServers merges pre-translated MCP server definitions into the
+// assistant's config file. This is the "persona-aware" variant of Install:
+// instead of loading a single package's mcp.yaml, it accepts a combined
+// server map that has already been collected and translated from multiple
+// packages.
+//
+// The Merge function handles deduplication automatically:
+//   - Same name + same config as existing → skip (deduplicate)
+//   - Same name + different config → conflict (unless force)
+//   - New server → add
+//
+// This function is called by PersonaInstaller.installMCP().
+func InstallServers(targetDir string, translator Translator, servers map[string]any, force, dryRun bool) (*InstallResult, error) {
+	if len(servers) == 0 {
+		return nil, nil
+	}
+
+	// Read existing config file (may not exist yet).
+	configPath := filepath.Join(targetDir, translator.ConfigPath())
+	var existing []byte
+	if data, err := os.ReadFile(configPath); err == nil {
+		existing = data
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("failed to read %s: %w", translator.ConfigPath(), err)
+	}
+
+	// Merge the servers into the config.
+	merged, mergeResult, err := Merge(existing, servers, translator.ConfigKey(), force)
+	if err != nil {
+		return nil, fmt.Errorf("MCP merge failed for %s: %w", translator.ConfigPath(), err)
+	}
+
+	// Write (unless dry-run or nothing was added).
+	if !dryRun && len(mergeResult.Added) > 0 {
+		if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+			return nil, fmt.Errorf("failed to create directory for %s: %w", translator.ConfigPath(), err)
+		}
+		if err := os.WriteFile(configPath, merged, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write %s: %w", translator.ConfigPath(), err)
+		}
+	}
+
+	return &InstallResult{
+		ConfigPath:  translator.ConfigPath(),
+		Merge:       mergeResult,
+		ServerNames: mergeResult.Added,
+		DryRun:      dryRun,
+	}, nil
+}

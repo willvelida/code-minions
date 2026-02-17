@@ -131,3 +131,223 @@ func FindInstalled(manifest *model.InstallManifest, name string) *model.Installe
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// Persona manifest operations
+// ---------------------------------------------------------------------------
+// These functions mirror the package-level CRUD above but operate on
+// persona entries. A persona entry records:
+//
+//   - Which persona was installed
+//   - For which assistant (copilot, claude, etc.)
+//   - Which packages it brought in (by name)
+//   - Which grouping files it generated (with checksums)
+//
+// Think of it as adding a "project receipt" alongside the individual
+// "item receipts" (packages) we already track.
+
+// RecordPersonaInstall adds or updates a persona entry in the manifest.
+// It also stamps each package entry with the persona name so we can
+// trace which persona brought in which package.
+//
+// Parameters:
+//   - manifest: the manifest to modify (loaded with LoadManifest)
+//   - name: persona name (e.g. "senior-dev")
+//   - version: persona version (e.g. "0.1.0")
+//   - source: where it came from (e.g. "embedded")
+//   - assistant: target assistant (e.g. "copilot")
+//   - packages: list of package names this persona installed
+//   - generatedFiles: the grouping artefacts created (with checksums)
+func RecordPersonaInstall(
+	manifest *model.InstallManifest,
+	name, version, source, assistant string,
+	packages []string,
+	generatedFiles []model.InstalledFile,
+) {
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Remove any existing entry for this persona (will be re-added fresh).
+	// This handles re-installs cleanly.
+	for i, p := range manifest.Personas {
+		if p.Name == name {
+			manifest.Personas = append(manifest.Personas[:i], manifest.Personas[i+1:]...)
+			break
+		}
+	}
+
+	// Add the persona entry.
+	manifest.Personas = append(manifest.Personas, model.InstalledPersona{
+		Name:           name,
+		Version:        version,
+		Source:         source,
+		Assistant:      assistant,
+		InstalledAt:    now,
+		Packages:       packages,
+		GeneratedFiles: generatedFiles,
+	})
+
+	// Stamp each package entry with the persona name.
+	// This lets us know "git-workflow was installed by senior-dev".
+	for _, pkgName := range packages {
+		if entry := FindInstalled(manifest, pkgName); entry != nil {
+			entry.Persona = name
+		}
+	}
+}
+
+// RecordPersonaUninstall removes a persona entry from the manifest.
+// It also clears the persona stamp from any packages that were
+// exclusively owned by this persona.
+//
+// Returns true if the persona was found and removed.
+func RecordPersonaUninstall(manifest *model.InstallManifest, name string) bool {
+	idx := -1
+	for i, p := range manifest.Personas {
+		if p.Name == name {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		return false
+	}
+
+	// Get the package list before removing.
+	packages := manifest.Personas[idx].Packages
+
+	// Remove the persona entry.
+	manifest.Personas = append(manifest.Personas[:idx], manifest.Personas[idx+1:]...)
+
+	// For each package this persona owned, check if any OTHER persona
+	// still references it. If not, clear the persona stamp.
+	for _, pkgName := range packages {
+		if !isPackageReferencedByAnyPersona(manifest, pkgName) {
+			if entry := FindInstalled(manifest, pkgName); entry != nil {
+				entry.Persona = ""
+			}
+		}
+	}
+
+	return true
+}
+
+// FindInstalledPersona returns the installed persona entry, or nil if not found.
+func FindInstalledPersona(manifest *model.InstallManifest, name string) *model.InstalledPersona {
+	for i := range manifest.Personas {
+		if manifest.Personas[i].Name == name {
+			return &manifest.Personas[i]
+		}
+	}
+	return nil
+}
+
+// PersonaPackages returns the names of packages owned exclusively by
+// this persona (not shared with any other persona). These are safe
+// to remove during uninstall without affecting other personas.
+func PersonaPackages(manifest *model.InstallManifest, personaName string) []string {
+	persona := FindInstalledPersona(manifest, personaName)
+	if persona == nil {
+		return nil
+	}
+
+	var exclusive []string
+	for _, pkgName := range persona.Packages {
+		shared := false
+		for _, other := range manifest.Personas {
+			if other.Name == personaName {
+				continue
+			}
+			for _, otherPkg := range other.Packages {
+				if otherPkg == pkgName {
+					shared = true
+					break
+				}
+			}
+			if shared {
+				break
+			}
+		}
+		if !shared {
+			exclusive = append(exclusive, pkgName)
+		}
+	}
+
+	return exclusive
+}
+
+// isPackageReferencedByAnyPersona checks whether any persona in the
+// manifest still references the given package name.
+func isPackageReferencedByAnyPersona(manifest *model.InstallManifest, pkgName string) bool {
+	for _, persona := range manifest.Personas {
+		for _, pkg := range persona.Packages {
+			if pkg == pkgName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IsMCPServerShared checks whether any installed package OTHER than
+// excludePackage also claims the given MCP server name.
+//
+// This is the MCP equivalent of isPackageReferencedByAnyPersona —
+// it enables safe uninstall by answering: "if I remove these packages,
+// will another package still need this server?"
+//
+// excludePackages is a set of package names to ignore (typically all
+// packages being uninstalled in the current operation). This prevents
+// packages that are all being removed together from blocking each
+// other's server cleanup.
+//
+// Example: packages "git-workflow" and "raise-pull-requests" both
+// declare a "github" MCP server. When uninstalling both at once,
+// IsMCPServerShared(manifest, "github", {"git-workflow","raise-pull-requests"})
+// returns false because no OTHER package claims it.
+func IsMCPServerShared(manifest *model.InstallManifest, serverName string, excludePackages map[string]bool) bool {
+	for _, pkg := range manifest.Packages {
+		if excludePackages[pkg.Name] {
+			continue
+		}
+		for _, s := range pkg.MCPServers {
+			if s == serverName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ExclusiveMCPServers returns the MCP server names from the given
+// packages that are NOT claimed by any other installed package outside
+// the set. These are the only servers safe to remove from the
+// assistant's config file.
+//
+// pkgNames should include ALL packages being removed in a single
+// operation (e.g. all exclusive packages in a persona uninstall).
+func ExclusiveMCPServers(manifest *model.InstallManifest, pkgNames []string) []string {
+	excludeSet := make(map[string]bool, len(pkgNames))
+	for _, n := range pkgNames {
+		excludeSet[n] = true
+	}
+
+	seen := make(map[string]bool)
+	var exclusive []string
+	for _, pkgName := range pkgNames {
+		pkg := FindInstalled(manifest, pkgName)
+		if pkg == nil {
+			continue
+		}
+		for _, serverName := range pkg.MCPServers {
+			if seen[serverName] {
+				continue // already collected
+			}
+			seen[serverName] = true
+			if !IsMCPServerShared(manifest, serverName, excludeSet) {
+				exclusive = append(exclusive, serverName)
+			}
+		}
+	}
+	return exclusive
+}

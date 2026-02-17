@@ -47,13 +47,41 @@ preview changes without writing any files.`,
   code-minions install --dry-run
 
   # Overwrite existing files
-  code-minions install --force`,
+  code-minions install --force
+
+  # Install a persona (a bundle of packages)
+  code-minions install --persona senior-dev --for copilot
+
+  # Preview a persona install
+  code-minions install --persona senior-dev --for copilot --dry-run`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			force, _ := cmd.Flags().GetBool("force")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
+			personaFlag, _ := cmd.Flags().GetString("persona")
+
+			// --- Persona install branch ---
+			// When --persona is set, we take a completely different path:
+			// resolve the persona, install all its packages via PersonaInstaller,
+			// and generate the grouping artefact.
+			if personaFlag != "" {
+				// --persona and --package are mutually exclusive.
+				// You're either installing a persona OR individual packages.
+				if packageFlag != "" {
+					return fmt.Errorf("--persona and --package cannot be used together\n\n" +
+						"Use --persona to install a bundle of packages, or --package for individual packages")
+				}
+				// --for is required for persona installs because the grouping
+				// artefact is assistant-specific (AGENTS.md vs .agent.md etc.)
+				if forFlag == "" {
+					return fmt.Errorf("--for is required when installing a persona\n\n"+
+						"Usage: code-minions install --persona <name> --for <assistant>\n\n"+
+						"Available assistants: %s", strings.Join(assistant.List(), ", "))
+				}
+				return runPersonaInstall(cmd, content, personaFlag, forFlag, target, force, dryRun)
+			}
 
 			// If --for is set, look up the assistant config and build a path mapper
 			var pathMapper func(string) string
@@ -346,6 +374,7 @@ preview changes without writing any files.`,
 
 	cmd.Flags().String("target", ".", "Target directory for installation")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to install all)")
+	cmd.Flags().String("persona", "", "Install a persona (a named bundle of packages)")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
@@ -414,4 +443,203 @@ func listSubDirs(content fs.FS, dir string) ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// runPersonaInstall handles the `install --persona <name> --for <assistant>`
+// path. This is separate from the main install logic because persona
+// installation uses a different flow:
+//
+//  1. Resolve the persona (look up all its packages)
+//  2. Install all packages via PersonaInstaller
+//  3. Generate the assistant-specific grouping artefact
+//  4. Record everything in the manifest
+//
+// The PersonaInstaller handles steps 2-4 internally (we built it in
+// Phase 2 and wired manifest tracking in Phase 3). This function
+// just handles the CLI concerns: parsing flags, resolving the persona,
+// and formatting output.
+func runPersonaInstall(
+	cmd *cobra.Command,
+	content fs.FS,
+	personaName, assistantName, target string,
+	force, dryRun bool,
+) error {
+	mode := getOutputMode(cmd)
+
+	// --- Step 1: Resolve the persona ---
+	// Create a registry with the embedded source, then use the
+	// PersonaResolver to look up the persona and all its packages.
+	src := registry.NewEmbeddedSource(content)
+	reg := registry.NewRegistry(src)
+	resolver := registry.NewPersonaResolver(reg)
+
+	resolved, err := resolver.Resolve(personaName)
+	if err != nil {
+		return fmt.Errorf("failed to resolve persona %q: %w", personaName, err)
+	}
+
+	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
+		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be written")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout())
+	}
+
+	// --- Step 2: Install via PersonaInstaller ---
+	pi := &installer.PersonaInstaller{
+		Resolved:      resolved,
+		Content:       content,
+		AssistantName: assistantName,
+		Target:        target,
+		Force:         force,
+		DryRun:        dryRun,
+	}
+
+	result, err := pi.Install()
+	if err != nil {
+		return fmt.Errorf("persona installation failed: %w", err)
+	}
+
+	// --- Step 3: Format output ---
+	return formatPersonaResult(cmd, mode, personaName, assistantName, result, dryRun)
+}
+
+// formatPersonaResult renders the persona install result in the
+// appropriate output mode (JSON, quiet, normal/verbose).
+func formatPersonaResult(
+	cmd *cobra.Command,
+	mode OutputMode,
+	personaName, assistantName string,
+	result *installer.PersonaResult,
+	dryRun bool,
+) error {
+	// --- JSON output ---
+	if mode == OutputJSON {
+		type pkgJSON struct {
+			Name    string   `json:"name"`
+			Copied  []string `json:"copied"`
+			Skipped []string `json:"skipped"`
+			Errors  []string `json:"errors"`
+		}
+		var pkgs []pkgJSON
+		for name, pr := range result.PackageResults {
+			pkgs = append(pkgs, pkgJSON{
+				Name:    name,
+				Copied:  nonNil(pr.Copied),
+				Skipped: nonNil(pr.Skipped),
+				Errors:  nonNil(pr.Errors),
+			})
+		}
+		if pkgs == nil {
+			pkgs = []pkgJSON{}
+		}
+
+		output := struct {
+			Persona        string    `json:"persona"`
+			Assistant      string    `json:"assistant"`
+			Packages       []pkgJSON `json:"packages"`
+			GeneratedFiles []string  `json:"generated_files"`
+			Errors         []string  `json:"errors"`
+			Summary        struct {
+				Copied    int `json:"copied"`
+				Skipped   int `json:"skipped"`
+				Errors    int `json:"errors"`
+				Generated int `json:"generated"`
+			} `json:"summary"`
+		}{
+			Persona:        personaName,
+			Assistant:      assistantName,
+			Packages:       pkgs,
+			GeneratedFiles: nonNil(result.GeneratedFiles),
+			Errors:         nonNil(result.Errors),
+		}
+		output.Summary.Copied = result.TotalCopied()
+		output.Summary.Skipped = result.TotalSkipped()
+		output.Summary.Errors = result.TotalErrors()
+		output.Summary.Generated = len(result.GeneratedFiles)
+
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(output); err != nil {
+			return err
+		}
+		if result.TotalErrors() > 0 {
+			return fmt.Errorf("persona installation completed with %d errors", result.TotalErrors())
+		}
+		return nil
+	}
+
+	// --- Quiet output ---
+	if mode == OutputQuiet {
+		for _, e := range result.Errors {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+		}
+		for _, pr := range result.PackageResults {
+			for _, e := range pr.Errors {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+			}
+		}
+		if result.TotalErrors() > 0 {
+			return fmt.Errorf("persona installation completed with %d errors", result.TotalErrors())
+		}
+		return nil
+	}
+
+	// --- Normal / Verbose output ---
+	green := color.New(color.FgGreen)
+	yellow := color.New(color.FgYellow)
+	red := color.New(color.FgRed)
+	bold := color.New(color.Bold)
+	cyan := color.New(color.FgCyan)
+
+	_, _ = bold.Fprintf(cmd.OutOrStdout(), "Installing persona %q for %s\n\n", personaName, assistantName)
+
+	// Per-package results (sorted for deterministic output)
+	pkgNames := make([]string, 0, len(result.PackageResults))
+	for k := range result.PackageResults {
+		pkgNames = append(pkgNames, k)
+	}
+	sort.Strings(pkgNames)
+	for _, pkgName := range pkgNames {
+		pr := result.PackageResults[pkgName]
+		_, _ = cyan.Fprintf(cmd.OutOrStdout(), "  Package: %s\n", pkgName)
+		for _, f := range pr.Copied {
+			if dryRun {
+				_, _ = yellow.Fprintf(cmd.OutOrStdout(), "    would copy: %s\n", f)
+			} else {
+				_, _ = green.Fprintf(cmd.OutOrStdout(), "    copied: %s\n", f)
+			}
+		}
+		for _, f := range pr.Skipped {
+			_, _ = yellow.Fprintf(cmd.OutOrStdout(), "    skipped (exists): %s\n", f)
+		}
+		for _, e := range pr.Errors {
+			_, _ = red.Fprintf(cmd.ErrOrStderr(), "    error: %s\n", e)
+		}
+	}
+
+	// Generated files
+	if len(result.GeneratedFiles) > 0 {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout())
+		_, _ = bold.Fprintln(cmd.OutOrStdout(), "  Generated:")
+		for _, f := range result.GeneratedFiles {
+			if dryRun {
+				_, _ = yellow.Fprintf(cmd.OutOrStdout(), "    would generate: %s\n", f)
+			} else {
+				_, _ = green.Fprintf(cmd.OutOrStdout(), "    generated: %s\n", f)
+			}
+		}
+	}
+
+	// Persona-level errors
+	for _, e := range result.Errors {
+		_, _ = red.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+	}
+
+	// Summary
+	_, _ = fmt.Fprintln(cmd.OutOrStdout())
+	_, _ = bold.Fprintf(cmd.OutOrStdout(), "%d copied, %d skipped, %d generated, %d errors\n",
+		result.TotalCopied(), result.TotalSkipped(), len(result.GeneratedFiles), result.TotalErrors())
+
+	if result.TotalErrors() > 0 {
+		return fmt.Errorf("persona installation completed with %d errors", result.TotalErrors())
+	}
+
+	return nil
 }

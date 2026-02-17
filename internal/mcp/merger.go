@@ -63,7 +63,7 @@ func Merge(existing []byte, translated map[string]any, configKey string, force b
 		if existingServer, exists := existingServers[name]; exists {
 			// Compare: normalise both through JSON round-trip to avoid
 			// type mismatches (e.g. float64 vs int from JSON unmarshal)
-			if serversEqual(existingServer, newServer) {
+			if ServersEqual(existingServer, newServer) {
 				result.Skipped = append(result.Skipped, name)
 			} else if force {
 				existingServers[name] = newServer
@@ -127,10 +127,10 @@ func Merge(existing []byte, translated map[string]any, configKey string, force b
 	return out, result, nil
 }
 
-// serversEqual compares two server definitions for equality by normalising
+// ServersEqual compares two server definitions for equality by normalising
 // them through JSON serialisation. This handles type differences that occur
 // when JSON is unmarshalled into map[string]any (e.g. numbers become float64).
-func serversEqual(a, b any) bool {
+func ServersEqual(a, b any) bool {
 	ajson, err1 := json.Marshal(a)
 	bjson, err2 := json.Marshal(b)
 	if err1 != nil || err2 != nil {
