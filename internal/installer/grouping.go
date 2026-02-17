@@ -131,6 +131,27 @@ func buildPackageSummary(resolved *registry.ResolvedPersona) string {
 	return sb.String()
 }
 
+// escapeYAMLValue wraps a string in quotes if it contains characters
+// that could break YAML parsing (colons, quotes, newlines, etc.).
+// Simple values are returned as-is.
+func escapeYAMLValue(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return `""`
+	}
+	// If value contains any YAML-sensitive characters, wrap in double
+	// quotes and escape internal double quotes and backslashes.
+	if strings.ContainsAny(s, ":\"'{}[]|>&*!#%@`,\n\r\t") {
+		escaped := strings.ReplaceAll(s, `\`, `\\`)
+		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+		escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+		escaped = strings.ReplaceAll(escaped, "\r", `\r`)
+		escaped = strings.ReplaceAll(escaped, "\t", `\t`)
+		return `"` + escaped + `"`
+	}
+	return s
+}
+
 // toTitleCase converts "git-workflow" → "Git Workflow".
 func toTitleCase(s string) string {
 	parts := strings.Split(s, "-")

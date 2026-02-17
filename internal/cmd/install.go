@@ -610,7 +610,7 @@ func formatPersonaResult(
 
 	// Generated files
 	if len(result.GeneratedFiles) > 0 {
-		fmt.Fprintln(cmd.OutOrStdout())
+		_, _ = fmt.Fprintln(cmd.OutOrStdout())
 		_, _ = bold.Fprintln(cmd.OutOrStdout(), "  Generated:")
 		for _, f := range result.GeneratedFiles {
 			if dryRun {
@@ -627,7 +627,7 @@ func formatPersonaResult(
 	}
 
 	// Summary
-	fmt.Fprintln(cmd.OutOrStdout())
+	_, _ = fmt.Fprintln(cmd.OutOrStdout())
 	_, _ = bold.Fprintf(cmd.OutOrStdout(), "%d copied, %d skipped, %d generated, %d errors\n",
 		result.TotalCopied(), result.TotalSkipped(), len(result.GeneratedFiles), result.TotalErrors())
 

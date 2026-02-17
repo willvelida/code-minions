@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/willvelida/code-minions/internal/model"
 )
@@ -63,7 +64,7 @@ func VerifyChecksum(path string, recorded string) bool {
 //   - fileType: what kind of file (e.g. "persona-agent", "routing-table");
 //     pass "" for regular package files
 func NewInstalledFile(basePath, relativePath, fileType string) (model.InstalledFile, error) {
-	fullPath := basePath + "/" + relativePath
+	fullPath := filepath.Join(basePath, relativePath)
 
 	checksum, err := ComputeFileChecksum(fullPath)
 	if err != nil {

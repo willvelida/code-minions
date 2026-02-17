@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/willvelida/code-minions/internal/installer"
 )
 
 // testContentFSWithPersonas returns a test filesystem that includes
@@ -355,6 +357,152 @@ func TestUninstallPersonaNotInstalled(t *testing.T) {
 	}
 	if want := "not installed"; !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %q, want it to contain %q", err, want)
+	}
+}
+
+// TestUninstallPersonaJSON verifies JSON output for persona uninstall.
+func TestUninstallPersonaJSON(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --json
+	root := NewRootCommand(content)
+	root.SetArgs([]string{
+		"uninstall",
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+		"--json",
+	})
+
+	var buf strings.Builder
+	root.SetOut(&buf)
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("uninstall --json failed: %v", err)
+	}
+
+	var result struct {
+		Persona  string   `json:"persona"`
+		Removed  []string `json:"removed"`
+		NotFound []string `json:"not_found"`
+		Warnings []string `json:"warnings"`
+		Errors   []string `json:"errors"`
+		Summary  struct {
+			Removed  int `json:"removed"`
+			NotFound int `json:"not_found"`
+			Errors   int `json:"errors"`
+		} `json:"summary"`
+	}
+	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, buf.String())
+	}
+	if result.Persona != "test-persona" {
+		t.Errorf("persona = %q, want test-persona", result.Persona)
+	}
+	if result.Summary.Removed == 0 {
+		t.Error("expected at least 1 removed file")
+	}
+}
+
+// TestUninstallPersonaDryRun verifies dry-run persona uninstall
+// does not delete files.
+func TestUninstallPersonaDryRun(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	agentFile := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Fatalf("agent file should exist after install: %s", agentFile)
+	}
+
+	// Dry-run uninstall
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+		"--dry-run",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("dry-run uninstall failed: %v", err)
+	}
+
+	// Files should still exist after dry-run
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("agent file should still exist after dry-run uninstall: %s", agentFile)
+	}
+
+	// Manifest should still list the persona
+	manifest, err := installer.LoadManifest(target)
+	if err != nil {
+		t.Fatalf("load manifest: %v", err)
+	}
+	if p := installer.FindInstalledPersona(manifest, "test-persona"); p == nil {
+		t.Error("persona should still be in manifest after dry-run")
+	}
+}
+
+// TestUninstallPersonaQuiet verifies quiet-mode persona uninstall
+// produces no stdout on success.
+func TestUninstallPersonaQuiet(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Uninstall with --quiet
+	root := NewRootCommand(content)
+	root.SetArgs([]string{
+		"uninstall",
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+		"--quiet",
+	})
+
+	var buf strings.Builder
+	root.SetOut(&buf)
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("quiet uninstall failed: %v", err)
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("expected no stdout in quiet mode, got: %q", buf.String())
 	}
 }
 

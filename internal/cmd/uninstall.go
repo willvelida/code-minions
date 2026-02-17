@@ -483,7 +483,7 @@ func runPersonaUninstall(
 
 	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be removed")
-		fmt.Fprintln(cmd.OutOrStdout())
+		_, _ = fmt.Fprintln(cmd.OutOrStdout())
 	}
 
 	// --- Step 4: Remove exclusive package files ---

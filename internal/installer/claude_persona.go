@@ -68,7 +68,7 @@ func (g *ClaudeGrouping) buildAgentContent() string {
 	// YAML frontmatter — Claude Code reads this to understand
 	// the agent's purpose and capabilities.
 	sb.WriteString("---\n")
-	fmt.Fprintf(&sb, "description: %s\n", strings.TrimSpace(persona.Description))
+	fmt.Fprintf(&sb, "description: %s\n", escapeYAMLValue(persona.Description))
 
 	// MCP server references — tells Claude which MCP servers
 	// this persona can use. Each entry references a server name

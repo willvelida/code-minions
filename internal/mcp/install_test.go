@@ -399,3 +399,86 @@ func TestInstall_SkippedServerDoesNotAppearInServerNames(t *testing.T) {
 		t.Errorf("ServerNames = %v, want empty (skipped, not installed)", result.ServerNames)
 	}
 }
+
+// ---------- InstallServers tests ----------
+
+func TestInstallServers_NewFile(t *testing.T) {
+	target := t.TempDir()
+	translator := &CopilotTranslator{}
+
+	// Pre-translated server configs (what a Translator.Translate would return).
+	servers := map[string]any{
+		"github": map[string]any{
+			"type":    "stdio",
+			"command": "npx",
+			"args":    []any{"-y", "@modelcontextprotocol/server-github"},
+		},
+	}
+
+	result, err := InstallServers(target, translator, servers, false, false)
+	if err != nil {
+		t.Fatalf("InstallServers() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("InstallServers() returned nil result")
+	}
+	if len(result.Merge.Added) != 1 || result.Merge.Added[0] != "github" {
+		t.Errorf("Added = %v, want [github]", result.Merge.Added)
+	}
+
+	// Verify file was written.
+	data, err := os.ReadFile(filepath.Join(target, ".vscode", "mcp.json"))
+	if err != nil {
+		t.Fatalf("reading written config: %v", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("parsing config: %v", err)
+	}
+	serversMap, ok := doc["servers"].(map[string]any)
+	if !ok {
+		t.Fatal("expected servers key in config")
+	}
+	if _, exists := serversMap["github"]; !exists {
+		t.Error("expected github server in config")
+	}
+}
+
+func TestInstallServers_DryRun(t *testing.T) {
+	target := t.TempDir()
+	translator := &CopilotTranslator{}
+
+	servers := map[string]any{
+		"github": map[string]any{"type": "stdio", "command": "npx"},
+	}
+
+	result, err := InstallServers(target, translator, servers, false, true)
+	if err != nil {
+		t.Fatalf("InstallServers() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("InstallServers() returned nil result")
+	}
+	if !result.DryRun {
+		t.Error("expected DryRun=true")
+	}
+
+	// File should NOT be written in dry-run mode.
+	configPath := filepath.Join(target, ".vscode", "mcp.json")
+	if _, err := os.Stat(configPath); err == nil {
+		t.Error("config file should not exist in dry-run mode")
+	}
+}
+
+func TestInstallServers_EmptyServers(t *testing.T) {
+	target := t.TempDir()
+	translator := &CopilotTranslator{}
+
+	result, err := InstallServers(target, translator, map[string]any{}, false, false)
+	if err != nil {
+		t.Fatalf("InstallServers() error = %v", err)
+	}
+	if result != nil {
+		t.Error("expected nil result for empty servers")
+	}
+}

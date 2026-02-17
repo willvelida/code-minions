@@ -67,7 +67,7 @@ func (g *OpenCodeGrouping) buildAgentContent() string {
 	// "mode: primary" makes this agent show up as a selectable option.
 	// "tools" controls which tools this agent can use.
 	sb.WriteString("---\n")
-	fmt.Fprintf(&sb, "description: %s\n", strings.TrimSpace(persona.Description))
+	fmt.Fprintf(&sb, "description: %s\n", escapeYAMLValue(persona.Description))
 	sb.WriteString("mode: primary\n")
 	sb.WriteString("tools:\n")
 	sb.WriteString("  skill: true\n")

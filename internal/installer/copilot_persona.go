@@ -83,7 +83,7 @@ func (g *CopilotGrouping) buildAgentContent() string {
 	// YAML frontmatter — VS Code reads this to understand the
 	// agent's purpose and available tools.
 	sb.WriteString("---\n")
-	fmt.Fprintf(&sb, "description: %s\n", strings.TrimSpace(persona.Description))
+	fmt.Fprintf(&sb, "description: %s\n", escapeYAMLValue(persona.Description))
 
 	// Tools list: MCP server references use the <server>/* format
 	// to grant access to all tools from that server.

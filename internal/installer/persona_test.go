@@ -796,3 +796,30 @@ func TestPersonaGroupingIncludesMCPServers(t *testing.T) {
 		})
 	}
 }
+
+// ---------- escapeYAMLValue tests ----------
+
+func TestEscapeYAMLValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"simple", "A simple description", "A simple description"},
+		{"with colon", "Step 1: do something", `"Step 1: do something"`},
+		{"with quotes", `She said "hello"`, `"She said \"hello\""`},
+		{"with newline", "line1\nline2", `"line1\nline2"`},
+		{"empty", "", `""`},
+		{"with hash", "# not a comment", `"# not a comment"`},
+		{"with ampersand", "a & b", `"a & b"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := escapeYAMLValue(tt.input)
+			if got != tt.want {
+				t.Errorf("escapeYAMLValue(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

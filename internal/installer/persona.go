@@ -3,6 +3,7 @@ package installer
 import (
 	"fmt"
 	"io/fs"
+	"path"
 	"sort"
 
 	"github.com/willvelida/code-minions/internal/assistant"
@@ -369,7 +370,7 @@ func (pi *PersonaInstaller) installMCP(result *PersonaResult) (*mcp.InstallResul
 
 	for _, rp := range pi.Resolved.Packages {
 		pkgName := rp.Package.Name
-		pkgDir := "packages/" + pkgName
+		pkgDir := path.Join("packages", pkgName)
 
 		// Load this package's mcp.yaml (returns nil if none exists).
 		cfg, err := mcp.LoadConfig(pi.Content, pkgDir)
@@ -399,6 +400,20 @@ func (pi *PersonaInstaller) installMCP(result *PersonaResult) (*mcp.InstallResul
 
 		// Track ownership: which package declared which server.
 		for name, serverCfg := range servers {
+			// Detect cross-package server conflicts: if another package
+			// already declared a server with the same name, warn about
+			// the overwrite. The downstream Merge function handles
+			// deduplication for identical configs, but at this point
+			// we're building a flat map, so last-write-wins.
+			if existing, exists := allServers[name]; exists {
+				// Only warn if configs actually differ.
+				if fmt.Sprintf("%v", existing) != fmt.Sprintf("%v", serverCfg) {
+					owners := serverOwnership[name]
+					result.Errors = append(result.Errors,
+						fmt.Sprintf("MCP conflict: server %q declared by %v and %s with different configs — using %s's version",
+							name, owners, pkgName, pkgName))
+				}
+			}
 			serverOwnership[name] = append(serverOwnership[name], pkgName)
 			serversByPkg[pkgName] = append(serversByPkg[pkgName], name)
 			allServers[name] = serverCfg
