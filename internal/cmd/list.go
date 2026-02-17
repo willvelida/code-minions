@@ -73,14 +73,40 @@ install, or to check which assistants are supported by the --for flag.`,
 				assistants = append(assistants, assistantEntry{Name: name, Description: cfg.Description})
 			}
 
+			// Collect persona data — personas are optional, so we
+			// don't fail if none exist.
+			type personaEntry struct {
+				Name        string   `json:"name"`
+				Description string   `json:"description,omitempty"`
+				Packages    []string `json:"packages,omitempty"`
+			}
+
+			var personas []personaEntry
+			personaModels, err := src.ListPersonas()
+			if err == nil {
+				for _, p := range personaModels {
+					entry := personaEntry{
+						Name:        p.Name,
+						Description: p.Description,
+					}
+					if detail {
+						for _, ref := range p.Packages {
+							entry.Packages = append(entry.Packages, ref.Name)
+						}
+					}
+					personas = append(personas, entry)
+				}
+			}
+
 			// Output mode
 			mode := getOutputMode(cmd)
 
 			if mode == OutputJSON {
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
 					Packages   []packageEntry   `json:"packages"`
+					Personas   []personaEntry   `json:"personas"`
 					Assistants []assistantEntry `json:"assistants"`
-				}{Packages: pkgs, Assistants: assistants})
+				}{Packages: pkgs, Personas: personas, Assistants: assistants})
 			}
 
 			// --quiet on list is a no-op — warn and print anyway
@@ -129,6 +155,23 @@ install, or to check which assistants are supported by the --for flag.`,
 				_, _ = cyan.Fprintf(w, "  %-15s", a.Name)
 				_, _ = dim.Fprintf(w, "  %s", a.Description)
 				_, _ = fmt.Fprintln(w)
+			}
+
+			// Personas section (only shown if any exist)
+			if len(personas) > 0 {
+				_, _ = bold.Fprintln(w, "\nPersonas (use with --persona)")
+				_, _ = dim.Fprintln(w, strings.Repeat("-", 60))
+				for _, p := range personas {
+					_, _ = cyan.Fprintf(w, "  %-30s", p.Name)
+					if p.Description != "" {
+						_, _ = dim.Fprintf(w, "  %s", p.Description)
+					}
+					_, _ = fmt.Fprintln(w)
+					if detail && len(p.Packages) > 0 {
+						_, _ = dim.Fprint(w, "    ")
+						_, _ = green.Fprintf(w, "→ packages: %s\n", strings.Join(p.Packages, ", "))
+					}
+				}
 			}
 
 			_, _ = fmt.Fprintln(w)

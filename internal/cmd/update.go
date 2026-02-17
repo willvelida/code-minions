@@ -29,7 +29,22 @@ AGENTS.md is not modified during updates.`,
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
+			personaFlag, _ := cmd.Flags().GetString("persona")
 			mode := getOutputMode(cmd)
+
+			// --- Persona update branch ---
+			// Update means: re-resolve and re-install with force=true.
+			if personaFlag != "" {
+				if packageFlag != "" {
+					return fmt.Errorf("--persona and --package cannot be used together")
+				}
+				if forFlag == "" {
+					return fmt.Errorf("--for is required when updating a persona\n\n" +
+						"Usage: code-minions update --persona <name> --for <assistant>")
+				}
+				// Re-install with force=true is the update.
+				return runPersonaInstall(cmd, content, personaFlag, forFlag, target, true, dryRun)
+			}
 
 			// If --for is set, look up the assistant config and build a path mapper
 			var pathMapper func(string) string
@@ -213,6 +228,7 @@ AGENTS.md is not modified during updates.`,
 
 	cmd.Flags().String("target", ".", "Target directory for update")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to update (omit to auto-detect installed packages)")
+	cmd.Flags().String("persona", "", "Update a persona (re-install all its packages with latest content)")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -41,13 +42,29 @@ files are found in the correct assistant-specific location.`,
   code-minions uninstall --package git-workflow --for copilot
 
   # Preview what would be removed
-  code-minions uninstall --dry-run --for copilot`,
+  code-minions uninstall --dry-run --for copilot
+
+  # Uninstall a persona
+  code-minions uninstall --persona senior-dev --for copilot`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, _ := cmd.Flags().GetString("target")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
 			yesFlag, _ := cmd.Flags().GetBool("yes")
+			personaFlag, _ := cmd.Flags().GetString("persona")
+
+			// --- Persona uninstall branch ---
+			if personaFlag != "" {
+				if packageFlag != "" {
+					return fmt.Errorf("--persona and --package cannot be used together")
+				}
+				if forFlag == "" {
+					return fmt.Errorf("--for is required when uninstalling a persona\n\n" +
+						"Usage: code-minions uninstall --persona <name> --for <assistant>")
+				}
+				return runPersonaUninstall(cmd, content, personaFlag, forFlag, target, dryRun, yesFlag)
+			}
 
 			if packageFlag == "" && forFlag == "" {
 				return fmt.Errorf("when uninstalling everything, --for is required to identify the correct file locations\n\nUsage: code-minions uninstall --for <assistant>\n\nAvailable assistants: %s",
@@ -392,9 +409,279 @@ files are found in the correct assistant-specific location.`,
 
 	cmd.Flags().String("target", ".", "Target directory to uninstall from")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to uninstall (omit to uninstall all)")
+	cmd.Flags().String("persona", "", "Uninstall a persona (a named bundle of packages)")
 	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be removed without deleting files")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt and proceed with removal")
 
 	return cmd
+}
+
+// runPersonaUninstall handles the `uninstall --persona <name> --for <assistant>`
+// path. It uses the manifest to find what was installed, then removes:
+//
+//  1. Package files that are exclusively owned by this persona
+//     (shared packages are kept with a warning)
+//  2. Generated grouping files (with checksum verification)
+//  3. The persona entry from the manifest
+func runPersonaUninstall(
+	cmd *cobra.Command,
+	content fs.FS,
+	personaName, assistantName, target string,
+	dryRun, yesFlag bool,
+) error {
+	mode := getOutputMode(cmd)
+
+	// --- Step 1: Load manifest and find the persona ---
+	manifest, err := installer.LoadManifest(target)
+	if err != nil {
+		return fmt.Errorf("failed to load manifest: %w", err)
+	}
+
+	persona := installer.FindInstalledPersona(manifest, personaName)
+	if persona == nil {
+		return fmt.Errorf("persona %q is not installed (checked %s)",
+			personaName, installer.ManifestPath(target))
+	}
+
+	// --- Step 2: Determine what to remove ---
+	// Only packages exclusively owned by this persona can be removed.
+	// Shared packages are kept.
+	exclusivePkgs := installer.PersonaPackages(manifest, personaName)
+	sharedPkgs := findSharedPackages(persona.Packages, exclusivePkgs)
+
+	// Count files to remove for confirmation.
+	var filesToRemove int
+	for _, pkgName := range exclusivePkgs {
+		if pkg := installer.FindInstalled(manifest, pkgName); pkg != nil {
+			filesToRemove += len(pkg.Files)
+		}
+	}
+	filesToRemove += len(persona.GeneratedFiles)
+
+	// --- Step 3: Confirmation (unless --yes or --dry-run) ---
+	if !dryRun && !yesFlag && filesToRemove > 0 {
+		switch mode {
+		case OutputJSON, OutputQuiet:
+			return fmt.Errorf("confirmation required (use --yes to skip)")
+		default:
+			if !isInteractiveFunc() {
+				return fmt.Errorf("confirmation required (use --yes to skip)")
+			}
+			promptMsg := fmt.Sprintf("This will remove %d files from persona %q. Continue? [y/N]: ",
+				filesToRemove, personaName)
+			confirmed, err := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), promptMsg)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+				return nil
+			}
+		}
+	}
+
+	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
+		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be removed")
+		fmt.Fprintln(cmd.OutOrStdout())
+	}
+
+	// --- Step 4: Remove exclusive package files ---
+	var removed, notFound, warnings []string
+	var errors []string
+
+	for _, pkgName := range exclusivePkgs {
+		pkg := installer.FindInstalled(manifest, pkgName)
+		if pkg == nil {
+			continue
+		}
+
+		for _, filePath := range pkg.Files {
+			fullPath := filepath.Join(target, filePath)
+			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+				notFound = append(notFound, filePath)
+				continue
+			}
+
+			if !dryRun {
+				if err := os.Remove(fullPath); err != nil {
+					errors = append(errors, fmt.Sprintf("remove %s: %v", filePath, err))
+					continue
+				}
+			}
+			removed = append(removed, filePath)
+		}
+	}
+
+	// Warn about shared packages.
+	for _, pkgName := range sharedPkgs {
+		warnings = append(warnings, fmt.Sprintf(
+			"package %q is shared with another persona — files kept", pkgName))
+	}
+
+	// --- Step 5: Remove generated files (with checksum check) ---
+	for _, gf := range persona.GeneratedFiles {
+		fullPath := filepath.Join(target, gf.Path)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			notFound = append(notFound, gf.Path)
+			continue
+		}
+
+		// Check if file was modified since install.
+		if !installer.VerifyChecksum(fullPath, gf.Checksum) {
+			warnings = append(warnings, fmt.Sprintf(
+				"%s has been modified since installation", gf.Path))
+		}
+
+		if !dryRun {
+			if err := os.Remove(fullPath); err != nil {
+				errors = append(errors, fmt.Sprintf("remove %s: %v", gf.Path, err))
+				continue
+			}
+		}
+		removed = append(removed, gf.Path)
+	}
+
+	// --- Step 5b: Remove exclusive MCP servers ---
+	// For each exclusive package being removed, check which of its
+	// MCP servers are NOT shared with any other installed package.
+	// Only remove those exclusive servers from the config file.
+	// We pass ALL exclusive packages at once so that servers shared
+	// only between packages being removed are still cleaned up.
+	if assistantName != "" {
+		translator, err := mcp.NewTranslator(assistantName)
+		if err == nil {
+			// Collect servers that are safe to remove (not shared
+			// with any package outside the set being removed).
+			serversToRemove := installer.ExclusiveMCPServers(manifest, exclusivePkgs)
+
+			// Also check shared packages — warn about their servers being kept.
+			for _, pkgName := range sharedPkgs {
+				if pkg := installer.FindInstalled(manifest, pkgName); pkg != nil && len(pkg.MCPServers) > 0 {
+					warnings = append(warnings, fmt.Sprintf(
+						"MCP servers from shared package %q kept: %s",
+						pkgName, strings.Join(pkg.MCPServers, ", ")))
+				}
+			}
+
+			if len(serversToRemove) > 0 {
+				mcpResult, err := mcp.Uninstall(target, translator, serversToRemove, dryRun)
+				if err != nil {
+					errors = append(errors, fmt.Sprintf("MCP uninstall: %v", err))
+				} else if mcpResult != nil {
+					for _, s := range mcpResult.Removed {
+						removed = append(removed, fmt.Sprintf("MCP server: %s", s))
+					}
+				}
+			}
+		}
+	}
+
+	// --- Step 6: Update manifest ---
+	if !dryRun {
+		for _, pkgName := range exclusivePkgs {
+			installer.RecordUninstall(manifest, pkgName)
+		}
+		installer.RecordPersonaUninstall(manifest, personaName)
+		if err := installer.SaveManifest(target, manifest); err != nil {
+			errors = append(errors, fmt.Sprintf("manifest: %v", err))
+		}
+	}
+
+	// --- Step 7: Output ---
+	return formatPersonaUninstallResult(cmd, mode, personaName, removed, notFound, warnings, errors, dryRun)
+}
+
+// findSharedPackages returns packages that are in allPkgs but NOT in exclusivePkgs.
+func findSharedPackages(allPkgs, exclusivePkgs []string) []string {
+	exclSet := make(map[string]bool)
+	for _, p := range exclusivePkgs {
+		exclSet[p] = true
+	}
+
+	var shared []string
+	for _, p := range allPkgs {
+		if !exclSet[p] {
+			shared = append(shared, p)
+		}
+	}
+	return shared
+}
+
+// formatPersonaUninstallResult renders the uninstall result.
+func formatPersonaUninstallResult(
+	cmd *cobra.Command,
+	mode OutputMode,
+	personaName string,
+	removed, notFound, warnings, errs []string,
+	dryRun bool,
+) error {
+	if mode == OutputJSON {
+		output := struct {
+			Persona  string   `json:"persona"`
+			Removed  []string `json:"removed"`
+			NotFound []string `json:"not_found"`
+			Warnings []string `json:"warnings"`
+			Errors   []string `json:"errors"`
+			Summary  struct {
+				Removed  int `json:"removed"`
+				NotFound int `json:"not_found"`
+				Errors   int `json:"errors"`
+			} `json:"summary"`
+		}{
+			Persona:  personaName,
+			Removed:  nonNil(removed),
+			NotFound: nonNil(notFound),
+			Warnings: nonNil(warnings),
+			Errors:   nonNil(errs),
+		}
+		output.Summary.Removed = len(removed)
+		output.Summary.NotFound = len(notFound)
+		output.Summary.Errors = len(errs)
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(output)
+	}
+
+	if mode == OutputQuiet {
+		for _, e := range errs {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+		}
+		if len(errs) > 0 {
+			return fmt.Errorf("persona uninstall completed with %d errors", len(errs))
+		}
+		return nil
+	}
+
+	// Normal / Verbose
+	green := color.New(color.FgGreen)
+	yellow := color.New(color.FgYellow)
+	red := color.New(color.FgRed)
+	bold := color.New(color.Bold)
+
+	_, _ = bold.Fprintf(cmd.OutOrStdout(), "Uninstalling persona %q\n\n", personaName)
+
+	for _, f := range removed {
+		if dryRun {
+			_, _ = yellow.Fprintf(cmd.OutOrStdout(), "  would remove: %s\n", f)
+		} else {
+			_, _ = green.Fprintf(cmd.OutOrStdout(), "  removed: %s\n", f)
+		}
+	}
+	for _, f := range notFound {
+		_, _ = color.New(color.Faint).Fprintf(cmd.OutOrStdout(), "  not found: %s\n", f)
+	}
+	for _, w := range warnings {
+		_, _ = yellow.Fprintf(cmd.OutOrStdout(), "  warning: %s\n", w)
+	}
+	for _, e := range errs {
+		_, _ = red.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout())
+	_, _ = bold.Fprintf(cmd.OutOrStdout(), "%d removed, %d not found, %d errors\n",
+		len(removed), len(notFound), len(errs))
+
+	if len(errs) > 0 {
+		return fmt.Errorf("persona uninstall completed with %d errors", len(errs))
+	}
+	return nil
 }
