@@ -8,6 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/fatih/color"
 	"github.com/willvelida/code-minions/internal/installer"
 )
 
@@ -698,5 +699,533 @@ func TestUninstallPersonaRemovesMCP(t *testing.T) {
 	servers, _ = doc["servers"].(map[string]any)
 	if len(servers) > 0 {
 		t.Errorf("expected all MCP servers removed, still have: %v", servers)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// List --detail persona display
+// ---------------------------------------------------------------------------
+
+// TestListDetailShowsPersonaPackages verifies that `list --detail` shows
+// the persona's packages in human-readable output (the "→ packages:" line).
+func TestListDetailShowsPersonaPackages(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	content := testContentFSWithPersonas()
+
+	var buf strings.Builder
+	cmd := newListCommand(content)
+	cmd.SetArgs([]string{"--detail"})
+	cmd.SetOut(&buf)
+
+	old := color.Output
+	color.Output = &buf
+	t.Cleanup(func() { color.Output = old })
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	// Should show the Personas section header
+	if !strings.Contains(output, "Personas") {
+		t.Errorf("output should contain Personas header, got:\n%s", output)
+	}
+	// Should show the persona name
+	if !strings.Contains(output, "test-persona") {
+		t.Errorf("output should contain persona name, got:\n%s", output)
+	}
+	// In --detail mode, should show the packages each persona references
+	if !strings.Contains(output, "packages:") {
+		t.Errorf("output should contain → packages: line, got:\n%s", output)
+	}
+	if !strings.Contains(output, "git-workflow") {
+		t.Errorf("output should contain git-workflow in packages, got:\n%s", output)
+	}
+	if !strings.Contains(output, "developer-mentor") {
+		t.Errorf("output should contain developer-mentor in packages, got:\n%s", output)
+	}
+}
+
+// TestListDetailShowsPersonaDescription verifies that persona
+// descriptions appear in the human-readable list output.
+func TestListDetailShowsPersonaDescription(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	content := testContentFSWithPersonas()
+
+	var buf strings.Builder
+	cmd := newListCommand(content)
+	cmd.SetArgs([]string{"--detail"})
+	cmd.SetOut(&buf)
+
+	old := color.Output
+	color.Output = &buf
+	t.Cleanup(func() { color.Output = old })
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	// Persona description should be displayed
+	if !strings.Contains(output, "A test persona for CLI testing") {
+		t.Errorf("output should show persona description, got:\n%s", output)
+	}
+}
+
+// TestListPersonaDescriptionTruncation verifies that long descriptions
+// get truncated in the list output (exercises truncateDesc).
+func TestListPersonaDescriptionTruncation(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	// Build an FS with a very long description
+	longDesc := strings.Repeat("a", 200)
+	testFS := fstest.MapFS{
+		"packages/test-pkg/package.yaml": &fstest.MapFile{
+			Data: []byte("name: test-pkg\nversion: \"0.1.0\"\ndescription: '" + longDesc + "'\n"),
+		},
+		"packages/test-pkg/agents/test-pkg.agent.md": &fstest.MapFile{
+			Data: []byte("# Test Agent"),
+		},
+	}
+
+	var buf strings.Builder
+	cmd := newListCommand(testFS)
+	cmd.SetArgs([]string{})
+	cmd.SetOut(&buf)
+
+	old := color.Output
+	color.Output = &buf
+	t.Cleanup(func() { color.Output = old })
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	// Truncated descriptions end with "..."
+	if !strings.Contains(output, "...") {
+		t.Errorf("long description should be truncated with '...', got:\n%s", output)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Persona uninstall confirmation prompt tests
+// ---------------------------------------------------------------------------
+
+// testContentFSWithTwoPersonas returns a test FS with two personas that
+// share a package (developer-mentor). This lets us test shared-package
+// detection during uninstall.
+func testContentFSWithTwoPersonas() fstest.MapFS {
+	persona1YAML := `name: persona-a
+description: First persona
+packages:
+  - name: git-workflow
+  - name: developer-mentor
+`
+	persona2YAML := `name: persona-b
+description: Second persona
+packages:
+  - name: developer-mentor
+`
+	return fstest.MapFS{
+		// Packages
+		"packages/git-workflow/package.yaml":                         &fstest.MapFile{Data: []byte("name: git-workflow\nversion: \"0.1.0\"\ndescription: Git workflow helpers\n")},
+		"packages/git-workflow/agents/git-workflow.agent.md":         &fstest.MapFile{Data: []byte("# Git Agent")},
+		"packages/git-workflow/skills/git-workflow/SKILL.md":         &fstest.MapFile{Data: []byte("# Git")},
+		"packages/developer-mentor/package.yaml":                     &fstest.MapFile{Data: []byte("name: developer-mentor\nversion: \"0.1.0\"\ndescription: Developer mentoring\n")},
+		"packages/developer-mentor/agents/developer-mentor.agent.md": &fstest.MapFile{Data: []byte("# Mentor Agent")},
+		"packages/developer-mentor/skills/developer-mentor/SKILL.md": &fstest.MapFile{Data: []byte("# Mentor")},
+
+		// Personas
+		"personas/persona-a/persona.yaml": &fstest.MapFile{Data: []byte(persona1YAML)},
+		"personas/persona-b/persona.yaml": &fstest.MapFile{Data: []byte(persona2YAML)},
+	}
+}
+
+// TestUninstallPersonaConfirmationAccepted verifies that the persona
+// uninstall path shows a confirmation prompt and proceeds when "y" is entered.
+func TestUninstallPersonaConfirmationAccepted(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate interactive terminal
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return true }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	// Pipe "y" into stdin
+	origStdin := os.Stdin
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	})
+	_, _ = w.WriteString("y\n")
+	_ = w.Close()
+
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall with confirmation failed: %v", err)
+	}
+
+	// Files should be removed
+	agentFile := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); !os.IsNotExist(err) {
+		t.Errorf("agent file should be removed after confirmed uninstall: %s", agentFile)
+	}
+}
+
+// TestUninstallPersonaConfirmationDeclined verifies that declining the
+// confirmation prompt aborts the persona uninstall cleanly.
+func TestUninstallPersonaConfirmationDeclined(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate interactive terminal
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return true }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	// Pipe "n" into stdin
+	origStdin := os.Stdin
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	})
+	_, _ = w.WriteString("n\n")
+	_ = w.Close()
+
+	var buf strings.Builder
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	uninstallCmd.SetOut(&buf)
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("expected clean exit on decline, got: %v", err)
+	}
+
+	// Output should contain "Aborted"
+	if !strings.Contains(buf.String(), "Aborted") {
+		t.Errorf("expected 'Aborted' in output, got: %q", buf.String())
+	}
+
+	// Files should still exist
+	agentFile := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("agent file should still exist after decline: %s", agentFile)
+	}
+}
+
+// TestUninstallPersonaNonInteractiveAbortsWithoutYes verifies that in
+// non-interactive mode (no TTY), persona uninstall fails without --yes.
+func TestUninstallPersonaNonInteractiveAbortsWithoutYes(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Override TTY check to simulate non-interactive
+	origIsInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origIsInteractive })
+
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	uninstallCmd.SilenceErrors = true
+	uninstallCmd.SilenceUsage = true
+
+	err := uninstallCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for non-interactive without --yes")
+	}
+	if !strings.Contains(err.Error(), "--yes") {
+		t.Errorf("error should mention --yes, got: %q", err.Error())
+	}
+
+	// Files should still exist
+	agentFile := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(agentFile); os.IsNotExist(err) {
+		t.Errorf("agent file should still exist: %s", agentFile)
+	}
+}
+
+// TestUninstallPersonaWithSharedPackages verifies that when two personas
+// share a package, uninstalling one keeps the shared package's files and
+// produces a warning.
+func TestUninstallPersonaWithSharedPackages(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithTwoPersonas()
+
+	// Install both personas. Use --force on the second so that shared
+	// package files are re-copied and properly tracked in the manifest
+	// (without --force, skipped files don't appear in the persona entry).
+	installA := newInstallCommand(content)
+	installA.SetArgs([]string{
+		"--persona", "persona-a",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installA.Execute(); err != nil {
+		t.Fatalf("install persona-a failed: %v", err)
+	}
+
+	installB := newInstallCommand(content)
+	installB.SetArgs([]string{
+		"--persona", "persona-b",
+		"--for", "copilot",
+		"--target", target,
+		"--force",
+	})
+	if err := installB.Execute(); err != nil {
+		t.Fatalf("install persona-b failed: %v", err)
+	}
+
+	// developer-mentor agent should exist
+	sharedAgent := filepath.Join(target, ".github", "agents", "developer-mentor.agent.md")
+	if _, err := os.Stat(sharedAgent); os.IsNotExist(err) {
+		t.Fatalf("shared agent should exist after install: %s", sharedAgent)
+	}
+
+	// Uninstall persona-a (shares developer-mentor with persona-b)
+	var buf strings.Builder
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--persona", "persona-a",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+	})
+	uninstallCmd.SetOut(&buf)
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall persona-a failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// git-workflow files should be removed (exclusive to persona-a)
+	gitAgent := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(gitAgent); !os.IsNotExist(err) {
+		t.Errorf("exclusive package file should be removed: %s", gitAgent)
+	}
+
+	// developer-mentor files should be KEPT (shared with persona-b)
+	if _, err := os.Stat(sharedAgent); os.IsNotExist(err) {
+		t.Errorf("shared package file should be kept: %s", sharedAgent)
+	}
+
+	// Output should mention that the shared package is kept
+	if !strings.Contains(output, "shared") {
+		t.Errorf("output should warn about shared package, got:\n%s", output)
+	}
+}
+
+// TestUninstallPersonaNormalOutputShowsWarningsAndNotFound verifies
+// the normal-mode display of warnings and not-found entries in
+// formatPersonaUninstallResult.
+func TestUninstallPersonaNormalOutputShowsWarningsAndNotFound(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	// Install the persona
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Manually delete one file so it shows up as "not found" during uninstall
+	agentFile := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if err := os.Remove(agentFile); err != nil {
+		t.Fatalf("failed to pre-remove file: %v", err)
+	}
+
+	var buf strings.Builder
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+		"--yes",
+	})
+	uninstallCmd.SetOut(&buf)
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Should show "not found" for the manually deleted file
+	if !strings.Contains(output, "not found") {
+		t.Errorf("output should show 'not found' for pre-deleted file, got:\n%s", output)
+	}
+	// Should show a summary line
+	if !strings.Contains(output, "removed") {
+		t.Errorf("output should show summary with 'removed', got:\n%s", output)
+	}
+}
+
+// TestInstallPersonaQuietShowsNoOutput verifies quiet-mode persona install
+// produces no stdout on success (exercises formatPersonaResult quiet path).
+func TestInstallPersonaQuietShowsNoOutput(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFSWithPersonas()
+
+	root := NewRootCommand(content)
+	root.SetArgs([]string{
+		"install",
+		"--persona", "test-persona",
+		"--for", "copilot",
+		"--target", target,
+		"--quiet",
+	})
+
+	var buf strings.Builder
+	root.SetOut(&buf)
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("quiet install failed: %v", err)
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("expected no stdout in quiet mode, got: %q", buf.String())
+	}
+}
+
+// TestInstallPersonaMCPConflictDifferentConfigs verifies that installing
+// a persona where two packages declare the same MCP server with different
+// configs results in a conflict warning.
+func TestInstallPersonaMCPConflictDifferentConfigs(t *testing.T) {
+	// Build FS where two packages have same server name but different configs
+	personaYAML := `name: conflict-persona
+description: Persona with conflicting MCP
+packages:
+  - name: pkg-a
+  - name: pkg-b
+`
+	testFS := fstest.MapFS{
+		"packages/pkg-a/package.yaml":            &fstest.MapFile{Data: []byte("name: pkg-a\nversion: \"0.1.0\"\n")},
+		"packages/pkg-a/agents/pkg-a.agent.md":   &fstest.MapFile{Data: []byte("# A")},
+		"packages/pkg-b/package.yaml":            &fstest.MapFile{Data: []byte("name: pkg-b\nversion: \"0.1.0\"\n")},
+		"packages/pkg-b/agents/pkg-b.agent.md":   &fstest.MapFile{Data: []byte("# B")},
+		"personas/conflict-persona/persona.yaml": &fstest.MapFile{Data: []byte(personaYAML)},
+
+		// Both packages declare "github" but with different commands
+		"packages/pkg-a/mcp.yaml": &fstest.MapFile{Data: []byte(`servers:
+  github:
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_TOKEN: ""
+`)},
+		"packages/pkg-b/mcp.yaml": &fstest.MapFile{Data: []byte(`servers:
+  github:
+    transport: stdio
+    command: docker
+    args: ["run", "mcp-github"]
+    env:
+      GITHUB_TOKEN: ""
+`)},
+	}
+
+	target := t.TempDir()
+	root := NewRootCommand(testFS)
+	root.SetArgs([]string{
+		"install",
+		"--persona", "conflict-persona",
+		"--for", "copilot",
+		"--target", target,
+		"--json",
+	})
+	root.SilenceErrors = true
+	root.SilenceUsage = true
+
+	var buf strings.Builder
+	root.SetOut(&buf)
+
+	// The install may return an error because of the conflict count,
+	// but the JSON output should still be written.
+	_ = root.Execute()
+
+	var result struct {
+		Errors []string `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, buf.String())
+	}
+
+	// Look for conflict warning
+	found := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "conflict") || strings.Contains(e, "MCP conflict") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected MCP conflict warning in errors, got: %v", result.Errors)
 	}
 }

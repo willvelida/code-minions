@@ -8,6 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/model"
 	"github.com/willvelida/code-minions/internal/registry"
 )
@@ -821,5 +822,177 @@ func TestEscapeYAMLValue(t *testing.T) {
 				t.Errorf("escapeYAMLValue(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+// ---------- NoopGrouping tests ----------
+
+func TestNoopGroupingGenerate(t *testing.T) {
+	noop := &NoopGrouping{}
+	files, err := noop.Generate()
+	if err != nil {
+		t.Fatalf("NoopGrouping.Generate() returned unexpected error: %v", err)
+	}
+	if files != nil {
+		t.Errorf("NoopGrouping.Generate() = %v, want nil", files)
+	}
+}
+
+func TestNoopGroupingSetMCPServers(t *testing.T) {
+	noop := &NoopGrouping{}
+	// Should not panic or error
+	noop.SetMCPServers([]string{"github", "linear"})
+	noop.SetMCPServers(nil)
+}
+
+// ---------- NewGroupingGenerator tests ----------
+
+func TestNewGroupingGeneratorUnknownAssistant(t *testing.T) {
+	// When given an unknown assistant name (via a custom Config),
+	// the factory should return a NoopGrouping.
+	cfg := &assistant.Config{Name: "unknown-assistant"}
+	resolved, _ := testResolvedPersona(t)
+
+	gen, err := NewGroupingGenerator(cfg, resolved, t.TempDir(), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify it's a NoopGrouping by calling Generate
+	files, err := gen.Generate()
+	if err != nil {
+		t.Fatalf("Generate() error: %v", err)
+	}
+	if files != nil {
+		t.Errorf("expected nil files from NoopGrouping, got: %v", files)
+	}
+}
+
+func TestNewGroupingGeneratorCopilot(t *testing.T) {
+	cfg, _ := assistant.Get("copilot")
+	resolved, _ := testResolvedPersona(t)
+
+	gen, err := NewGroupingGenerator(cfg, resolved, t.TempDir(), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := gen.(*CopilotGrouping); !ok {
+		t.Errorf("expected *CopilotGrouping, got %T", gen)
+	}
+}
+
+func TestNewGroupingGeneratorClaude(t *testing.T) {
+	cfg, _ := assistant.Get("claude")
+	resolved, _ := testResolvedPersona(t)
+
+	gen, err := NewGroupingGenerator(cfg, resolved, t.TempDir(), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := gen.(*ClaudeGrouping); !ok {
+		t.Errorf("expected *ClaudeGrouping, got %T", gen)
+	}
+}
+
+func TestNewGroupingGeneratorOpenCode(t *testing.T) {
+	cfg, _ := assistant.Get("opencode")
+	resolved, _ := testResolvedPersona(t)
+
+	gen, err := NewGroupingGenerator(cfg, resolved, t.TempDir(), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := gen.(*OpenCodeGrouping); !ok {
+		t.Errorf("expected *OpenCodeGrouping, got %T", gen)
+	}
+}
+
+// ---------- writeGeneratedFile tests ----------
+
+func TestWriteGeneratedFileExistsNoForce(t *testing.T) {
+	target := t.TempDir()
+	relPath := filepath.Join("agents", "existing.md")
+
+	// Pre-create the file
+	fullPath := filepath.Join(target, relPath)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(fullPath, []byte("original"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	err := writeGeneratedFile(target, relPath, []byte("new content"), false, false)
+	if err == nil {
+		t.Fatal("expected error for existing file without force")
+	}
+	if !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("error = %q, want 'already exists'", err)
+	}
+
+	// Original content should be unchanged
+	data, _ := os.ReadFile(fullPath)
+	if string(data) != "original" {
+		t.Errorf("file content = %q, want 'original'", data)
+	}
+}
+
+func TestWriteGeneratedFileExistsWithForce(t *testing.T) {
+	target := t.TempDir()
+	relPath := filepath.Join("agents", "existing.md")
+
+	// Pre-create the file
+	fullPath := filepath.Join(target, relPath)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(fullPath, []byte("original"), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	err := writeGeneratedFile(target, relPath, []byte("new content"), false, true)
+	if err != nil {
+		t.Fatalf("unexpected error with force=true: %v", err)
+	}
+
+	// Content should be overwritten
+	data, _ := os.ReadFile(fullPath)
+	if string(data) != "new content" {
+		t.Errorf("file content = %q, want 'new content'", data)
+	}
+}
+
+func TestWriteGeneratedFileDryRun(t *testing.T) {
+	target := t.TempDir()
+	relPath := filepath.Join("agents", "test.md")
+
+	err := writeGeneratedFile(target, relPath, []byte("content"), true, false)
+	if err != nil {
+		t.Fatalf("unexpected error in dry-run: %v", err)
+	}
+
+	// File should NOT exist in dry-run
+	fullPath := filepath.Join(target, relPath)
+	if _, err := os.Stat(fullPath); !os.IsNotExist(err) {
+		t.Errorf("file should not exist in dry-run mode")
+	}
+}
+
+func TestWriteGeneratedFileCreatesDirectories(t *testing.T) {
+	target := t.TempDir()
+	relPath := filepath.Join("deep", "nested", "dir", "file.md")
+
+	err := writeGeneratedFile(target, relPath, []byte("content"), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	fullPath := filepath.Join(target, relPath)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		t.Fatalf("file should exist: %v", err)
+	}
+	if string(data) != "content" {
+		t.Errorf("file content = %q, want 'content'", data)
 	}
 }
