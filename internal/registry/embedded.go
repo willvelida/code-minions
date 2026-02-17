@@ -77,15 +77,86 @@ func (s *EmbeddedSource) DownloadPackage(name string, _ string) (fs.FS, error) {
 	return sub, nil
 }
 
-// ListPersonas returns an empty list — embedded source does not
-// currently ship personas.
+// ListPersonas returns all personas found under personas/ in the
+// embedded filesystem. Each persona directory must contain a
+// persona.yaml file.
+//
+// The directory layout is:
+//
+//	personas/
+//	├── senior-dev/
+//	│   └── persona.yaml
+//	└── security-reviewer/
+//	    └── persona.yaml
+//
+// If the personas/ directory doesn't exist, an empty list is
+// returned (not an error) — it's valid for a source to have no
+// personas.
 func (s *EmbeddedSource) ListPersonas() ([]model.Persona, error) {
-	return nil, nil
+	// Try to read the personas/ directory.
+	// If it doesn't exist, that's fine — just return an empty list.
+	entries, err := fs.ReadDir(s.content, "personas")
+	if err != nil {
+		// No personas/ directory is not an error — this source just
+		// doesn't have any personas.
+		return nil, nil
+	}
+
+	var personas []model.Persona
+	for _, entry := range entries {
+		// Skip files at the top level — we only care about directories
+		// (each directory is one persona).
+		if !entry.IsDir() {
+			continue
+		}
+
+		persona, err := s.readPersona(entry.Name())
+		if err != nil {
+			return nil, fmt.Errorf("failed to read persona %q: %w", entry.Name(), err)
+		}
+		personas = append(personas, *persona)
+	}
+
+	return personas, nil
 }
 
-// GetPersona returns an error — embedded source does not ship personas.
+// GetPersona returns the metadata for a named persona by reading
+// its persona.yaml file from personas/<name>/persona.yaml.
 func (s *EmbeddedSource) GetPersona(name string) (*model.Persona, error) {
-	return nil, fmt.Errorf("persona %q: %w", name, ErrNotFound)
+	return s.readPersona(name)
+}
+
+// readPersona reads and parses the persona.yaml for a named persona.
+// Returns ErrNotFound if the persona directory or manifest doesn't exist.
+func (s *EmbeddedSource) readPersona(name string) (*model.Persona, error) {
+	// Build the path to the persona's manifest file.
+	// Example: "personas/senior-dev/persona.yaml"
+	manifestPath := "personas/" + name + "/persona.yaml"
+
+	// Try to read the file from the embedded filesystem.
+	data, err := fs.ReadFile(s.content, manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("persona %q: %w", name, ErrNotFound)
+	}
+
+	// Parse the YAML into our Persona struct.
+	// The struct fields have `yaml:` tags that tell the parser
+	// which YAML key maps to which Go field.
+	var persona model.Persona
+	if err := yaml.Unmarshal(data, &persona); err != nil {
+		return nil, fmt.Errorf("failed to parse persona.yaml for %q: %w", name, err)
+	}
+
+	// Safety check: the name in the YAML should match the directory name.
+	// If the YAML doesn't specify a name, fill it in from the directory.
+	// If the YAML specifies a *different* name, that's an error.
+	if persona.Name == "" {
+		persona.Name = name
+	} else if persona.Name != name {
+		return nil, fmt.Errorf("persona.yaml name %q does not match directory name %q", persona.Name, name)
+	}
+
+	return &persona, nil
 }
 
 // ListTeams returns an empty list — embedded source does not ship teams.
