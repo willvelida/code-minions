@@ -187,9 +187,48 @@ Update overwrites installed files with the latest embedded content. When run wit
 | `--verbose` / `-v` | bool | false | Show detailed output |
 | `--quiet` / `-q` | bool | false | Suppress all output except errors |
 
+### Transferring
+
+Migrate agent and skill files from one coding assistant's directory layout to another:
+
+```bash
+# Transfer from Copilot to Claude
+code-minions transfer --from copilot --to claude
+
+# Preview what would be transferred
+code-minions transfer --from copilot --to claude --dry-run
+
+# Overwrite existing files at the destination
+code-minions transfer --from copilot --to claude --force
+
+# Transfer and remove the old Copilot layout
+code-minions transfer --from copilot --to claude --cleanup
+
+# Transfer in a specific directory
+code-minions transfer --from claude --to opencode --target ./my-project
+```
+
+Files are copied by default — the source layout is left in place. Use `--cleanup` to delete the source files after a successful copy.
+
+MCP server configurations are automatically translated between the source and target formats when present. An `AGENTS.md` routing file is regenerated (not copied) in the target layout because it contains assistant-specific paths.
+
+### Transfer flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--from` | string | | Source coding assistant (`copilot`, `claude`, `opencode`) — **required** |
+| `--to` | string | | Target coding assistant (`copilot`, `claude`, `opencode`) — **required** |
+| `--target` | string | `.` | Working directory |
+| `--dry-run` | bool | false | Preview changes without writing files |
+| `--force` | bool | false | Overwrite existing files at the destination |
+| `--cleanup` | bool | false | Delete source agent/skill files after successful copy |
+| `--json` | bool | false | Output results as JSON |
+| `--verbose` / `-v` | bool | false | Show detailed output |
+| `--quiet` / `-q` | bool | false | Suppress all output except errors |
+
 ### JSON Output
 
-The `version`, `list`, `install`, `uninstall`, and `update` commands support a `--json` flag for machine-readable output:
+The `version`, `list`, `install`, `uninstall`, `update`, and `transfer` commands support a `--json` flag for machine-readable output:
 
 ```bash
 # List packages as JSON
@@ -199,6 +238,10 @@ code-minions list --json
 # Install and capture results
 code-minions install --package git-workflow --json
 # {"copied": [...], "skipped": [...], "errors": [], "summary": {"copied": 2, ...}}
+
+# Transfer and capture results
+code-minions transfer --from copilot --to claude --json
+# {"from": "copilot", "to": "claude", "files": {"copied": [...], ...}}
 
 # Pipe to jq
 code-minions list --json | jq '.packages[].name'
