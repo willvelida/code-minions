@@ -116,3 +116,42 @@ func (c *Config) NewPathMapper() func(string) string {
 		return p
 	}
 }
+
+// NewReversePathMapper returns a function that remaps assistant-specific
+// paths back to the generic package layout.
+//
+// For example, with the Copilot config:
+//
+//	.github/agents/my-agent.md → agents/my-agent.md
+//	skills/foo/SKILL.md        → skills/foo/SKILL.md  (unchanged — Copilot uses skills/ as-is)
+//
+// With the Claude config:
+//
+//	.claude/agents/my-agent.md  → agents/my-agent.md
+//	.claude/skills/foo/SKILL.md → skills/foo/SKILL.md
+//
+// Paths that don't match any known prefix pass through unchanged.
+func (c *Config) NewReversePathMapper() func(string) string {
+	type remap struct {
+		from string // assistant-specific prefix to match, e.g. ".github/agents"
+		to   string // generic prefix to replace with, e.g. "agents"
+	}
+
+	remaps := []remap{
+		{from: c.AgentDir, to: "agents"},
+		{from: c.SkillDir, to: "skills"},
+	}
+
+	return func(p string) string {
+		for _, r := range remaps {
+			if p == r.from || strings.HasPrefix(p, r.from+"/") {
+				if r.from == r.to {
+					return p
+				}
+				rest := strings.TrimPrefix(p, r.from)
+				return path.Join(r.to, rest)
+			}
+		}
+		return p
+	}
+}
