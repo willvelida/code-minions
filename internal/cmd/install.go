@@ -590,8 +590,14 @@ func formatPersonaResult(
 
 	_, _ = bold.Fprintf(cmd.OutOrStdout(), "Installing persona %q for %s\n\n", personaName, assistantName)
 
-	// Per-package results
-	for pkgName, pr := range result.PackageResults {
+	// Per-package results (sorted for deterministic output)
+	pkgNames := make([]string, 0, len(result.PackageResults))
+	for k := range result.PackageResults {
+		pkgNames = append(pkgNames, k)
+	}
+	sort.Strings(pkgNames)
+	for _, pkgName := range pkgNames {
+		pr := result.PackageResults[pkgName]
 		_, _ = cyan.Fprintf(cmd.OutOrStdout(), "  Package: %s\n", pkgName)
 		for _, f := range pr.Copied {
 			if dryRun {

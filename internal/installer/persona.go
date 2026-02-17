@@ -314,7 +314,9 @@ func (pi *PersonaInstaller) recordManifest(result *PersonaResult) error {
 		tracked, err := NewInstalledFile(pi.Target, genPath, "generated")
 		if err != nil {
 			// Non-fatal: we still record the persona, just without
-			// this file's checksum.
+			// this file's checksum. Surface the warning so it's visible.
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("checksum failed for %s: %v", genPath, err))
 			continue
 		}
 		trackedGenFiles = append(trackedGenFiles, tracked)
@@ -457,6 +459,12 @@ func (pi *PersonaInstaller) installMCP(result *PersonaResult) (*mcp.InstallResul
 	// the config from a previous install, but this package still
 	// claims them for reference counting purposes.
 	for _, name := range mcpResult.Merge.Skipped {
+		addedSet[name] = true
+	}
+	// Include conflicted servers as well — if they were written to
+	// the config (via --force), the owning packages should still
+	// track them for reference counting during uninstall.
+	for _, name := range mcpResult.Merge.Conflict {
 		addedSet[name] = true
 	}
 	for pkg, servers := range serversByPkg {
