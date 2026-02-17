@@ -175,6 +175,193 @@ config:
 	if !team.Config.EnforcePackages {
 		t.Error("Config.EnforcePackages: got false, want true")
 	}
+	// New fields should be zero-valued when absent (backward compat)
+	if team.MCP != nil {
+		t.Error("MCP should be nil when absent")
+	}
+	if team.Instructions != "" {
+		t.Error("Instructions should be empty when absent")
+	}
+}
+
+func TestTeamYAMLWithMCPAndInstructions(t *testing.T) {
+	input := `name: platform-engineering
+description: Platform engineering team
+personas:
+    - name: frontend-dev
+    - name: backend-dev
+config:
+    default_assistant: copilot
+mcp:
+    servers:
+        github:
+            description: GitHub API via MCP
+            transport: stdio
+            command: npx
+            args:
+                - -y
+                - '@modelcontextprotocol/server-github'
+            env:
+                GITHUB_TOKEN: ""
+        postgres:
+            transport: stdio
+            command: npx
+            args:
+                - -y
+                - '@modelcontextprotocol/server-postgres'
+            env:
+                DATABASE_URL: ""
+instructions: |
+    All agents must follow coding standards.
+    Never commit secrets.
+`
+
+	var team Team
+	if err := yaml.Unmarshal([]byte(input), &team); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if team.Name != "platform-engineering" {
+		t.Errorf("Name: got %q", team.Name)
+	}
+	if team.MCP == nil {
+		t.Fatal("MCP should not be nil")
+	}
+	if len(team.MCP.Servers) != 2 {
+		t.Fatalf("MCP.Servers: got %d, want 2", len(team.MCP.Servers))
+	}
+	gh, ok := team.MCP.Servers["github"]
+	if !ok {
+		t.Fatal("expected github server")
+	}
+	if gh.Command != "npx" {
+		t.Errorf("github.Command: got %q", gh.Command)
+	}
+	if gh.Description != "GitHub API via MCP" {
+		t.Errorf("github.Description: got %q", gh.Description)
+	}
+	if gh.Env["GITHUB_TOKEN"] != "" {
+		t.Errorf("github.Env[GITHUB_TOKEN]: got %q, want empty", gh.Env["GITHUB_TOKEN"])
+	}
+	pg, ok := team.MCP.Servers["postgres"]
+	if !ok {
+		t.Fatal("expected postgres server")
+	}
+	if pg.Env["DATABASE_URL"] != "" {
+		t.Errorf("postgres.Env[DATABASE_URL]: got %q, want empty", pg.Env["DATABASE_URL"])
+	}
+	if team.Instructions == "" {
+		t.Fatal("Instructions should not be empty")
+	}
+	if team.Instructions != "All agents must follow coding standards.\nNever commit secrets.\n" {
+		t.Errorf("Instructions: got %q", team.Instructions)
+	}
+
+	// Round trip
+	out, err := yaml.Marshal(&team)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+	if len(out) == 0 {
+		t.Fatal("marshal produced empty output")
+	}
+}
+
+func TestValidateTeam(t *testing.T) {
+	tests := []struct {
+		name    string
+		team    Team
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid minimal team",
+			team: Team{
+				Name:        "my-team",
+				Description: "A team",
+				Personas:    []PersonaRef{{Name: "dev"}},
+			},
+		},
+		{
+			name: "missing name",
+			team: Team{
+				Description: "A team",
+				Personas:    []PersonaRef{{Name: "dev"}},
+			},
+			wantErr: true,
+			errMsg:  "name is required",
+		},
+		{
+			name: "missing description",
+			team: Team{
+				Name:     "my-team",
+				Personas: []PersonaRef{{Name: "dev"}},
+			},
+			wantErr: true,
+			errMsg:  "description is required",
+		},
+		{
+			name: "no personas",
+			team: Team{
+				Name:        "my-team",
+				Description: "A team",
+				Personas:    []PersonaRef{},
+			},
+			wantErr: true,
+			errMsg:  "at least one persona",
+		},
+		{
+			name: "instructions too long",
+			team: Team{
+				Name:         "my-team",
+				Description:  "A team",
+				Personas:     []PersonaRef{{Name: "dev"}},
+				Instructions: string(make([]byte, MaxInstructionLength+1)),
+			},
+			wantErr: true,
+			errMsg:  "exceed maximum length",
+		},
+		{
+			name: "instructions at max length",
+			team: Team{
+				Name:         "my-team",
+				Description:  "A team",
+				Personas:     []PersonaRef{{Name: "dev"}},
+				Instructions: string(make([]byte, MaxInstructionLength)),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateTeam(&tt.team)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if tt.errMsg != "" && !contains(err.Error(), tt.errMsg) {
+					t.Errorf("error %q should contain %q", err.Error(), tt.errMsg)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && searchSubstr(s, substr)
+}
+
+func searchSubstr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func TestInstallManifestJSONRoundTrip(t *testing.T) {
@@ -184,12 +371,13 @@ func TestInstallManifestJSONRoundTrip(t *testing.T) {
 		Assistant:   "copilot",
 		Packages: []InstalledPackage{
 			{
-				Name:        "git-workflow",
-				Version:     "0.1.0",
-				Source:      "embedded",
-				InstalledAt: "2026-02-16T10:30:00Z",
-				Persona:     "senior-dev",
-				Files:       []string{".github/agents/git-workflow.agent.md"},
+				Name:         "git-workflow",
+				Version:      "0.1.0",
+				Source:       "embedded",
+				InstalledAt:  "2026-02-16T10:30:00Z",
+				Persona:      "senior-dev",
+				Files:        []string{".github/agents/git-workflow.agent.md"},
+				ReferencedBy: []string{"platform-engineering"},
 			},
 		},
 		Personas: []InstalledPersona{
@@ -203,10 +391,14 @@ func TestInstallManifestJSONRoundTrip(t *testing.T) {
 		},
 		Teams: []InstalledTeam{
 			{
-				Name:        "platform-engineering",
-				Version:     "1.0.0",
-				Source:      "company-packages",
-				InstalledAt: "2026-02-16T10:30:00Z",
+				Name:                 "platform-engineering",
+				Version:              "1.0.0",
+				Source:               "company-packages",
+				InstalledAt:          "2026-02-16T10:30:00Z",
+				Personas:             []string{"senior-dev", "security-reviewer"},
+				MCPServers:           []string{"github", "postgres"},
+				InstructionsInjected: true,
+				InstructionsFile:     ".github/copilot-instructions.md",
 			},
 		},
 	}
@@ -233,6 +425,9 @@ func TestInstallManifestJSONRoundTrip(t *testing.T) {
 	if got.Packages[0].Persona != "senior-dev" {
 		t.Errorf("Packages[0].Persona: got %q", got.Packages[0].Persona)
 	}
+	if len(got.Packages[0].ReferencedBy) != 1 || got.Packages[0].ReferencedBy[0] != "platform-engineering" {
+		t.Errorf("Packages[0].ReferencedBy: got %v", got.Packages[0].ReferencedBy)
+	}
 	if len(got.Personas) != 1 {
 		t.Fatalf("Personas: got %d, want 1", len(got.Personas))
 	}
@@ -241,6 +436,19 @@ func TestInstallManifestJSONRoundTrip(t *testing.T) {
 	}
 	if len(got.Teams) != 1 {
 		t.Fatalf("Teams: got %d, want 1", len(got.Teams))
+	}
+	team := got.Teams[0]
+	if len(team.Personas) != 2 {
+		t.Errorf("Teams[0].Personas: got %v, want [senior-dev security-reviewer]", team.Personas)
+	}
+	if len(team.MCPServers) != 2 {
+		t.Errorf("Teams[0].MCPServers: got %v, want [github postgres]", team.MCPServers)
+	}
+	if !team.InstructionsInjected {
+		t.Error("Teams[0].InstructionsInjected: got false, want true")
+	}
+	if team.InstructionsFile != ".github/copilot-instructions.md" {
+		t.Errorf("Teams[0].InstructionsFile: got %q", team.InstructionsFile)
 	}
 }
 

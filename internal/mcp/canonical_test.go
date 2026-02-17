@@ -277,3 +277,83 @@ func TestEmptyEnvVars(t *testing.T) {
 		t.Errorf("postgres empty vars: got %v, want [CONNECTION_STRING]", empty["postgres"])
 	}
 }
+
+func TestCollectEmptyEnvVars_MultipleConfigs(t *testing.T) {
+	pkg1 := &Config{
+		Servers: map[string]Server{
+			"github": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Env:       map[string]string{"GITHUB_TOKEN": ""},
+			},
+		},
+	}
+	pkg2 := &Config{
+		Servers: map[string]Server{
+			"postgres": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Env:       map[string]string{"DATABASE_URL": ""},
+			},
+		},
+	}
+	team := &Config{
+		Servers: map[string]Server{
+			"sentry": {
+				Transport: TransportSSE,
+				URL:       "https://sentry.io/mcp",
+				Env:       map[string]string{"SENTRY_TOKEN": ""},
+			},
+		},
+	}
+
+	empty := CollectEmptyEnvVars(pkg1, pkg2, team)
+	if len(empty) != 3 {
+		t.Fatalf("expected 3 servers, got %d: %v", len(empty), empty)
+	}
+	if empty["github"][0] != "GITHUB_TOKEN" {
+		t.Error("missing GITHUB_TOKEN")
+	}
+	if empty["postgres"][0] != "DATABASE_URL" {
+		t.Error("missing DATABASE_URL")
+	}
+	if empty["sentry"][0] != "SENTRY_TOKEN" {
+		t.Error("missing SENTRY_TOKEN")
+	}
+}
+
+func TestCollectEmptyEnvVars_NilConfigs(t *testing.T) {
+	empty := CollectEmptyEnvVars(nil, nil)
+	if empty != nil {
+		t.Errorf("expected nil, got %v", empty)
+	}
+}
+
+func TestCollectEmptyEnvVars_TeamOverridesPackageEnv(t *testing.T) {
+	// Package has github with empty token
+	pkg := &Config{
+		Servers: map[string]Server{
+			"github": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Env:       map[string]string{"GITHUB_TOKEN": ""},
+			},
+		},
+	}
+	// Team overrides github with a filled token
+	team := &Config{
+		Servers: map[string]Server{
+			"github": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Env:       map[string]string{"GITHUB_TOKEN": "ghp_abc"},
+			},
+		},
+	}
+
+	empty := CollectEmptyEnvVars(pkg, team)
+	// Team overrides package — no empty vars on github
+	if _, ok := empty["github"]; ok {
+		t.Error("github should have no empty env vars after team override")
+	}
+}

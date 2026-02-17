@@ -373,3 +373,121 @@ func TestMerge_EmptyEnvVarWarningsOnlyForAdded(t *testing.T) {
 		t.Errorf("warning should NOT mention existing-server (conflicted), got: %s", result.Warnings[0])
 	}
 }
+
+func TestMergeCanonical_NilInputs(t *testing.T) {
+	result := MergeCanonical(nil, nil)
+	if result != nil {
+		t.Errorf("expected nil, got %+v", result)
+	}
+}
+
+func TestMergeCanonical_SingleConfig(t *testing.T) {
+	cfg := &Config{
+		Servers: map[string]Server{
+			"github": {Transport: TransportStdio, Command: "npx"},
+		},
+	}
+	result := MergeCanonical(cfg)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if len(result.Servers) != 1 {
+		t.Errorf("expected 1 server, got %d", len(result.Servers))
+	}
+	if result.Servers["github"].Command != "npx" {
+		t.Errorf("github.Command: got %q", result.Servers["github"].Command)
+	}
+}
+
+func TestMergeCanonical_TeamOverridesPackage(t *testing.T) {
+	packageCfg := &Config{
+		Servers: map[string]Server{
+			"github": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Args:      []string{"-y", "@mcp/server-github"},
+			},
+			"filesystem": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Args:      []string{"-y", "@mcp/server-fs"},
+			},
+		},
+	}
+	teamCfg := &Config{
+		Servers: map[string]Server{
+			"github": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Args:      []string{"-y", "@mcp/server-github"},
+				Env:       map[string]string{"GITHUB_TOKEN": ""},
+			},
+			"postgres": {
+				Transport: TransportStdio,
+				Command:   "npx",
+				Args:      []string{"-y", "@mcp/server-postgres"},
+			},
+		},
+	}
+
+	// Package first, then team — team takes priority.
+	result := MergeCanonical(packageCfg, teamCfg)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// Should have 3 unique servers
+	if len(result.Servers) != 3 {
+		t.Errorf("expected 3 servers, got %d", len(result.Servers))
+	}
+
+	// github: team version should win (has Env)
+	gh := result.Servers["github"]
+	if gh.Env == nil || gh.Env["GITHUB_TOKEN"] != "" {
+		t.Errorf("github should have team-level env override, got %+v", gh)
+	}
+
+	// filesystem: from package only
+	if _, ok := result.Servers["filesystem"]; !ok {
+		t.Error("expected filesystem server from package")
+	}
+
+	// postgres: from team only
+	if _, ok := result.Servers["postgres"]; !ok {
+		t.Error("expected postgres server from team")
+	}
+}
+
+func TestMergeCanonical_MultiplePackages(t *testing.T) {
+	pkg1 := &Config{
+		Servers: map[string]Server{
+			"github": {Transport: TransportStdio, Command: "npx"},
+		},
+	}
+	pkg2 := &Config{
+		Servers: map[string]Server{
+			"postgres": {Transport: TransportStdio, Command: "npx"},
+		},
+	}
+	team := &Config{
+		Servers: map[string]Server{
+			"sentry": {Transport: TransportSSE, URL: "https://sentry.io/mcp"},
+		},
+	}
+
+	result := MergeCanonical(pkg1, pkg2, team)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if len(result.Servers) != 3 {
+		t.Errorf("expected 3 servers, got %d", len(result.Servers))
+	}
+}
+
+func TestMergeCanonical_EmptyConfigs(t *testing.T) {
+	empty := &Config{Servers: map[string]Server{}}
+	result := MergeCanonical(empty, nil, empty)
+	if result != nil {
+		t.Errorf("expected nil for all-empty configs, got %+v", result)
+	}
+}

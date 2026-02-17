@@ -351,3 +351,240 @@ func ExclusiveMCPServers(manifest *model.InstallManifest, pkgNames []string) []s
 	}
 	return exclusive
 }
+
+// ---------------------------------------------------------------------------
+// Team manifest operations
+// ---------------------------------------------------------------------------
+// These functions extend the manifest to track team-level configuration:
+// team MCP servers, team instructions, and per-persona reference counting.
+
+// RecordTeamInstall adds or updates a team entry in the manifest.
+// It stamps each persona entry with the team name (for traceability)
+// and records the team's MCP servers and instructions state.
+//
+// Parameters:
+//   - manifest: the manifest to modify
+//   - name: team name (e.g. "platform-engineering")
+//   - version: team version
+//   - source: where it came from (e.g. "embedded")
+//   - assistant: target assistant (e.g. "copilot")
+//   - personaNames: personas this team installed
+//   - mcpServers: MCP server names the team contributed
+//   - instructionsInjected: whether team instructions were written
+//   - instructionsFile: relative path of the instructions file
+func RecordTeamInstall(
+	manifest *model.InstallManifest,
+	name, version, source, assistant string,
+	personaNames, mcpServers []string,
+	instructionsInjected bool,
+	instructionsFile string,
+) {
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	if manifest.InstalledAt == "" {
+		manifest.InstalledAt = now
+	}
+	if assistant != "" {
+		manifest.Assistant = assistant
+	}
+
+	// Remove any existing entry (handles reinstall).
+	for i, t := range manifest.Teams {
+		if t.Name == name {
+			manifest.Teams = append(manifest.Teams[:i], manifest.Teams[i+1:]...)
+			break
+		}
+	}
+
+	manifest.Teams = append(manifest.Teams, model.InstalledTeam{
+		Name:                 name,
+		Version:              version,
+		Source:               source,
+		InstalledAt:          now,
+		Personas:             personaNames,
+		MCPServers:           mcpServers,
+		InstructionsInjected: instructionsInjected,
+		InstructionsFile:     instructionsFile,
+	})
+
+	// Stamp each persona with the team name.
+	for _, pName := range personaNames {
+		if p := FindInstalledPersona(manifest, pName); p != nil {
+			p.Team = name
+		}
+	}
+
+	// Add team to ReferencedBy on packages brought in through personas.
+	for _, pName := range personaNames {
+		p := FindInstalledPersona(manifest, pName)
+		if p == nil {
+			continue
+		}
+		for _, pkgName := range p.Packages {
+			pkg := FindInstalled(manifest, pkgName)
+			if pkg == nil {
+				continue
+			}
+			if !stringSliceContains(pkg.ReferencedBy, name) {
+				pkg.ReferencedBy = append(pkg.ReferencedBy, name)
+			}
+		}
+	}
+}
+
+// RecordTeamUninstall removes a team entry from the manifest.
+// Returns true if the team was found and removed.
+func RecordTeamUninstall(manifest *model.InstallManifest, name string) bool {
+	idx := -1
+	for i, t := range manifest.Teams {
+		if t.Name == name {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return false
+	}
+
+	team := manifest.Teams[idx]
+
+	// Clear team stamps from personas.
+	for _, pName := range team.Personas {
+		if p := FindInstalledPersona(manifest, pName); p != nil {
+			if p.Team == name {
+				p.Team = ""
+			}
+		}
+	}
+
+	// Remove team from ReferencedBy on packages.
+	for _, pName := range team.Personas {
+		p := FindInstalledPersona(manifest, pName)
+		if p == nil {
+			continue
+		}
+		for _, pkgName := range p.Packages {
+			pkg := FindInstalled(manifest, pkgName)
+			if pkg == nil {
+				continue
+			}
+			pkg.ReferencedBy = removeFromSlice(pkg.ReferencedBy, name)
+		}
+	}
+
+	manifest.Teams = append(manifest.Teams[:idx], manifest.Teams[idx+1:]...)
+	return true
+}
+
+// FindInstalledTeam returns the installed team entry, or nil if not found.
+func FindInstalledTeam(manifest *model.InstallManifest, name string) *model.InstalledTeam {
+	for i := range manifest.Teams {
+		if manifest.Teams[i].Name == name {
+			return &manifest.Teams[i]
+		}
+	}
+	return nil
+}
+
+// TeamExclusivePersonas returns persona names that belong ONLY to this
+// team and not to any other team. These are safe to uninstall when
+// removing the team without affecting other teams.
+func TeamExclusivePersonas(manifest *model.InstallManifest, teamName string) []string {
+	team := FindInstalledTeam(manifest, teamName)
+	if team == nil {
+		return nil
+	}
+
+	var exclusive []string
+	for _, pName := range team.Personas {
+		shared := false
+		for _, other := range manifest.Teams {
+			if other.Name == teamName {
+				continue
+			}
+			for _, otherPersona := range other.Personas {
+				if otherPersona == pName {
+					shared = true
+					break
+				}
+			}
+			if shared {
+				break
+			}
+		}
+		if !shared {
+			exclusive = append(exclusive, pName)
+		}
+	}
+	return exclusive
+}
+
+// TeamExclusiveMCPServers returns MCP server names that belong ONLY
+// to this team and are not claimed by any other team or any package
+// outside the team's personas. These are safe to remove from the
+// assistant's MCP config when uninstalling the team.
+func TeamExclusiveMCPServers(manifest *model.InstallManifest, teamName string) []string {
+	team := FindInstalledTeam(manifest, teamName)
+	if team == nil {
+		return nil
+	}
+
+	// Build the set of packages owned by this team's personas.
+	teamPkgs := make(map[string]bool)
+	for _, pName := range team.Personas {
+		if p := FindInstalledPersona(manifest, pName); p != nil {
+			for _, pkg := range p.Packages {
+				teamPkgs[pkg] = true
+			}
+		}
+	}
+
+	var exclusive []string
+	for _, serverName := range team.MCPServers {
+		shared := false
+		// Check other teams.
+		for _, other := range manifest.Teams {
+			if other.Name == teamName {
+				continue
+			}
+			for _, s := range other.MCPServers {
+				if s == serverName {
+					shared = true
+					break
+				}
+			}
+			if shared {
+				break
+			}
+		}
+		if shared {
+			continue
+		}
+		// Check packages outside this team.
+		if IsMCPServerShared(manifest, serverName, teamPkgs) {
+			continue
+		}
+		exclusive = append(exclusive, serverName)
+	}
+	return exclusive
+}
+
+// stringSliceContains checks if a string slice contains the given value.
+func stringSliceContains(slice []string, val string) bool {
+	for _, s := range slice {
+		if s == val {
+			return true
+		}
+	}
+	return false
+}
+
+// removeFromSlice returns a new slice with the first occurrence of val removed.
+func removeFromSlice(slice []string, val string) []string {
+	for i, s := range slice {
+		if s == val {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}

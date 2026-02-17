@@ -13,13 +13,14 @@ type InstallManifest struct {
 
 // InstalledPackage records a single installed package.
 type InstalledPackage struct {
-	Name        string   `json:"name"`
-	Version     string   `json:"version"`
-	Source      string   `json:"source"`
-	InstalledAt string   `json:"installed_at"`
-	Persona     string   `json:"persona,omitempty"`
-	Files       []string `json:"files"`
-	MCPServers  []string `json:"mcp_servers,omitempty"`
+	Name         string   `json:"name"`
+	Version      string   `json:"version"`
+	Source       string   `json:"source"`
+	InstalledAt  string   `json:"installed_at"`
+	Persona      string   `json:"persona,omitempty"`
+	ReferencedBy []string `json:"referenced_by,omitempty"`
+	Files        []string `json:"files"`
+	MCPServers   []string `json:"mcp_servers,omitempty"`
 }
 
 // InstalledPersona records a single installed persona.
@@ -83,8 +84,12 @@ type InstalledFile struct {
 
 // InstalledTeam records a single installed team.
 type InstalledTeam struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	Source      string `json:"source"`
-	InstalledAt string `json:"installed_at"`
+	Name                 string   `json:"name"`
+	Version              string   `json:"version"`
+	Source               string   `json:"source"`
+	InstalledAt          string   `json:"installed_at"`
+	Personas             []string `json:"personas,omitempty"`
+	MCPServers           []string `json:"mcp_servers,omitempty"`
+	InstructionsInjected bool     `json:"instructions_injected,omitempty"`
+	InstructionsFile     string   `json:"instructions_file,omitempty"`
 }
