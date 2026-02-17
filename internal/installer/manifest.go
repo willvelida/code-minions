@@ -388,7 +388,13 @@ func RecordTeamInstall(
 		manifest.Assistant = assistant
 	}
 
-	// Remove any existing entry (handles reinstall).
+	// Clean up stale references from any existing entry before reinstall.
+	// This ensures personas and packages from the old team definition
+	// don't retain stale stamps when the team is reinstalled with
+	// different personas or packages.
+	cleanupTeamReferences(manifest, name)
+
+	// Remove the old entry.
 	for i, t := range manifest.Teams {
 		if t.Name == name {
 			manifest.Teams = append(manifest.Teams[:i], manifest.Teams[i+1:]...)
@@ -446,7 +452,19 @@ func RecordTeamUninstall(manifest *model.InstallManifest, name string) bool {
 		return false
 	}
 
-	team := manifest.Teams[idx]
+	cleanupTeamReferences(manifest, name)
+	manifest.Teams = append(manifest.Teams[:idx], manifest.Teams[idx+1:]...)
+	return true
+}
+
+// cleanupTeamReferences clears persona team stamps and package
+// ReferencedBy entries for the named team. Used both during uninstall
+// and before reinstall to avoid stale references.
+func cleanupTeamReferences(manifest *model.InstallManifest, name string) {
+	team := FindInstalledTeam(manifest, name)
+	if team == nil {
+		return
+	}
 
 	// Clear team stamps from personas.
 	for _, pName := range team.Personas {
@@ -471,9 +489,6 @@ func RecordTeamUninstall(manifest *model.InstallManifest, name string) bool {
 			pkg.ReferencedBy = removeFromSlice(pkg.ReferencedBy, name)
 		}
 	}
-
-	manifest.Teams = append(manifest.Teams[:idx], manifest.Teams[idx+1:]...)
-	return true
 }
 
 // FindInstalledTeam returns the installed team entry, or nil if not found.
@@ -580,10 +595,14 @@ func stringSliceContains(slice []string, val string) bool {
 }
 
 // removeFromSlice returns a new slice with the first occurrence of val removed.
+// It creates a new backing array to avoid mutating the original slice.
 func removeFromSlice(slice []string, val string) []string {
 	for i, s := range slice {
 		if s == val {
-			return append(slice[:i], slice[i+1:]...)
+			result := make([]string, 0, len(slice)-1)
+			result = append(result, slice[:i]...)
+			result = append(result, slice[i+1:]...)
+			return result
 		}
 	}
 	return slice

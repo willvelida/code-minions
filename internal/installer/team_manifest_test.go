@@ -86,6 +86,47 @@ func TestRecordTeamInstall_ReinstallReplaces(t *testing.T) {
 	}
 }
 
+func TestRecordTeamInstall_ReinstallCleansUpStaleRefs(t *testing.T) {
+	m := newTestManifest()
+
+	// Install personas and packages for the initial team.
+	RecordPersonaInstall(m, "old-persona", "1.0.0", "embedded", "copilot", []string{"pkg-old"}, nil)
+	RecordInstall(m, "pkg-old", "0.1.0", "embedded", "copilot", []string{"old.md"})
+	RecordTeamInstall(m, "my-team", "1.0.0", "embedded", "copilot",
+		[]string{"old-persona"}, []string{"github"}, false, "")
+
+	// Verify stamps are set.
+	if p := FindInstalledPersona(m, "old-persona"); p.Team != "my-team" {
+		t.Fatalf("old-persona should be stamped, got %q", p.Team)
+	}
+	if pkg := FindInstalled(m, "pkg-old"); len(pkg.ReferencedBy) != 1 {
+		t.Fatalf("pkg-old should have ReferencedBy, got %v", pkg.ReferencedBy)
+	}
+
+	// Reinstall with different personas.
+	RecordPersonaInstall(m, "new-persona", "1.0.0", "embedded", "copilot", []string{"pkg-new"}, nil)
+	RecordInstall(m, "pkg-new", "0.1.0", "embedded", "copilot", []string{"new.md"})
+	RecordTeamInstall(m, "my-team", "2.0.0", "embedded", "copilot",
+		[]string{"new-persona"}, []string{"postgres"}, true, "CLAUDE.md")
+
+	// Old persona should have team stamp cleared.
+	if p := FindInstalledPersona(m, "old-persona"); p.Team != "" {
+		t.Errorf("old-persona team should be cleared after reinstall, got %q", p.Team)
+	}
+	// Old package should have ReferencedBy cleared.
+	if pkg := FindInstalled(m, "pkg-old"); len(pkg.ReferencedBy) != 0 {
+		t.Errorf("pkg-old ReferencedBy should be cleared, got %v", pkg.ReferencedBy)
+	}
+	// New persona should be stamped.
+	if p := FindInstalledPersona(m, "new-persona"); p.Team != "my-team" {
+		t.Errorf("new-persona should be stamped, got %q", p.Team)
+	}
+	// New package should have ReferencedBy.
+	if pkg := FindInstalled(m, "pkg-new"); len(pkg.ReferencedBy) != 1 || pkg.ReferencedBy[0] != "my-team" {
+		t.Errorf("pkg-new ReferencedBy should be [my-team], got %v", pkg.ReferencedBy)
+	}
+}
+
 func TestRecordTeamUninstall_Basic(t *testing.T) {
 	m := newTestManifest()
 

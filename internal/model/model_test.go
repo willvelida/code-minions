@@ -2,8 +2,10 @@ package model
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
+	"github.com/willvelida/code-minions/internal/mcp"
 	"gopkg.in/yaml.v3"
 )
 
@@ -330,6 +332,31 @@ func TestValidateTeam(t *testing.T) {
 				Instructions: string(make([]byte, MaxInstructionLength)),
 			},
 		},
+		{
+			name: "invalid MCP config",
+			team: Team{
+				Name:        "my-team",
+				Description: "A team",
+				Personas:    []PersonaRef{{Name: "dev"}},
+				MCP: &mcp.Config{
+					Servers: map[string]mcp.Server{
+						"bad-server": {Transport: "stdio"},
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "requires a command",
+		},
+		{
+			name: "invalid team name",
+			team: Team{
+				Name:        "my-->team",
+				Description: "A team",
+				Personas:    []PersonaRef{{Name: "dev"}},
+			},
+			wantErr: true,
+			errMsg:  "invalid characters",
+		},
 	}
 
 	for _, tt := range tests {
@@ -339,7 +366,7 @@ func TestValidateTeam(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if tt.errMsg != "" && !contains(err.Error(), tt.errMsg) {
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("error %q should contain %q", err.Error(), tt.errMsg)
 				}
 			} else {
@@ -349,19 +376,6 @@ func TestValidateTeam(t *testing.T) {
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchSubstr(s, substr)
-}
-
-func searchSubstr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 func TestInstallManifestJSONRoundTrip(t *testing.T) {

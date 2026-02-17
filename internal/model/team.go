@@ -2,9 +2,16 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/willvelida/code-minions/internal/mcp"
 )
+
+// teamNamePattern defines the allowed characters in a team name.
+// Only alphanumeric, hyphens, and underscores are permitted.
+// This prevents injection of special characters into HTML comment
+// markers used for instruction injection.
+var teamNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 
 // Team is a named grouping of personas, allowing team leads to
 // standardise which coding assistant configurations their team uses.
@@ -47,6 +54,9 @@ const MaxInstructionLength = 4096
 func ValidateTeam(t *Team) error {
 	if t.Name == "" {
 		return fmt.Errorf("team: name is required")
+	}
+	if !teamNamePattern.MatchString(t.Name) {
+		return fmt.Errorf("team %q: name contains invalid characters (allowed: alphanumeric, hyphens, underscores)", t.Name)
 	}
 	if t.Description == "" {
 		return fmt.Errorf("team %q: description is required", t.Name)
