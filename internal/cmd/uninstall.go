@@ -676,7 +676,7 @@ func formatPersonaUninstallResult(
 		_, _ = red.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout())
+	_, _ = fmt.Fprintln(cmd.OutOrStdout())
 	_, _ = bold.Fprintf(cmd.OutOrStdout(), "%d removed, %d not found, %d errors\n",
 		len(removed), len(notFound), len(errs))
 

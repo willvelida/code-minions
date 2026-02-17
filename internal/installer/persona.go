@@ -289,6 +289,10 @@ func (pi *PersonaInstaller) recordManifest(result *PersonaResult) error {
 			}
 		}
 
+		if version == "" {
+			return fmt.Errorf("record manifest: resolved package not found for %q", pkgName)
+		}
+
 		RecordInstall(manifest, pkgName, version, "embedded", pi.AssistantName, pkgResult.Copied)
 
 		// Step 4b-ii: Stamp MCP server names onto the package entry.
@@ -407,7 +411,7 @@ func (pi *PersonaInstaller) installMCP(result *PersonaResult) (*mcp.InstallResul
 			// we're building a flat map, so last-write-wins.
 			if existing, exists := allServers[name]; exists {
 				// Only warn if configs actually differ.
-				if fmt.Sprintf("%v", existing) != fmt.Sprintf("%v", serverCfg) {
+				if !mcp.ServersEqual(existing, serverCfg) {
 					owners := serverOwnership[name]
 					result.Errors = append(result.Errors,
 						fmt.Sprintf("MCP conflict: server %q declared by %v and %s with different configs — using %s's version",
