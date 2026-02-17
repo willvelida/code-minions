@@ -461,12 +461,10 @@ func (pi *PersonaInstaller) installMCP(result *PersonaResult) (*mcp.InstallResul
 	for _, name := range mcpResult.Merge.Skipped {
 		addedSet[name] = true
 	}
-	// Include conflicted servers as well — if they were written to
-	// the config (via --force), the owning packages should still
-	// track them for reference counting during uninstall.
-	for _, name := range mcpResult.Merge.Conflict {
-		addedSet[name] = true
-	}
+	// Note: conflicted servers are NOT added to addedSet because
+	// Merge did not install them (conflicts with --force go into
+	// Added instead). Packages that declared conflicted servers
+	// will not track them — they weren't written to the config.
 	for pkg, servers := range serversByPkg {
 		var kept []string
 		for _, s := range servers {

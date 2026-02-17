@@ -444,6 +444,14 @@ func runPersonaUninstall(
 			personaName, installer.ManifestPath(target))
 	}
 
+	// Validate that the requested assistant matches the installed one.
+	// A persona is installed for a specific assistant — uninstalling
+	// with the wrong --for flag would remove the wrong files.
+	if persona.Assistant != "" && persona.Assistant != assistantName {
+		return fmt.Errorf("persona %q was installed for %q, not %q",
+			personaName, persona.Assistant, assistantName)
+	}
+
 	// --- Step 2: Determine what to remove ---
 	// Only packages exclusively owned by this persona can be removed.
 	// Shared packages are kept.

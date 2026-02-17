@@ -98,8 +98,11 @@ func (s *EmbeddedSource) ListPersonas() ([]model.Persona, error) {
 	entries, err := fs.ReadDir(s.content, "personas")
 	if err != nil {
 		// No personas/ directory is not an error — this source just
-		// doesn't have any personas.
-		return nil, nil
+		// doesn't have any personas. But real I/O errors should bubble up.
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading personas directory: %w", err)
 	}
 
 	var personas []model.Persona
@@ -136,7 +139,10 @@ func (s *EmbeddedSource) readPersona(name string) (*model.Persona, error) {
 	// Try to read the file from the embedded filesystem.
 	data, err := fs.ReadFile(s.content, manifestPath)
 	if err != nil {
-		return nil, fmt.Errorf("persona %q: %w", name, ErrNotFound)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("persona %q: %w", name, ErrNotFound)
+		}
+		return nil, fmt.Errorf("reading persona %q manifest: %w", name, err)
 	}
 
 	// Parse the YAML into our Persona struct.

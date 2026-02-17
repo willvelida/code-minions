@@ -479,8 +479,8 @@ func runPersonaInstall(
 	}
 
 	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-		_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
-		fmt.Println()
+		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be written")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout())
 	}
 
 	// --- Step 2: Install via PersonaInstaller ---
