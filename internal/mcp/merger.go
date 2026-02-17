@@ -142,3 +142,32 @@ func ServersEqual(a, b any) bool {
 	_ = json.Unmarshal(bjson, &bnorm)
 	return reflect.DeepEqual(anorm, bnorm)
 }
+
+// MergeCanonical combines multiple canonical MCP configs into a single
+// config. Configs are applied in order: later configs override earlier
+// ones when the same server name appears.
+//
+// This is used for three-layer merging during team install:
+//
+//	layer 1: package-level servers (one Config per package)
+//	layer 2: team-level servers (team's Config)
+//
+// The caller typically passes package configs first, then the team config
+// last so that team-level definitions take priority.
+//
+// Returns nil if all inputs are nil or empty.
+func MergeCanonical(configs ...*Config) *Config {
+	merged := make(map[string]Server)
+	for _, cfg := range configs {
+		if cfg == nil {
+			continue
+		}
+		for name, srv := range cfg.Servers {
+			merged[name] = srv
+		}
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	return &Config{Servers: merged}
+}

@@ -122,3 +122,19 @@ func (c *Config) EmptyEnvVars() map[string][]string {
 	}
 	return result
 }
+
+// CollectEmptyEnvVars gathers all empty env vars across multiple configs
+// (e.g. team config + package configs). This is used during team install
+// to produce a single consolidated warning listing all env vars the user
+// needs to set.
+//
+// The returned map is server name → list of empty env var names. If the
+// same server appears in multiple configs, the last config wins (matching
+// MergeCanonical semantics).
+func CollectEmptyEnvVars(configs ...*Config) map[string][]string {
+	merged := MergeCanonical(configs...)
+	if merged == nil {
+		return nil
+	}
+	return merged.EmptyEnvVars()
+}

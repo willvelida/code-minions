@@ -10,38 +10,42 @@ import (
 // Config describes a coding assistant's directory layout for agents and skills,
 // and its MCP configuration file location.
 type Config struct {
-	Name          string // Assistant identifier, e.g. "copilot", "claude", "opencode"
-	Description   string // Human-readable label, e.g. "GitHub Copilot"
-	AgentDir      string // Where agent .md files go, e.g. ".github/agents"
-	SkillDir      string // Where skill directories go, e.g. "skills"
-	MCPConfigPath string // Where MCP server config lives, e.g. ".vscode/mcp.json"
-	MCPConfigKey  string // Top-level JSON key for MCP servers, e.g. "servers"
+	Name             string // Assistant identifier, e.g. "copilot", "claude", "opencode"
+	Description      string // Human-readable label, e.g. "GitHub Copilot"
+	AgentDir         string // Where agent .md files go, e.g. ".github/agents"
+	SkillDir         string // Where skill directories go, e.g. "skills"
+	MCPConfigPath    string // Where MCP server config lives, e.g. ".vscode/mcp.json"
+	MCPConfigKey     string // Top-level JSON key for MCP servers, e.g. "servers"
+	InstructionsPath string // Where global instructions live, e.g. ".github/copilot-instructions.md"
 }
 
 var configs = map[string]Config{
 	"copilot": {
-		Name:          "copilot",
-		Description:   "GitHub Copilot",
-		AgentDir:      ".github/agents",
-		SkillDir:      "skills",
-		MCPConfigPath: ".vscode/mcp.json",
-		MCPConfigKey:  "servers",
+		Name:             "copilot",
+		Description:      "GitHub Copilot",
+		AgentDir:         ".github/agents",
+		SkillDir:         "skills",
+		MCPConfigPath:    ".vscode/mcp.json",
+		MCPConfigKey:     "servers",
+		InstructionsPath: ".github/copilot-instructions.md",
 	},
 	"claude": {
-		Name:          "claude",
-		Description:   "Claude Code",
-		AgentDir:      ".claude/agents",
-		SkillDir:      ".claude/skills",
-		MCPConfigPath: ".claude/settings.local.json",
-		MCPConfigKey:  "mcpServers",
+		Name:             "claude",
+		Description:      "Claude Code",
+		AgentDir:         ".claude/agents",
+		SkillDir:         ".claude/skills",
+		MCPConfigPath:    ".claude/settings.local.json",
+		MCPConfigKey:     "mcpServers",
+		InstructionsPath: "CLAUDE.md",
 	},
 	"opencode": {
-		Name:          "opencode",
-		Description:   "OpenCode",
-		AgentDir:      ".opencode/agents",
-		SkillDir:      ".opencode/skills",
-		MCPConfigPath: "opencode.json",
-		MCPConfigKey:  "mcp",
+		Name:             "opencode",
+		Description:      "OpenCode",
+		AgentDir:         ".opencode/agents",
+		SkillDir:         ".opencode/skills",
+		MCPConfigPath:    "opencode.json",
+		MCPConfigKey:     "mcp",
+		InstructionsPath: ".opencode/instructions.md",
 	},
 }
 
