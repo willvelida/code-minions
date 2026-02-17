@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Features
 
+- add `transfer` command to migrate agent/skill files between coding assistants ([#63](https://github.com/willvelida/code-minions/issues/63))
 - remove language standards in favour of packages
 
 ### Bug Fixes

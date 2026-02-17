@@ -215,3 +215,125 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 		})
 	}
 }
+
+// TestNewReversePathMapperRemapsPaths verifies that NewReversePathMapper()
+// correctly translates assistant-specific paths back to the generic layout.
+func TestNewReversePathMapperRemapsPaths(t *testing.T) {
+	tests := []struct {
+		name      string
+		assistant string
+		input     string
+		expected  string
+	}{
+		// --- Copilot: .github/agents → agents, skills stays ---
+		{
+			name:      "copilot reverses agents",
+			assistant: "copilot",
+			input:     ".github/agents/foo.md",
+			expected:  "agents/foo.md",
+		},
+		{
+			name:      "copilot keeps skills unchanged (identity)",
+			assistant: "copilot",
+			input:     "skills/bar/SKILL.md",
+			expected:  "skills/bar/SKILL.md",
+		},
+
+		// --- Claude: .claude/agents → agents, .claude/skills → skills ---
+		{
+			name:      "claude reverses agents",
+			assistant: "claude",
+			input:     ".claude/agents/foo.md",
+			expected:  "agents/foo.md",
+		},
+		{
+			name:      "claude reverses skills",
+			assistant: "claude",
+			input:     ".claude/skills/bar/SKILL.md",
+			expected:  "skills/bar/SKILL.md",
+		},
+
+		// --- OpenCode: .opencode/agents → agents, .opencode/skills → skills ---
+		{
+			name:      "opencode reverses agents",
+			assistant: "opencode",
+			input:     ".opencode/agents/foo.md",
+			expected:  "agents/foo.md",
+		},
+		{
+			name:      "opencode reverses skills",
+			assistant: "opencode",
+			input:     ".opencode/skills/bar/SKILL.md",
+			expected:  "skills/bar/SKILL.md",
+		},
+
+		// --- Edge cases ---
+		{
+			name:      "unmapped path passes through",
+			assistant: "claude",
+			input:     "docs/README.md",
+			expected:  "docs/README.md",
+		},
+		{
+			name:      "bare agent directory name",
+			assistant: "claude",
+			input:     ".claude/agents",
+			expected:  "agents",
+		},
+		{
+			name:      "nested skills path preserves structure",
+			assistant: "opencode",
+			input:     ".opencode/skills/dev-mentor/standards/checklist.md",
+			expected:  "skills/dev-mentor/standards/checklist.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Get(tt.assistant)
+			if err != nil {
+				t.Fatalf("Get(%q) returned unexpected error: %v", tt.assistant, err)
+			}
+
+			mapper := cfg.NewReversePathMapper()
+			got := mapper(tt.input)
+
+			if got != tt.expected {
+				t.Errorf("mapper(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestPathMapperRoundTrip verifies that applying NewPathMapper() followed by
+// NewReversePathMapper() returns the original path (and vice versa).
+func TestPathMapperRoundTrip(t *testing.T) {
+	genericPaths := []string{
+		"agents/my-agent.agent.md",
+		"skills/dev-mentor/SKILL.md",
+		"skills/dev-mentor/actions/create.md",
+		"agents/git-workflow.agent.md",
+	}
+
+	for _, assistant := range List() {
+		t.Run(assistant, func(t *testing.T) {
+			cfg, err := Get(assistant)
+			if err != nil {
+				t.Fatalf("Get(%q) returned unexpected error: %v", assistant, err)
+			}
+
+			forward := cfg.NewPathMapper()
+			reverse := cfg.NewReversePathMapper()
+
+			for _, p := range genericPaths {
+				// generic → assistant → generic
+				mapped := forward(p)
+				roundTripped := reverse(mapped)
+				if roundTripped != p {
+					t.Errorf("round-trip failed for %q: forward(%q) = %q, reverse(%q) = %q",
+						p, p, mapped, mapped, roundTripped)
+				}
+			}
+		})
+	}
+}

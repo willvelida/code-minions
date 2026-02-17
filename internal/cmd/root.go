@@ -24,6 +24,7 @@ Available components:
 	cmd.AddCommand(newListCommand(content))
 	cmd.AddCommand(newShowCommand(content))
 	cmd.AddCommand(newSearchCommand(content))
+	cmd.AddCommand(newTransferCommand(content))
 	cmd.AddCommand(newMCPCommand())
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newCompletionCommand())
