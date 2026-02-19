@@ -15,38 +15,44 @@ func TestBuildPackageList(t *testing.T) {
 	tests := []struct {
 		name        string
 		packageFlag string
+		target      string
 		expectDirs  []string
 		expectError bool
 	}{
 		{
 			name:       "no flag installs everything",
+			target:     t.TempDir(),
 			expectDirs: []string{"packages/developer-mentor", "packages/git-workflow"},
 		},
 		{
 			name:        "single package",
 			packageFlag: "git-workflow",
+			target:      t.TempDir(),
 			expectDirs:  []string{"packages/git-workflow"},
 		},
 		{
 			name:        "invalid package returns error",
 			packageFlag: "nonexistent",
+			target:      t.TempDir(),
 			expectError: true,
 		},
 		{
 			name:        "whitespace around names is trimmed",
 			packageFlag: " git-workflow , developer-mentor ",
+			target:      t.TempDir(),
 			expectDirs:  []string{"packages/git-workflow", "packages/developer-mentor"},
 		},
 		{
 			name:        "empty items from double commas are skipped",
 			packageFlag: "git-workflow,,developer-mentor",
+			target:      t.TempDir(),
 			expectDirs:  []string{"packages/git-workflow", "packages/developer-mentor"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dirs, err := buildPackageList(content, tt.packageFlag)
+			dirs, err := buildPackageList(content, tt.packageFlag, tt.target)
 
 			if tt.expectError {
 				if err == nil {
@@ -69,6 +75,201 @@ func TestBuildPackageList(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildPackageListReadsManifest(t *testing.T) {
+	content := testContentFS()
+	target := t.TempDir()
+
+	// Write a manifest with only git-workflow
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if err := os.WriteFile(manifestPath, []byte("name: test\npackages:\n  - git-workflow\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dirs, err := buildPackageList(content, "", target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(dirs) != 1 || dirs[0] != "packages/git-workflow" {
+		t.Errorf("expected [packages/git-workflow], got %v", dirs)
+	}
+}
+
+func TestBuildPackageListEmptyManifestInstallsNothing(t *testing.T) {
+	content := testContentFS()
+	target := t.TempDir()
+
+	// Manifest exists but packages list is empty → install nothing
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if err := os.WriteFile(manifestPath, []byte("name: test\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dirs, err := buildPackageList(content, "", target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Empty packages in an existing manifest means "install nothing"
+	if len(dirs) != 0 {
+		t.Errorf("expected 0 packages, got %d: %v", len(dirs), dirs)
+	}
+}
+
+func TestBuildPackageListPackageFlagOverridesManifest(t *testing.T) {
+	content := testContentFS()
+	target := t.TempDir()
+
+	// Manifest says git-workflow, but --package says developer-mentor
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if err := os.WriteFile(manifestPath, []byte("name: test\npackages:\n  - git-workflow\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dirs, err := buildPackageList(content, "developer-mentor", target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(dirs) != 1 || dirs[0] != "packages/developer-mentor" {
+		t.Errorf("expected [packages/developer-mentor], got %v", dirs)
+	}
+}
+
+func TestInstallPackageFlagCreatesManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Manifest should have been created
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("manifest not created: %v", err)
+	}
+	if !strings.Contains(string(data), "git-workflow") {
+		t.Errorf("manifest should contain git-workflow, got:\n%s", data)
+	}
+}
+
+func TestInstallPackageFlagAddsToExistingManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Pre-create a manifest with developer-mentor
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if err := os.WriteFile(manifestPath, []byte("name: test\npackages:\n    - developer-mentor\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content2 := string(data)
+	if !strings.Contains(content2, "developer-mentor") {
+		t.Error("manifest should still contain developer-mentor")
+	}
+	if !strings.Contains(content2, "git-workflow") {
+		t.Error("manifest should contain newly added git-workflow")
+	}
+}
+
+func TestInstallDryRunDoesNotCreateManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+		"--dry-run",
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if _, err := os.Stat(manifestPath); !os.IsNotExist(err) {
+		t.Error("manifest should not be created during dry-run")
+	}
+}
+
+func TestInstallUsesManifestAssistantAsDefault(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Write a manifest with assistant: copilot
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if err := os.WriteFile(manifestPath, []byte("name: test\nassistant: copilot\npackages:\n    - git-workflow\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Install without --for — should use manifest's assistant
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--target", target,
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Agent file should be at Copilot path (.github/agents/)
+	copilotAgent := filepath.Join(target, ".github", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(copilotAgent); os.IsNotExist(err) {
+		t.Errorf("expected agent at Copilot path: %s (manifest assistant should be used as default --for)", copilotAgent)
+	}
+}
+
+func TestInstallForFlagOverridesManifestAssistant(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Write a manifest with assistant: copilot
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	if err := os.WriteFile(manifestPath, []byte("name: test\nassistant: copilot\npackages:\n    - git-workflow\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Override isInteractiveFunc to avoid TTY prompt
+	original := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	defer func() { isInteractiveFunc = original }()
+
+	// Install with --for claude — should override manifest
+	cmd := newInstallCommand(content)
+	cmd.SetArgs([]string{
+		"--target", target,
+		"--for", "claude",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Agent file should be at Claude path
+	claudeAgent := filepath.Join(target, ".claude", "agents", "git-workflow.agent.md")
+	if _, err := os.Stat(claudeAgent); os.IsNotExist(err) {
+		t.Errorf("expected agent at Claude path: %s (--for should override manifest assistant)", claudeAgent)
 	}
 }
 

@@ -34,6 +34,9 @@ AGENTS.md is not modified during updates.`,
 
 			// --- Persona update branch ---
 			// Update means: re-resolve and re-install with force=true.
+			// Note: resolveForFlag is intentionally NOT called here. Persona
+			// installs target a single, explicitly-named assistant, so --for
+			// is required and must not be auto-resolved from the manifest.
 			if personaFlag != "" {
 				if packageFlag != "" {
 					return fmt.Errorf("--persona and --package cannot be used together")
@@ -47,6 +50,11 @@ AGENTS.md is not modified during updates.`,
 			}
 
 			// If --for is set, look up the assistant config and build a path mapper
+			forFlag, err := resolveForFlag(cmd, forFlag, target, mode)
+			if err != nil {
+				return err
+			}
+
 			var pathMapper func(string) string
 			if forFlag != "" {
 				cfg, err := assistant.Get(forFlag)
@@ -56,12 +64,13 @@ AGENTS.md is not modified during updates.`,
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			// When --package is provided, use buildPackageList (same as install).
-			// When no flags are provided, detect what's already installed.
+			// When --package is provided, validate and resolve the explicit list.
+			// When omitted, update only what is already installed (unlike install,
+			// which falls through to the manifest or all packages).
 			var packageDirs []string
 			if packageFlag != "" {
 				var err error
-				packageDirs, err = buildPackageList(content, packageFlag)
+				packageDirs, err = buildPackageList(content, packageFlag, target)
 				if err != nil {
 					return err
 				}
@@ -231,6 +240,7 @@ AGENTS.md is not modified during updates.`,
 	cmd.Flags().String("persona", "", "Update a persona (re-install all its packages with latest content)")
 	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
+	cmd.Flags().Bool("update-assistant", false, "Update the manifest's assistant field when --for differs")
 
 	return cmd
 }

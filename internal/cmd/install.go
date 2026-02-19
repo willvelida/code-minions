@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/manifest"
 	"github.com/willvelida/code-minions/internal/mcp"
 	"github.com/willvelida/code-minions/internal/registry"
 )
@@ -83,6 +85,14 @@ preview changes without writing any files.`,
 				return runPersonaInstall(cmd, content, personaFlag, forFlag, target, force, dryRun)
 			}
 
+			mode := getOutputMode(cmd)
+
+			// Resolve --for: fall back to manifest's assistant field
+			forFlag, err := resolveForFlag(cmd, forFlag, target, mode)
+			if err != nil {
+				return err
+			}
+
 			// If --for is set, look up the assistant config and build a path mapper
 			var pathMapper func(string) string
 			if forFlag != "" {
@@ -94,12 +104,22 @@ preview changes without writing any files.`,
 			}
 
 			// Build the list of package directories to install
-			packageDirs, err := buildPackageList(content, packageFlag)
+			packageDirs, err := buildPackageList(content, packageFlag, target)
 			if err != nil {
 				return err
 			}
 
-			mode := getOutputMode(cmd)
+			// Log manifest-derived package list
+			if packageFlag == "" {
+				manifestPath := manifest.DefaultPath(target)
+				if exists, _ := manifest.Exists(manifestPath); exists {
+					if len(packageDirs) > 0 {
+						verbosePrintf(cmd, mode, "reading packages from %s\n", manifest.FileName)
+					} else {
+						verbosePrintf(cmd, mode, "%s has no packages listed; nothing to install\n", manifest.FileName)
+					}
+				}
+			}
 
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
@@ -263,6 +283,38 @@ preview changes without writing any files.`,
 				}
 			}
 
+			// Update project manifest (code-minions.yml) when --package was used
+			if !dryRun && packageFlag != "" {
+				manifestPath := manifest.DefaultPath(target)
+				m, err := manifest.Load(manifestPath)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors,
+						fmt.Sprintf("%s load: %v", manifest.FileName, err))
+				} else {
+					// Set project name if this is a new manifest
+					if m.Name == "" {
+						absTarget, absErr := filepath.Abs(target)
+						if absErr == nil {
+							m.Name = filepath.Base(absTarget)
+						}
+					}
+					// Record the assistant if --for was used and not yet set
+					if forFlag != "" && m.Assistant == "" {
+						m.Assistant = forFlag
+					}
+					for _, pkgDir := range packageDirs {
+						pkgName := strings.TrimPrefix(pkgDir, "packages/")
+						m.AddPackage(pkgName)
+					}
+					if saveErr := manifest.Save(manifestPath, m); saveErr != nil {
+						combinedResult.Errors = append(combinedResult.Errors,
+							fmt.Sprintf("%s: %v", manifest.FileName, saveErr))
+					} else {
+						verbosePrintf(cmd, mode, "updated %s\n", manifest.FileName)
+					}
+				}
+			}
+
 			// JSON output
 			if mode == OutputJSON {
 				copied := combinedResult.Copied
@@ -409,29 +461,123 @@ preview changes without writing any files.`,
 	}
 
 	cmd.Flags().String("target", ".", "Target directory for installation")
-	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to install all)")
+	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to use manifest packages if present, otherwise all)")
 	cmd.Flags().String("persona", "", "Install a persona (a named bundle of packages)")
 	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
+	cmd.Flags().Bool("update-assistant", false, "Update the manifest's assistant field when --for differs")
 
 	return cmd
 }
 
-func buildPackageList(content fs.FS, packageFlag string) ([]string, error) {
-	// No flag = install all packages
-	if packageFlag == "" {
-		var dirs []string
-		packages, err := listSubDirs(content, "packages")
-		if err != nil {
-			return nil, fmt.Errorf("failed to list packages: %w", err)
-		}
-		for _, pkg := range packages {
-			dirs = append(dirs, "packages/"+pkg)
-		}
-		return dirs, nil
+// resolveForFlag returns the effective --for value by checking the explicit
+// flag first, then falling back to the manifest's assistant field. When the
+// flag differs from the manifest, it handles the update prompt.
+func resolveForFlag(cmd *cobra.Command, forFlag, target string, mode OutputMode) (string, error) {
+	manifestPath := manifest.DefaultPath(target)
+	result, err := manifest.LoadStrict(manifestPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", manifest.FileName, err)
+		return forFlag, nil
+	}
+	m := result.Manifest
+
+	// Print any structure warnings (unknown fields etc.)
+	for _, w := range result.Warnings {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %s\n", manifest.FileName, w)
 	}
 
+	if m.Assistant == "" && forFlag == "" {
+		return forFlag, nil
+	}
+
+	// No --for flag: use manifest's assistant value
+	if forFlag == "" && m.Assistant != "" {
+		verbosePrintf(cmd, mode, "using assistant %q from %s\n", m.Assistant, manifest.FileName)
+		return m.Assistant, nil
+	}
+
+	// --for given and matches manifest: nothing to do
+	if forFlag == m.Assistant || m.Assistant == "" {
+		return forFlag, nil
+	}
+
+	// --for differs from manifest: offer to update
+	updateAssistant, _ := cmd.Flags().GetBool("update-assistant")
+	if updateAssistant {
+		m.Assistant = forFlag
+		if saveErr := manifest.Save(manifestPath, m); saveErr != nil {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", manifest.FileName, saveErr)
+		} else {
+			verbosePrintf(cmd, mode, "updated assistant to %q in %s\n", forFlag, manifest.FileName)
+		}
+		return forFlag, nil
+	}
+
+	// Interactive prompt
+	if isInteractiveFunc() && mode != OutputJSON && mode != OutputQuiet {
+		msg := fmt.Sprintf("Manifest uses %q but you specified %q. Update %s? [y/N] ",
+			m.Assistant, forFlag, manifest.FileName)
+		ok, _ := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), msg)
+		if ok {
+			m.Assistant = forFlag
+			if saveErr := manifest.Save(manifestPath, m); saveErr != nil {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", manifest.FileName, saveErr)
+			}
+		}
+	}
+
+	return forFlag, nil
+}
+
+func buildPackageList(content fs.FS, packageFlag string, target string) ([]string, error) {
+	// Explicit --package flag takes priority over manifest
+	if packageFlag != "" {
+		return validateAndBuildDirs(content, packageFlag)
+	}
+
+	// No --package flag: try reading the manifest.
+	// Note: warnings are not printed here because resolveForFlag (which runs
+	// before buildPackageList) already loads with LoadStrict and prints them.
+	manifestPath := manifest.DefaultPath(target)
+	exists, err := manifest.Exists(manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check %s: %w", manifest.FileName, err)
+	}
+	if exists {
+		m, err := manifest.Load(manifestPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read %s: %w", manifest.FileName, err)
+		}
+		// An existing manifest with an empty packages list means "no packages";
+		// only fall back to all packages when there is no manifest at all.
+		if len(m.Packages) == 0 {
+			return nil, nil
+		}
+		return validateAndBuildDirs(content, strings.Join(m.Packages, ","))
+	}
+
+	// No manifest present: install all packages (backward compatible)
+	return allPackageDirs(content)
+}
+
+// allPackageDirs returns all package directories from the embedded content.
+func allPackageDirs(content fs.FS) ([]string, error) {
+	var dirs []string
+	packages, err := listSubDirs(content, "packages")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packages: %w", err)
+	}
+	for _, pkg := range packages {
+		dirs = append(dirs, "packages/"+pkg)
+	}
+	return dirs, nil
+}
+
+// validateAndBuildDirs validates a comma-separated package list against the
+// embedded content FS and returns the corresponding directory paths.
+func validateAndBuildDirs(content fs.FS, packageFlag string) ([]string, error) {
 	var dirs []string
 	packages := strings.Split(packageFlag, ",")
 	for _, pkg := range packages {

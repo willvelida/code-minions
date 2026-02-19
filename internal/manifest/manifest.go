@@ -1,14 +1,10 @@
 // Package manifest provides the project-level configuration for code-minions.
 // A project manifest (code-minions.yml) declares which packages to install,
 // which assistant to target, and other project-level settings.
-//
-// This is the minimal schema needed by the init command. Issue #95 will
-// expand it with validation, unknown-field warnings, and integration
-// with install/uninstall. The dependencies field (remote packages) is
-// deliberately omitted until #83 lands.
 package manifest
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -88,9 +84,159 @@ func Save(path string, m *ProjectManifest) error {
 	content := []byte(headerComment)
 	content = append(content, data...)
 
-	if err := os.WriteFile(path, content, 0644); err != nil {
+	// Atomic write: write to a uniquely named temp file in the same directory,
+	// then rename into place. This avoids leaving a partially-written manifest
+	// if the process is interrupted mid-write.
+	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary manifest file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	if _, err := tmpFile.Write(content); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 
+	// On Windows, os.Rename fails if the destination already exists. Use a
+	// backup-and-restore strategy to avoid data loss if the replacement fails.
+	backupPath := path + ".bak"
+	hadBackup := false
+	if err := os.Rename(path, backupPath); err != nil {
+		if !os.IsNotExist(err) {
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("failed to prepare manifest backup: %w", err)
+		}
+	} else {
+		hadBackup = true
+	}
+
+	if err := os.Rename(tmpPath, path); err != nil {
+		if hadBackup {
+			_ = os.Rename(backupPath, path)
+		}
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+
+	// Replacement succeeded; clean up the backup.
+	if hadBackup {
+		_ = os.Remove(backupPath)
+	}
+
 	return nil
+}
+
+// AddPackage appends a package name if not already present.
+// Returns true if the package was added (false if already listed).
+func (m *ProjectManifest) AddPackage(name string) bool {
+	for _, p := range m.Packages {
+		if p == name {
+			return false
+		}
+	}
+	m.Packages = append(m.Packages, name)
+	return true
+}
+
+// RemovePackage removes a package name from the list.
+// Returns true if the package was found and removed.
+func (m *ProjectManifest) RemovePackage(name string) bool {
+	for i, p := range m.Packages {
+		if p == name {
+			m.Packages = append(m.Packages[:i], m.Packages[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// HasPackage checks whether a package is in the manifest's packages list.
+func (m *ProjectManifest) HasPackage(name string) bool {
+	for _, p := range m.Packages {
+		if p == name {
+			return true
+		}
+	}
+	return false
+}
+
+// LoadResult contains the parsed manifest and any non-fatal warnings.
+type LoadResult struct {
+	Manifest *ProjectManifest
+	Warnings []string
+}
+
+// LoadStrict reads a code-minions.yml and reports unknown fields as warnings.
+// The manifest is still parsed and returned even when unknown fields exist.
+// Returns a zero-value manifest (with no warnings) if the file does not exist.
+func LoadStrict(path string) (*LoadResult, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &LoadResult{Manifest: &ProjectManifest{}}, nil
+		}
+		return nil, fmt.Errorf("failed to read manifest: %w", err)
+	}
+
+	// First pass: decode into struct (will silently ignore unknown fields)
+	var m ProjectManifest
+	if err := yaml.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
+	// Second pass: decode with KnownFields to detect unknown keys
+	var warnings []string
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	var strict ProjectManifest
+	if err := dec.Decode(&strict); err != nil {
+		// The error message from yaml.v3 lists the unknown field
+		warnings = append(warnings, fmt.Sprintf("unknown field: %v", err))
+	}
+
+	return &LoadResult{Manifest: &m, Warnings: warnings}, nil
+}
+
+// Validate checks the manifest for semantic errors. It returns a list
+// of problems found. validAssistants and validPackages are the known
+// names to validate against; pass nil to skip those checks.
+func (m *ProjectManifest) Validate(validAssistants, validPackages []string) []string {
+	var problems []string
+
+	if m.Name == "" {
+		problems = append(problems, "name is required")
+	}
+
+	if m.Assistant != "" && len(validAssistants) > 0 {
+		found := false
+		for _, a := range validAssistants {
+			if a == m.Assistant {
+				found = true
+				break
+			}
+		}
+		if !found {
+			problems = append(problems, fmt.Sprintf("unknown assistant %q", m.Assistant))
+		}
+	}
+
+	if len(validPackages) > 0 {
+		validSet := make(map[string]bool, len(validPackages))
+		for _, p := range validPackages {
+			validSet[p] = true
+		}
+		for _, p := range m.Packages {
+			if !validSet[p] {
+				problems = append(problems, fmt.Sprintf("unknown package %q", p))
+			}
+		}
+	}
+
+	return problems
 }

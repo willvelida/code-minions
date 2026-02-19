@@ -621,3 +621,51 @@ func TestUninstallMCPOnlyPackageRemovesManifest(t *testing.T) {
 		t.Error("manifest should not contain mcp-only after uninstall")
 	}
 }
+
+func TestUninstallRemovesFromProjectManifest(t *testing.T) {
+	target := t.TempDir()
+	content := testContentFS()
+
+	// Install git-workflow and developer-mentor first
+	installCmd := newInstallCommand(content)
+	installCmd.SetArgs([]string{
+		"--package", "git-workflow,developer-mentor",
+		"--target", target,
+	})
+	if err := installCmd.Execute(); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	// Verify manifest has both packages
+	manifestPath := filepath.Join(target, "code-minions.yml")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("manifest should exist: %v", err)
+	}
+	if !strings.Contains(string(data), "git-workflow") || !strings.Contains(string(data), "developer-mentor") {
+		t.Fatalf("manifest should contain both packages, got:\n%s", data)
+	}
+
+	// Uninstall git-workflow
+	uninstallCmd := newUninstallCommand(content)
+	uninstallCmd.SetArgs([]string{
+		"--package", "git-workflow",
+		"--target", target,
+		"--yes",
+	})
+	if err := uninstallCmd.Execute(); err != nil {
+		t.Fatalf("uninstall failed: %v", err)
+	}
+
+	// Manifest should no longer have git-workflow but still have developer-mentor
+	data, err = os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("manifest should still exist: %v", err)
+	}
+	if strings.Contains(string(data), "git-workflow") {
+		t.Errorf("manifest should not contain git-workflow after uninstall, got:\n%s", data)
+	}
+	if !strings.Contains(string(data), "developer-mentor") {
+		t.Errorf("manifest should still contain developer-mentor, got:\n%s", data)
+	}
+}
