@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/BurntSushi/toml"
 )
 
 // UninstallResult captures what happened during MCP server removal for a
@@ -39,9 +41,17 @@ func Uninstall(targetDir string, translator Translator, serverNames []string, dr
 		return nil, fmt.Errorf("failed to read %s: %w", translator.ConfigPath(), err)
 	}
 
+	useTOML := isTOMLFile(translator.ConfigPath())
+
 	var doc map[string]any
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", translator.ConfigPath(), err)
+	if useTOML {
+		if err := toml.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", translator.ConfigPath(), err)
+		}
+	} else {
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", translator.ConfigPath(), err)
+		}
 	}
 
 	result := &UninstallResult{
@@ -87,12 +97,6 @@ func Uninstall(targetDir string, translator Translator, serverNames []string, dr
 	}
 
 	if !dryRun {
-		out, err := json.MarshalIndent(doc, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal %s: %w", translator.ConfigPath(), err)
-		}
-		out = append(out, '\n')
-
 		// If the doc is now empty (only had MCP servers), remove the file
 		// and attempt to clean up the parent directory if it is now empty.
 		if len(doc) == 0 {
@@ -103,6 +107,16 @@ func Uninstall(targetDir string, translator Translator, serverNames []string, dr
 			// os.Remove fails on non-empty dirs, which is the desired behaviour.
 			_ = os.Remove(filepath.Dir(configPath))
 		} else {
+			var out []byte
+			var marshalErr error
+			if useTOML {
+				out, marshalErr = marshalTOML(doc)
+			} else {
+				out, marshalErr = marshalJSON(doc)
+			}
+			if marshalErr != nil {
+				return nil, fmt.Errorf("failed to marshal %s: %w", translator.ConfigPath(), marshalErr)
+			}
 			if err := os.WriteFile(configPath, out, 0644); err != nil {
 				return nil, fmt.Errorf("failed to write %s: %w", translator.ConfigPath(), err)
 			}

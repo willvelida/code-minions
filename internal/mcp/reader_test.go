@@ -1,8 +1,11 @@
 package mcp
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 // --- Copilot Reader ---
@@ -702,6 +705,115 @@ func TestGeminiReader_MalformedJSON(t *testing.T) {
 	}
 }
 
+// --- Codex Reader ---
+
+func TestCodexReader_StdioServer(t *testing.T) {
+	input := `
+[mcp_servers.github]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+[mcp_servers.github.env]
+GITHUB_PERSONAL_ACCESS_TOKEN = "ghp_xxx"
+`
+	r := &CodexReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s := cfg.Servers["github"]
+	if s.Transport != TransportStdio {
+		t.Errorf("transport: got %q, want %q", s.Transport, TransportStdio)
+	}
+	if s.Command != "npx" {
+		t.Errorf("command: got %q, want %q", s.Command, "npx")
+	}
+	if len(s.Args) != 2 || s.Args[0] != "-y" || s.Args[1] != "@modelcontextprotocol/server-github" {
+		t.Errorf("args: got %v", s.Args)
+	}
+	if s.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] != "ghp_xxx" {
+		t.Errorf("env: got %v", s.Env)
+	}
+}
+
+func TestCodexReader_SSEServer(t *testing.T) {
+	input := `
+[mcp_servers.remote]
+type = "sse"
+url = "https://mcp.example.com/sse"
+
+[mcp_servers.remote.headers]
+Authorization = "Bearer token"
+`
+	r := &CodexReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s := cfg.Servers["remote"]
+	if s.Transport != TransportSSE {
+		t.Errorf("transport: got %q, want %q", s.Transport, TransportSSE)
+	}
+	if s.URL != "https://mcp.example.com/sse" {
+		t.Errorf("url: got %q", s.URL)
+	}
+	if s.Headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", s.Headers)
+	}
+}
+
+func TestCodexReader_StreamableHTTPServer(t *testing.T) {
+	input := `
+[mcp_servers.api]
+type = "streamable-http"
+url = "https://mcp.example.com/v1"
+
+[mcp_servers.api.headers]
+Authorization = "Bearer token"
+`
+	r := &CodexReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s := cfg.Servers["api"]
+	if s.Transport != TransportStreamableHTTP {
+		t.Errorf("transport: got %q, want %q", s.Transport, TransportStreamableHTTP)
+	}
+	if s.URL != "https://mcp.example.com/v1" {
+		t.Errorf("url: got %q", s.URL)
+	}
+	if s.Headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", s.Headers)
+	}
+}
+
+func TestCodexReader_NoMCPServersKey(t *testing.T) {
+	input := `[settings]
+key = "value"
+`
+	r := &CodexReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Servers) != 0 {
+		t.Errorf("expected 0 servers, got %d", len(cfg.Servers))
+	}
+}
+
+func TestCodexReader_MalformedTOML(t *testing.T) {
+	r := &CodexReader{}
+	_, _, err := r.Read([]byte("[bad toml"))
+	if err == nil {
+		t.Fatal("expected error for malformed TOML")
+	}
+}
+
 // --- NewReader factory ---
 
 func TestNewReader_ValidAssistants(t *testing.T) {
@@ -714,6 +826,7 @@ func TestNewReader_ValidAssistants(t *testing.T) {
 		{"opencode", "opencode.json"},
 		{"cursor", ".cursor/mcp.json"},
 		{"gemini", ".gemini/settings.json"},
+		{"codex", ".codex/config.toml"},
 	}
 
 	for _, tt := range tests {
@@ -935,6 +1048,86 @@ func TestRoundTrip_GeminiStreamableHTTP(t *testing.T) {
 	}
 
 	assertConfigsEqual(t, cfg, cfg2)
+}
+
+// TestRoundTrip_CodexReadWrite reads Codex TOML config and round-trips it.
+func TestRoundTrip_CodexReadWrite(t *testing.T) {
+	input := `
+[mcp_servers.github]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+[mcp_servers.github.env]
+GITHUB_PERSONAL_ACCESS_TOKEN = ""
+`
+	reader := &CodexReader{}
+	cfg, _, err := reader.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	writer := &CodexTranslator{}
+	servers, _, err := writer.Translate(cfg)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	// Re-read: build TOML by translating servers back through reader
+	// We need to wrap in the expected top-level key for TOML parsing
+	tomlInput := buildCodexTOML(servers)
+	cfg2, _, err := reader.Read([]byte(tomlInput))
+	if err != nil {
+		t.Fatalf("re-read: %v", err)
+	}
+
+	assertConfigsEqual(t, cfg, cfg2)
+}
+
+// TestRoundTrip_CodexStreamableHTTP round-trips a streamable-http server
+// through Codex's TOML format.
+func TestRoundTrip_CodexStreamableHTTP(t *testing.T) {
+	input := `
+[mcp_servers.api]
+type = "streamable-http"
+url = "https://mcp.example.com/v1"
+
+[mcp_servers.api.headers]
+Authorization = "Bearer token"
+`
+	reader := &CodexReader{}
+	cfg, _, err := reader.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	if cfg.Servers["api"].Transport != TransportStreamableHTTP {
+		t.Fatalf("expected streamable-http, got %q", cfg.Servers["api"].Transport)
+	}
+
+	writer := &CodexTranslator{}
+	servers, _, err := writer.Translate(cfg)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	tomlInput := buildCodexTOML(servers)
+	cfg2, _, err := reader.Read([]byte(tomlInput))
+	if err != nil {
+		t.Fatalf("re-read: %v", err)
+	}
+
+	assertConfigsEqual(t, cfg, cfg2)
+}
+
+// buildCodexTOML is a test helper that wraps translated servers into
+// Codex TOML format for round-trip testing.
+func buildCodexTOML(servers map[string]any) string {
+	doc := map[string]any{"mcp_servers": servers}
+	var buf bytes.Buffer
+	enc := toml.NewEncoder(&buf)
+	_ = enc.Encode(doc)
+	return buf.String()
 }
 
 // TestRoundTrip_CopilotToClaude reads from Copilot, writes to Claude,

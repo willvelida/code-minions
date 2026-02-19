@@ -66,8 +66,8 @@ func Install(content fs.FS, packageDir, targetDir string, translator Translator,
 		return nil, fmt.Errorf("failed to read %s: %w", translator.ConfigPath(), err)
 	}
 
-	// Step 4: merge
-	merged, mergeResult, err := Merge(existing, servers, translator.ConfigKey(), force)
+	// Step 4: merge (dispatches to JSON or TOML based on file extension)
+	merged, mergeResult, err := MergeForFile(translator.ConfigPath(), existing, servers, translator.ConfigKey(), force)
 	if err != nil {
 		return nil, fmt.Errorf("MCP merge failed for %s: %w", translator.ConfigPath(), err)
 	}
@@ -120,8 +120,8 @@ func InstallServers(targetDir string, translator Translator, servers map[string]
 		return nil, fmt.Errorf("failed to read %s: %w", translator.ConfigPath(), err)
 	}
 
-	// Merge the servers into the config.
-	merged, mergeResult, err := Merge(existing, servers, translator.ConfigKey(), force)
+	// Merge the servers into the config (dispatches to JSON or TOML based on file extension).
+	merged, mergeResult, err := MergeForFile(translator.ConfigPath(), existing, servers, translator.ConfigKey(), force)
 	if err != nil {
 		return nil, fmt.Errorf("MCP merge failed for %s: %w", translator.ConfigPath(), err)
 	}

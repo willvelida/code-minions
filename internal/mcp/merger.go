@@ -1,10 +1,15 @@
 package mcp
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 // MergeResult reports what happened during a merge operation.
@@ -27,15 +32,106 @@ type MergeResult struct {
 //
 // The returned JSON uses 2-space indent (standard for VS Code config files).
 func Merge(existing []byte, translated map[string]any, configKey string, force bool) ([]byte, *MergeResult, error) {
-	result := &MergeResult{}
+	doc, err := unmarshalJSON(existing)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	// Parse existing file into a generic map (preserves non-MCP keys)
+	result := mergeInto(doc, translated, configKey, force)
+
+	out, err := marshalJSON(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	detectEmptyEnvWarnings(result, translated)
+
+	return out, result, nil
+}
+
+// MergeTOML reads existing TOML config bytes, merges translated MCP servers
+// under the given configKey, and returns the resulting TOML bytes plus a
+// report of what changed.
+//
+// The merge semantics are identical to Merge (JSON variant).
+func MergeTOML(existing []byte, translated map[string]any, configKey string, force bool) ([]byte, *MergeResult, error) {
+	doc, err := unmarshalTOML(existing)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	result := mergeInto(doc, translated, configKey, force)
+
+	out, err := marshalTOML(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	detectEmptyEnvWarnings(result, translated)
+
+	return out, result, nil
+}
+
+// MergeForFile dispatches to Merge or MergeTOML based on the config file path.
+// Files ending in .toml use TOML encoding; all others use JSON.
+func MergeForFile(configPath string, existing []byte, translated map[string]any, configKey string, force bool) ([]byte, *MergeResult, error) {
+	if isTOMLFile(configPath) {
+		return MergeTOML(existing, translated, configKey, force)
+	}
+	return Merge(existing, translated, configKey, force)
+}
+
+// isTOMLFile returns true if the file path has a .toml extension.
+func isTOMLFile(path string) bool {
+	return strings.EqualFold(filepath.Ext(path), ".toml")
+}
+
+// unmarshalJSON parses JSON bytes into a generic map.
+func unmarshalJSON(data []byte) (map[string]any, error) {
 	doc := make(map[string]any)
-	if len(existing) > 0 {
-		if err := json.Unmarshal(existing, &doc); err != nil {
-			return nil, nil, fmt.Errorf("failed to parse existing config: %w", err)
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("failed to parse existing config: %w", err)
 		}
 	}
+	return doc, nil
+}
+
+// unmarshalTOML parses TOML bytes into a generic map.
+func unmarshalTOML(data []byte) (map[string]any, error) {
+	doc := make(map[string]any)
+	if len(data) > 0 {
+		if err := toml.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("failed to parse existing config: %w", err)
+		}
+	}
+	return doc, nil
+}
+
+// marshalJSON serialises a map to JSON with 2-space indent and trailing newline.
+func marshalJSON(doc map[string]any) ([]byte, error) {
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal config: %w", err)
+	}
+	out = append(out, '\n')
+	return out, nil
+}
+
+// marshalTOML serialises a map to TOML with trailing newline.
+func marshalTOML(doc map[string]any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := toml.NewEncoder(&buf)
+	if err := enc.Encode(doc); err != nil {
+		return nil, fmt.Errorf("failed to marshal config: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// mergeInto merges translated servers into the document under configKey.
+// This is the shared merge logic used by both JSON and TOML paths.
+func mergeInto(doc map[string]any, translated map[string]any, configKey string, force bool) *MergeResult {
+	result := &MergeResult{}
 
 	// Get or create the MCP servers section
 	var existingServers map[string]any
@@ -43,7 +139,7 @@ func Merge(existing []byte, translated map[string]any, configKey string, force b
 		if m, ok := raw.(map[string]any); ok {
 			existingServers = m
 		} else {
-			return nil, nil, fmt.Errorf("existing %q key is not an object", configKey)
+			existingServers = make(map[string]any)
 		}
 	} else {
 		existingServers = make(map[string]any)
@@ -79,12 +175,22 @@ func Merge(existing []byte, translated map[string]any, configKey string, force b
 
 	doc[configKey] = existingServers
 
-	// Detect empty env vars for newly-added servers only (skip warnings
-	// for servers that were skipped or conflicted — they weren't installed).
+	return result
+}
+
+// detectEmptyEnvWarnings checks newly-added servers for empty env vars.
+func detectEmptyEnvWarnings(result *MergeResult, translated map[string]any) {
 	addedSet := make(map[string]bool, len(result.Added))
 	for _, n := range result.Added {
 		addedSet[n] = true
 	}
+
+	names := make([]string, 0, len(translated))
+	for name := range translated {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
 	for _, name := range names {
 		if !addedSet[name] {
 			continue
@@ -115,16 +221,6 @@ func Merge(existing []byte, translated map[string]any, configKey string, force b
 		}
 	}
 	sort.Strings(result.Warnings)
-
-	// Serialise back to JSON with 2-space indent
-	out, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal config: %w", err)
-	}
-	// Append trailing newline (standard for config files)
-	out = append(out, '\n')
-
-	return out, result, nil
 }
 
 // ServersEqual compares two server definitions for equality by normalising
