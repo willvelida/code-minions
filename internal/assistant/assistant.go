@@ -65,6 +65,15 @@ var configs = map[string]Config{
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: "GEMINI.md",
 	},
+	"codex": {
+		Name:             "codex",
+		Description:      "Codex CLI",
+		AgentDir:         ".agents/agents",
+		SkillDir:         ".agents/skills",
+		MCPConfigPath:    ".codex/config.toml",
+		MCPConfigKey:     "mcp_servers",
+		InstructionsPath: "AGENTS.md",
+	},
 }
 
 // Get returns the configuration for the named assistant, or an error if the

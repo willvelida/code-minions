@@ -38,6 +38,8 @@ func NewReader(assistant string) (Reader, error) {
 		return &CursorReader{}, nil
 	case "gemini":
 		return &GeminiReader{}, nil
+	case "codex":
+		return &CodexReader{}, nil
 	default:
 		return nil, fmt.Errorf("no MCP reader for assistant %q", assistant)
 	}

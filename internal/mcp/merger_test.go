@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 func TestMerge_NewFile(t *testing.T) {
@@ -489,5 +491,216 @@ func TestMergeCanonical_EmptyConfigs(t *testing.T) {
 	result := MergeCanonical(empty, nil, empty)
 	if result != nil {
 		t.Errorf("expected nil for all-empty configs, got %+v", result)
+	}
+}
+
+// ---------- TOML merge tests ----------
+
+func TestMergeTOML_NewFile(t *testing.T) {
+	translated := map[string]any{
+		"github": map[string]any{
+			"type":    "stdio",
+			"command": "npx",
+			"args":    []string{"-y", "@modelcontextprotocol/server-github"},
+		},
+	}
+
+	out, result, err := MergeTOML(nil, translated, "mcp_servers", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Added) != 1 || result.Added[0] != "github" {
+		t.Errorf("Added: got %v, want [github]", result.Added)
+	}
+
+	// Verify TOML structure
+	var doc map[string]any
+	if err := toml.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("invalid TOML output: %v", err)
+	}
+	servers, ok := doc["mcp_servers"].(map[string]any)
+	if !ok {
+		t.Fatal("expected 'mcp_servers' key in output")
+	}
+	if _, ok := servers["github"]; !ok {
+		t.Error("expected 'github' server in output")
+	}
+}
+
+func TestMergeTOML_PreservesUnrelatedKeys(t *testing.T) {
+	existing := []byte(`
+title = "my config"
+
+[settings]
+verbose = true
+
+[mcp_servers.existing]
+type = "stdio"
+command = "old-cmd"
+`)
+
+	translated := map[string]any{
+		"github": map[string]any{
+			"type":    "stdio",
+			"command": "npx",
+		},
+	}
+
+	out, result, err := MergeTOML(existing, translated, "mcp_servers", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Added) != 1 || result.Added[0] != "github" {
+		t.Errorf("Added: got %v, want [github]", result.Added)
+	}
+
+	var doc map[string]any
+	if err := toml.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("invalid TOML output: %v", err)
+	}
+
+	// Unrelated keys preserved
+	if doc["title"] != "my config" {
+		t.Errorf("title not preserved: got %v", doc["title"])
+	}
+	settings, ok := doc["settings"].(map[string]any)
+	if !ok {
+		t.Fatal("settings key not preserved")
+	}
+	if settings["verbose"] != true {
+		t.Error("settings.verbose not preserved")
+	}
+
+	// Both servers present
+	servers := doc["mcp_servers"].(map[string]any)
+	if _, ok := servers["existing"]; !ok {
+		t.Error("existing server should be preserved")
+	}
+	if _, ok := servers["github"]; !ok {
+		t.Error("github server should be added")
+	}
+}
+
+func TestMergeTOML_SkipIdentical(t *testing.T) {
+	existing := []byte(`
+[mcp_servers.github]
+type = "stdio"
+command = "npx"
+`)
+
+	translated := map[string]any{
+		"github": map[string]any{
+			"type":    "stdio",
+			"command": "npx",
+		},
+	}
+
+	_, result, err := MergeTOML(existing, translated, "mcp_servers", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Skipped) != 1 || result.Skipped[0] != "github" {
+		t.Errorf("Skipped: got %v, want [github]", result.Skipped)
+	}
+	if len(result.Added) != 0 {
+		t.Errorf("Added should be empty: %v", result.Added)
+	}
+}
+
+func TestMergeTOML_Conflict(t *testing.T) {
+	existing := []byte(`
+[mcp_servers.github]
+type = "stdio"
+command = "old-cmd"
+`)
+
+	translated := map[string]any{
+		"github": map[string]any{
+			"type":    "stdio",
+			"command": "new-cmd",
+		},
+	}
+
+	_, result, err := MergeTOML(existing, translated, "mcp_servers", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Conflict) != 1 || result.Conflict[0] != "github" {
+		t.Errorf("Conflict: got %v, want [github]", result.Conflict)
+	}
+}
+
+func TestMergeTOML_MalformedInput(t *testing.T) {
+	badTOML := []byte(`[broken`)
+	translated := map[string]any{"github": map[string]any{"command": "npx"}}
+	_, _, err := MergeTOML(badTOML, translated, "mcp_servers", false)
+	if err == nil {
+		t.Error("expected error for malformed TOML")
+	}
+}
+
+func TestMergeForFile_DispatchesOnExtension(t *testing.T) {
+	translated := map[string]any{
+		"github": map[string]any{
+			"type":    "stdio",
+			"command": "npx",
+		},
+	}
+
+	// .toml path → TOML output
+	tomlOut, _, err := MergeForFile(".codex/config.toml", nil, translated, "mcp_servers", false)
+	if err != nil {
+		t.Fatalf("MergeForFile(.toml) error: %v", err)
+	}
+	var tomlDoc map[string]any
+	if err := toml.Unmarshal(tomlOut, &tomlDoc); err != nil {
+		t.Errorf("MergeForFile(.toml) did not produce valid TOML: %v", err)
+	}
+
+	// .json path → JSON output
+	jsonOut, _, err := MergeForFile(".vscode/mcp.json", nil, translated, "servers", false)
+	if err != nil {
+		t.Fatalf("MergeForFile(.json) error: %v", err)
+	}
+	var jsonDoc map[string]any
+	if err := json.Unmarshal(jsonOut, &jsonDoc); err != nil {
+		t.Errorf("MergeForFile(.json) did not produce valid JSON: %v", err)
+	}
+}
+
+func TestMerge_NonObjectConfigKey(t *testing.T) {
+	// When configKey exists but is not an object, merge should skip and warn
+	existing := []byte(`{"servers": "not-an-object", "other": true}`)
+	translated := map[string]any{
+		"github": map[string]any{"command": "npx"},
+	}
+
+	out, result, err := Merge(existing, translated, "servers", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should have a warning about the non-object value
+	if len(result.Warnings) == 0 {
+		t.Error("expected warning about non-object config key")
+	}
+
+	// The original value should be preserved (no servers added)
+	var doc map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("invalid JSON output: %v", err)
+	}
+	if doc["servers"] != "not-an-object" {
+		t.Errorf("expected original value preserved, got %v", doc["servers"])
+	}
+	if doc["other"] != true {
+		t.Error("expected other key preserved")
+	}
+	if len(result.Added) != 0 {
+		t.Errorf("expected no servers added, got %v", result.Added)
 	}
 }

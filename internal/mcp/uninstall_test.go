@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 func TestUninstall_RemovesServers(t *testing.T) {
@@ -277,5 +279,138 @@ func TestUninstall_CleansEmptyParentDir(t *testing.T) {
 	// The parent dir (.vscode) should also be cleaned up
 	if _, err := os.Stat(configDir); !os.IsNotExist(err) {
 		t.Error("empty parent directory should have been cleaned up")
+	}
+}
+
+// ---------- TOML uninstall tests ----------
+
+func TestUninstall_CodexTranslator_RemovesServer(t *testing.T) {
+	target := t.TempDir()
+	translator := &CodexTranslator{}
+
+	configDir := filepath.Join(target, ".codex")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `[mcp_servers.github]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+[mcp_servers.linear]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-linear"]
+`
+	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Uninstall(target, translator, []string{"github"}, false)
+	if err != nil {
+		t.Fatalf("Uninstall() error = %v", err)
+	}
+	if len(result.Removed) != 1 || result.Removed[0] != "github" {
+		t.Errorf("Removed = %v, want [github]", result.Removed)
+	}
+	if result.ConfigPath != ".codex/config.toml" {
+		t.Errorf("ConfigPath = %q, want .codex/config.toml", result.ConfigPath)
+	}
+
+	// Verify file was updated with valid TOML
+	data, err := os.ReadFile(filepath.Join(configDir, "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := toml.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("output is not valid TOML: %v", err)
+	}
+	servers := doc["mcp_servers"].(map[string]any)
+	if _, ok := servers["github"]; ok {
+		t.Error("github server should have been removed")
+	}
+	if _, ok := servers["linear"]; !ok {
+		t.Error("linear server should still be present")
+	}
+}
+
+func TestUninstall_CodexTranslator_RemovesKeyWhenEmpty(t *testing.T) {
+	target := t.TempDir()
+	translator := &CodexTranslator{}
+
+	configDir := filepath.Join(target, ".codex")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `[mcp_servers.github]
+type = "stdio"
+command = "npx"
+`
+	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Uninstall(target, translator, []string{"github"}, false)
+	if err != nil {
+		t.Fatalf("Uninstall() error = %v", err)
+	}
+	if len(result.Removed) != 1 {
+		t.Errorf("Removed = %v, want [github]", result.Removed)
+	}
+
+	// File should be removed when doc is empty
+	configPath := filepath.Join(configDir, "config.toml")
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		t.Error("config file should have been removed when doc is empty")
+	}
+
+	// Parent dir should be cleaned up
+	if _, err := os.Stat(configDir); !os.IsNotExist(err) {
+		t.Error("empty parent directory should have been cleaned up")
+	}
+}
+
+func TestUninstall_CodexTranslator_PreservesOtherKeys(t *testing.T) {
+	target := t.TempDir()
+	translator := &CodexTranslator{}
+
+	configDir := filepath.Join(target, ".codex")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `title = "my config"
+
+[mcp_servers.github]
+type = "stdio"
+command = "npx"
+`
+	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Uninstall(target, translator, []string{"github"}, false)
+	if err != nil {
+		t.Fatalf("Uninstall() error = %v", err)
+	}
+	if len(result.Removed) != 1 {
+		t.Errorf("Removed = %v, want [github]", result.Removed)
+	}
+
+	// File should still exist because non-MCP keys remain
+	data, err := os.ReadFile(filepath.Join(configDir, "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := toml.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("output is not valid TOML: %v", err)
+	}
+	if doc["title"] != "my config" {
+		t.Errorf("title not preserved: got %v", doc["title"])
+	}
+	// mcp_servers key should be removed entirely (empty)
+	if _, ok := doc["mcp_servers"]; ok {
+		t.Error("mcp_servers key should be removed when empty")
 	}
 }

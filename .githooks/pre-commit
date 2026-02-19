@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# pre-commit hook — Checks that Go source files are formatted with gofmt.
+# pre-commit hook — Checks that Go source files are formatted with gofmt
+# and that go.mod / go.sum are tidy.
 #
 # Install with:
 #   git config core.hooksPath .githooks
@@ -9,6 +10,8 @@
 
 set -euo pipefail
 
+# ---------- Check 1: gofmt ----------
+
 # Only check staged .go files to keep the hook fast.
 # Uses a while-read loop instead of mapfile for Bash 3.2 compatibility (macOS).
 STAGED_GO_FILES=()
@@ -17,6 +20,7 @@ while IFS= read -r file; do
 done < <(git diff --cached --name-only --diff-filter=ACM -- '*.go')
 
 if [ ${#STAGED_GO_FILES[@]} -eq 0 ]; then
+  # No Go files staged — skip both checks
   exit 0
 fi
 
@@ -35,4 +39,41 @@ if [ ${#UNFORMATTED[@]} -gt 0 ]; then
   done
   echo ""
   exit 1
+fi
+
+# ---------- Check 2: go mod tidy ----------
+
+# Only run when go.mod, go.sum, or .go files are staged.
+STAGED_MOD_FILES=()
+while IFS= read -r file; do
+  STAGED_MOD_FILES+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACM -- 'go.mod' 'go.sum')
+
+if [ ${#STAGED_MOD_FILES[@]} -gt 0 ] || [ ${#STAGED_GO_FILES[@]} -gt 0 ]; then
+  # Take a snapshot of go.mod and go.sum before tidy
+  MOD_BEFORE=$(cat go.mod)
+  SUM_BEFORE=""
+  if [ -f go.sum ]; then
+    SUM_BEFORE=$(cat go.sum)
+  fi
+
+  go mod tidy 2>/dev/null
+
+  MOD_AFTER=$(cat go.mod)
+  SUM_AFTER=""
+  if [ -f go.sum ]; then
+    SUM_AFTER=$(cat go.sum)
+  fi
+
+  # Restore original files — the hook should only check, not modify
+  echo "$MOD_BEFORE" > go.mod
+  if [ -n "$SUM_BEFORE" ]; then
+    echo "$SUM_BEFORE" > go.sum
+  fi
+
+  if [ "$MOD_BEFORE" != "$MOD_AFTER" ] || [ "$SUM_BEFORE" != "$SUM_AFTER" ]; then
+    echo "❌ go.mod or go.sum are not tidy (run 'go mod tidy')."
+    echo ""
+    exit 1
+  fi
 fi

@@ -60,7 +60,7 @@ If you prefer to work outside a container, install the [Prerequisites](#prerequi
    ```
 
    This enables two hooks:
-   - **pre-commit** — checks that staged Go files are formatted with `gofmt`
+   - **pre-commit** — checks that staged Go files are formatted with `gofmt` and that `go.mod`/`go.sum` are tidy
    - **pre-push** — runs a coverage threshold check before each push
 
    You can bypass either hook in a pinch with `--no-verify`, but CI will still enforce both checks.

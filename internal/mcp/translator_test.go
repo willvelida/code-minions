@@ -471,6 +471,73 @@ func TestGeminiTranslator_ConfigPath(t *testing.T) {
 	}
 }
 
+// --- Codex ---
+
+func TestCodexTranslator_Stdio(t *testing.T) {
+	tr := &CodexTranslator{}
+	servers, warnings, err := tr.Translate(testStdioConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("unexpected warnings: %v", warnings)
+	}
+
+	github := servers["github"].(map[string]any)
+	if github["type"] != "stdio" {
+		t.Errorf("type: got %v, want %q", github["type"], "stdio")
+	}
+	if github["command"] != "npx" {
+		t.Errorf("command: got %v", github["command"])
+	}
+}
+
+func TestCodexTranslator_HTTP(t *testing.T) {
+	tr := &CodexTranslator{}
+	servers, _, err := tr.Translate(testHTTPConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["remote-api"].(map[string]any)
+	if api["type"] != "streamable-http" {
+		t.Errorf("type: got %v, want %q", api["type"], "streamable-http")
+	}
+	if api["url"] != "https://mcp.example.com/v1" {
+		t.Errorf("url: got %v", api["url"])
+	}
+}
+
+func TestCodexTranslator_SSE(t *testing.T) {
+	tr := &CodexTranslator{}
+	servers, _, err := tr.Translate(testSSEConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["sse-api"].(map[string]any)
+	if api["type"] != "sse" {
+		t.Errorf("type: got %v, want %q", api["type"], "sse")
+	}
+	if api["url"] != "https://sse.example.com/events" {
+		t.Errorf("url: got %v", api["url"])
+	}
+	env := api["env"].(map[string]string)
+	if env["API_KEY"] != "secret" {
+		t.Errorf("env: got %v", env)
+	}
+}
+
+func TestCodexTranslator_ConfigPath(t *testing.T) {
+	tr := &CodexTranslator{}
+	if tr.ConfigPath() != ".codex/config.toml" {
+		t.Errorf("ConfigPath: got %q", tr.ConfigPath())
+	}
+	if tr.ConfigKey() != "mcp_servers" {
+		t.Errorf("ConfigKey: got %q", tr.ConfigKey())
+	}
+}
+
 // --- Factory ---
 
 func TestNewTranslator(t *testing.T) {
@@ -483,6 +550,7 @@ func TestNewTranslator(t *testing.T) {
 		{"opencode", false},
 		{"cursor", false},
 		{"gemini", false},
+		{"codex", false},
 		{"unknown", true},
 	}
 
@@ -509,7 +577,7 @@ func TestNewTranslator(t *testing.T) {
 // ConfigPath() and ConfigKey() return the same values as the corresponding
 // assistant.Config. This prevents drift between the two sources.
 func TestTranslatorConfigMatchesAssistant(t *testing.T) {
-	names := []string{"copilot", "claude", "opencode", "cursor", "gemini"}
+	names := []string{"copilot", "claude", "opencode", "cursor", "gemini", "codex"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			tr, err := NewTranslator(name)

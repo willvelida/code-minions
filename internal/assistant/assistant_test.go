@@ -54,6 +54,14 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			mcpConfigPath: ".gemini/settings.json",
 			mcpConfigKey:  "mcpServers",
 		},
+		{
+			name:          "codex uses .agents directories",
+			assistant:     "codex",
+			agentDir:      ".agents/agents",
+			skillDir:      ".agents/skills",
+			mcpConfigPath: ".codex/config.toml",
+			mcpConfigKey:  "mcp_servers",
+		},
 	}
 
 	for _, tt := range tests {
@@ -105,13 +113,13 @@ func TestGetUnknownAssistantReturnsError(t *testing.T) {
 func TestListReturnsAllAssistants(t *testing.T) {
 	names := List()
 
-	// We expect exactly 5 assistants
-	if len(names) != 5 {
-		t.Fatalf("List() returned %d names, want 5", len(names))
+	// We expect exactly 6 assistants
+	if len(names) != 6 {
+		t.Fatalf("List() returned %d names, want 6", len(names))
 	}
 
 	// Check each expected name is present
-	expected := []string{"claude", "copilot", "cursor", "gemini", "opencode"}
+	expected := []string{"claude", "codex", "copilot", "cursor", "gemini", "opencode"}
 	for i, want := range expected {
 		if names[i] != want {
 			t.Errorf("List()[%d]: got %q, want %q", i, names[i], want)
@@ -352,6 +360,20 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			name:      "gemini reverses skills",
 			assistant: "gemini",
 			input:     ".gemini/skills/bar/SKILL.md",
+			expected:  "skills/bar/SKILL.md",
+		},
+
+		// --- Codex: .agents/agents → agents, .agents/skills → skills ---
+		{
+			name:      "codex reverses agents",
+			assistant: "codex",
+			input:     ".agents/agents/foo.md",
+			expected:  "agents/foo.md",
+		},
+		{
+			name:      "codex reverses skills",
+			assistant: "codex",
+			input:     ".agents/skills/bar/SKILL.md",
 			expected:  "skills/bar/SKILL.md",
 		},
 

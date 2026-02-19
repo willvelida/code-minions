@@ -84,6 +84,14 @@ func NewGroupingGenerator(
 			DryRun:   dryRun,
 			Force:    force,
 		}, nil
+	case "codex":
+		return &CodexGrouping{
+			Config:   cfg,
+			Resolved: resolved,
+			Target:   target,
+			DryRun:   dryRun,
+			Force:    force,
+		}, nil
 	default:
 		// For assistants we don't have a specific generator for,
 		// return a no-op generator that doesn't create any files.

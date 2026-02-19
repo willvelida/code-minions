@@ -37,6 +37,8 @@ func NewTranslator(assistant string) (Translator, error) {
 		return &CursorTranslator{}, nil
 	case "gemini":
 		return &GeminiTranslator{}, nil
+	case "codex":
+		return &CodexTranslator{}, nil
 	default:
 		return nil, fmt.Errorf("no MCP translator for assistant %q", assistant)
 	}

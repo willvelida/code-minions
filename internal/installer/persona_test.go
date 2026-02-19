@@ -398,6 +398,67 @@ func TestPersonaInstallerInstallGemini(t *testing.T) {
 	}
 }
 
+func TestPersonaInstallerInstallCodex(t *testing.T) {
+	// This test verifies that installing a persona for Codex:
+	// 1. Copies package files to .agents/agents/ and .agents/skills/
+	// 2. Generates a persona skill at .agents/skills/senior-dev/SKILL.md
+	resolved, _ := testResolvedPersona(t)
+	target := t.TempDir()
+
+	pi := &PersonaInstaller{
+		Resolved:      resolved,
+		AssistantName: "codex",
+		Target:        target,
+		Force:         false,
+		DryRun:        false,
+	}
+
+	result, err := pi.Install()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify Codex-specific file locations
+	expectedFiles := []string{
+		".agents/agents/git-workflow.agent.md",
+		".agents/skills/git-workflow/SKILL.md",
+		".agents/agents/threat-modelling.agent.md",
+		".agents/skills/threat-modelling/SKILL.md",
+	}
+
+	for _, f := range expectedFiles {
+		fullPath := filepath.Join(target, f)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			t.Errorf("expected file to exist: %s", f)
+		}
+	}
+
+	// Verify persona skill was generated (NOT agent)
+	personaSkillPath := filepath.Join(target, ".agents/skills/senior-dev/SKILL.md")
+	data, err := os.ReadFile(personaSkillPath)
+	if err != nil {
+		t.Fatalf("failed to read persona skill: %v", err)
+	}
+
+	content := string(data)
+
+	// Codex skills are plain Markdown — no YAML frontmatter
+	if strings.HasPrefix(content, "---") {
+		t.Error("persona skill should NOT have YAML frontmatter")
+	}
+	// Check body
+	if !strings.Contains(content, "senior-dev") {
+		t.Error("persona skill missing persona name in body")
+	}
+	if !strings.Contains(content, "Git Workflow") {
+		t.Error("persona skill missing package reference")
+	}
+
+	if result.TotalErrors() > 0 {
+		t.Errorf("expected 0 errors, got %d", result.TotalErrors())
+	}
+}
+
 func TestPersonaInstallerDryRun(t *testing.T) {
 	// Dry run should NOT create any files on disk,
 	// but should still report what WOULD be created.
@@ -888,6 +949,12 @@ func TestPersonaGroupingIncludesMCPServers(t *testing.T) {
 			wantFile:  ".gemini/skills/pr-dev/SKILL.md",
 			wantMCP:   []string{"pr-dev", "You are operating as"},
 		},
+		{
+			name:      "codex omits MCP from skill",
+			assistant: "codex",
+			wantFile:  ".agents/skills/pr-dev/SKILL.md",
+			wantMCP:   []string{"pr-dev", "You are operating as"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -926,6 +993,16 @@ func TestPersonaGroupingIncludesMCPServers(t *testing.T) {
 			for _, want := range tt.wantMCP {
 				if !strings.Contains(content, want) {
 					t.Errorf("grouping file missing %q\ngot:\n%s", want, content)
+				}
+			}
+
+			// For skill-based assistants (gemini, codex) that omit MCP,
+			// verify MCP references are actually absent.
+			if strings.Contains(tt.name, "omits MCP") {
+				for _, absent := range []string{"mcpServers", "tools:", "github", "linear"} {
+					if strings.Contains(content, absent) {
+						t.Errorf("skill file should not contain MCP reference %q\ngot:\n%s", absent, content)
+					}
 				}
 			}
 		})
@@ -1064,6 +1141,19 @@ func TestNewGroupingGeneratorGemini(t *testing.T) {
 	}
 	if _, ok := gen.(*GeminiGrouping); !ok {
 		t.Errorf("expected *GeminiGrouping, got %T", gen)
+	}
+}
+
+func TestNewGroupingGeneratorCodex(t *testing.T) {
+	cfg, _ := assistant.Get("codex")
+	resolved, _ := testResolvedPersona(t)
+
+	gen, err := NewGroupingGenerator(cfg, resolved, t.TempDir(), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := gen.(*CodexGrouping); !ok {
+		t.Errorf("expected *CodexGrouping, got %T", gen)
 	}
 }
 
