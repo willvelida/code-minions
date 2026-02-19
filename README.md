@@ -128,6 +128,8 @@ code-minions install --package git-workflow --quiet
 
 When installing packages, an `AGENTS.md` file is automatically created if one does not already exist. Existing `AGENTS.md` files are never overwritten.
 
+When installing with `--for claude`, a `CLAUDE.md` file is also generated at the project root. This file uses Claude Code's native `@path/to/file` import syntax to reference installed skills and agents, giving Claude Code direct visibility into your installed capabilities. Like `AGENTS.md`, existing `CLAUDE.md` files are never overwritten.
+
 ### Uninstalling
 
 ```bash
@@ -144,7 +146,7 @@ code-minions uninstall --for copilot --yes
 code-minions uninstall --package git-workflow --dry-run
 ```
 
-The uninstall command prompts for confirmation before removing files. You will also be prompted separately before `AGENTS.md` is removed. In non-interactive environments (no TTY), the command aborts unless `--yes` is passed.
+The uninstall command prompts for confirmation before removing files. You will also be prompted separately before `AGENTS.md` is removed. When uninstalling with `--for claude`, you will also be prompted before `CLAUDE.md` is removed. In non-interactive environments (no TTY), the command aborts unless `--yes` is passed.
 
 ### Uninstall flags
 
@@ -176,7 +178,7 @@ code-minions update --package developer-mentor --for copilot
 code-minions update --package threat-modelling --dry-run
 ```
 
-Update overwrites installed files with the latest embedded content. When run with no flags, only packages already present in the target directory are updated — no new packages are installed. `AGENTS.md` is not modified during updates.
+Update overwrites installed files with the latest embedded content. When run with no flags, only packages already present in the target directory are updated — no new packages are installed. `AGENTS.md` and `CLAUDE.md` are not modified during updates.
 
 ### Update flags
 
@@ -213,7 +215,7 @@ code-minions transfer --from claude --to opencode --target ./my-project
 
 Files are copied by default — the source layout is left in place. Use `--cleanup` to delete the source files after a successful copy.
 
-MCP server configurations are automatically translated between the source and target formats when present. An `AGENTS.md` routing file is always regenerated (not copied) in the target layout because it contains assistant-specific paths.
+MCP server configurations are automatically translated between the source and target formats when present. An `AGENTS.md` routing file is always regenerated (not copied) in the target layout because it contains assistant-specific paths. When transferring to Claude, a `CLAUDE.md` file is also regenerated with the correct `@import` references for the target layout.
 
 ### Transfer flags
 

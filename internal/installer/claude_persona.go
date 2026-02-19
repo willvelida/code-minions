@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -38,7 +39,8 @@ func (g *ClaudeGrouping) SetMCPServers(servers []string) {
 }
 
 // Generate creates the persona subagent file at
-// .claude/agents/<persona-name>.agent.md
+// .claude/agents/<persona-name>.agent.md and a CLAUDE.md instructions
+// file at the project root.
 func (g *ClaudeGrouping) Generate() ([]string, error) {
 	persona := g.Resolved.Persona
 
@@ -56,7 +58,31 @@ func (g *ClaudeGrouping) Generate() ([]string, error) {
 		return nil, err
 	}
 
-	return []string{outputPath}, nil
+	generatedFiles := []string{outputPath}
+
+	// Generate CLAUDE.md at the project root.
+	// This is Claude Code's primary instructions file — it uses
+	// @import syntax to reference the skill files we just installed.
+	// We only create it if it doesn't already exist (never-overwrite
+	// semantics, same as AGENTS.md).
+	if g.Config.InstructionsPath != "" {
+		claudeMDContent := BuildClaudeMDForPersona(g.Resolved, g.Config)
+		handler := &InstructionsFileHandler{
+			Target:   g.Target,
+			DryRun:   g.DryRun,
+			FileName: g.Config.InstructionsPath,
+			Stdout:   io.Discard,
+		}
+		action, err := handler.OnInstall([]byte(claudeMDContent))
+		if err != nil {
+			return generatedFiles, fmt.Errorf("failed to create %s: %w", g.Config.InstructionsPath, err)
+		}
+		if action == "created" {
+			generatedFiles = append(generatedFiles, g.Config.InstructionsPath)
+		}
+	}
+
+	return generatedFiles, nil
 }
 
 // buildAgentContent generates the full Markdown content for the

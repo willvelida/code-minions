@@ -254,6 +254,26 @@ files are found in the correct assistant-specific location.`,
 					}
 				}
 
+				// Handle assistant-specific instructions file (e.g. CLAUDE.md)
+				if forFlag != "" && len(packageDirs) > 0 {
+					cfg, cfgErr := assistant.Get(forFlag)
+					if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+						instrHandler := &installer.InstructionsFileHandler{
+							Target:   target,
+							DryRun:   dryRun,
+							FileName: cfg.InstructionsPath,
+							Stdin:    strings.NewReader("n\n"),
+							Stdout:   io.Discard,
+						}
+						instrAction, instrErr := instrHandler.OnUninstall()
+						if instrErr != nil {
+							combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
+						} else if instrAction == "removed" {
+							combinedResult.Removed = append(combinedResult.Removed, cfg.InstructionsPath)
+						}
+					}
+				}
+
 				removed := combinedResult.Removed
 				if removed == nil {
 					removed = []string{}
@@ -318,6 +338,27 @@ files are found in the correct assistant-specific location.`,
 						combinedResult.Removed = append(combinedResult.Removed, agentsMDPath)
 					}
 				}
+
+				// Handle assistant-specific instructions file (e.g. CLAUDE.md)
+				if forFlag != "" && len(packageDirs) > 0 {
+					cfg, cfgErr := assistant.Get(forFlag)
+					if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+						instrHandler := &installer.InstructionsFileHandler{
+							Target:   target,
+							DryRun:   dryRun,
+							FileName: cfg.InstructionsPath,
+							Stdin:    strings.NewReader("n\n"),
+							Stdout:   io.Discard,
+						}
+						instrAction, instrErr := instrHandler.OnUninstall()
+						if instrErr != nil {
+							combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
+						} else if instrAction == "removed" {
+							combinedResult.Removed = append(combinedResult.Removed, cfg.InstructionsPath)
+						}
+					}
+				}
+
 				for _, e := range combinedResult.Errors {
 					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
 				}
@@ -392,6 +433,27 @@ files are found in the correct assistant-specific location.`,
 					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", err)
 				} else if action == "removed" {
 					_, _ = green.Printf("  removed: %s\n", agentsMDPath)
+				}
+			}
+
+			// Handle assistant-specific instructions file (e.g. CLAUDE.md)
+			if forFlag != "" && len(packageDirs) > 0 {
+				cfg, cfgErr := assistant.Get(forFlag)
+				if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+					instrHandler := &installer.InstructionsFileHandler{
+						Target:   target,
+						DryRun:   dryRun,
+						FileName: cfg.InstructionsPath,
+						Stdin:    os.Stdin,
+						Stdout:   os.Stdout,
+					}
+					instrAction, instrErr := instrHandler.OnUninstall()
+					if instrErr != nil {
+						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
+						_, _ = red.Fprintf(os.Stderr, "  error: %s\n", instrErr)
+					} else if instrAction == "removed" {
+						_, _ = green.Printf("  removed: %s\n", cfg.InstructionsPath)
+					}
 				}
 			}
 

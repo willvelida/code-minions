@@ -214,6 +214,40 @@ func TestPersonaInstallerInstallClaude(t *testing.T) {
 		t.Error("persona agent missing package reference")
 	}
 
+	// Verify CLAUDE.md was generated at the project root
+	claudeMDPath := filepath.Join(target, "CLAUDE.md")
+	claudeData, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		t.Fatalf("failed to read CLAUDE.md: %v", err)
+	}
+
+	claudeContent := string(claudeData)
+
+	if !strings.Contains(claudeContent, "# Project Instructions") {
+		t.Error("CLAUDE.md missing header")
+	}
+	if !strings.Contains(claudeContent, "@.claude/skills/git-workflow/SKILL.md") {
+		t.Error("CLAUDE.md missing @import for git-workflow skill")
+	}
+	if !strings.Contains(claudeContent, "@.claude/skills/threat-modelling/SKILL.md") {
+		t.Error("CLAUDE.md missing @import for threat-modelling skill")
+	}
+	if !strings.Contains(claudeContent, "@.claude/agents/senior-dev.agent.md") {
+		t.Error("CLAUDE.md missing @import for persona agent")
+	}
+
+	// Verify CLAUDE.md appears in generated files
+	foundClaudeMD := false
+	for _, f := range result.GeneratedFiles {
+		if f == "CLAUDE.md" {
+			foundClaudeMD = true
+			break
+		}
+	}
+	if !foundClaudeMD {
+		t.Errorf("CLAUDE.md not in GeneratedFiles: %v", result.GeneratedFiles)
+	}
+
 	if result.TotalErrors() > 0 {
 		t.Errorf("expected 0 errors, got %d", result.TotalErrors())
 	}
