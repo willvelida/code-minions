@@ -47,6 +47,15 @@ var configs = map[string]Config{
 		MCPConfigKey:     "mcp",
 		InstructionsPath: ".opencode/instructions.md",
 	},
+	"cursor": {
+		Name:             "cursor",
+		Description:      "Cursor",
+		AgentDir:         ".cursor/agents",
+		SkillDir:         ".cursor/skills",
+		MCPConfigPath:    ".cursor/mcp.json",
+		MCPConfigKey:     "mcpServers",
+		InstructionsPath: ".cursor/rules/instructions.mdc",
+	},
 }
 
 // Get returns the configuration for the named assistant, or an error if the

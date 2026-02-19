@@ -100,7 +100,7 @@ func TestListJSON(t *testing.T) {
 	for _, a := range result.Assistants {
 		aNames[a.Name] = true
 	}
-	for _, want := range []string{"copilot", "claude", "opencode"} {
+	for _, want := range []string{"copilot", "claude", "cursor", "opencode"} {
 		if !aNames[want] {
 			t.Errorf("expected assistant %q in output", want)
 		}

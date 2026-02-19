@@ -276,6 +276,67 @@ func TestPersonaInstallerInstallOpenCode(t *testing.T) {
 	}
 }
 
+func TestPersonaInstallerInstallCursor(t *testing.T) {
+	// This test verifies that installing a persona for Cursor:
+	// 1. Copies files to .cursor/agents/ and .cursor/skills/
+	// 2. Generates a persona agent at .cursor/agents/senior-dev.agent.md
+	resolved, _ := testResolvedPersona(t)
+	target := t.TempDir()
+
+	pi := &PersonaInstaller{
+		Resolved:      resolved,
+		AssistantName: "cursor",
+		Target:        target,
+		Force:         false,
+		DryRun:        false,
+	}
+
+	result, err := pi.Install()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify Cursor-specific file locations
+	expectedFiles := []string{
+		".cursor/agents/git-workflow.agent.md",
+		".cursor/skills/git-workflow/SKILL.md",
+		".cursor/agents/threat-modelling.agent.md",
+		".cursor/skills/threat-modelling/SKILL.md",
+	}
+
+	for _, f := range expectedFiles {
+		fullPath := filepath.Join(target, f)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			t.Errorf("expected file to exist: %s", f)
+		}
+	}
+
+	// Verify persona agent was generated
+	personaAgentPath := filepath.Join(target, ".cursor/agents/senior-dev.agent.md")
+	data, err := os.ReadFile(personaAgentPath)
+	if err != nil {
+		t.Fatalf("failed to read persona agent: %v", err)
+	}
+
+	content := string(data)
+
+	// Check frontmatter
+	if !strings.Contains(content, "description:") {
+		t.Error("persona agent missing frontmatter description")
+	}
+	// Check body
+	if !strings.Contains(content, "senior-dev") {
+		t.Error("persona agent missing persona name in body")
+	}
+	if !strings.Contains(content, "Git Workflow") {
+		t.Error("persona agent missing package reference")
+	}
+
+	if result.TotalErrors() > 0 {
+		t.Errorf("expected 0 errors, got %d", result.TotalErrors())
+	}
+}
+
 func TestPersonaInstallerDryRun(t *testing.T) {
 	// Dry run should NOT create any files on disk,
 	// but should still report what WOULD be created.
@@ -754,6 +815,12 @@ func TestPersonaGroupingIncludesMCPServers(t *testing.T) {
 			wantFile:  ".opencode/agents/pr-dev.md",
 			wantMCP:   []string{"github_*: true", "linear_*: true"},
 		},
+		{
+			name:      "cursor includes MCP servers",
+			assistant: "cursor",
+			wantFile:  ".cursor/agents/pr-dev.agent.md",
+			wantMCP:   []string{"mcpServers:", "github", "linear"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -904,6 +971,19 @@ func TestNewGroupingGeneratorOpenCode(t *testing.T) {
 	}
 	if _, ok := gen.(*OpenCodeGrouping); !ok {
 		t.Errorf("expected *OpenCodeGrouping, got %T", gen)
+	}
+}
+
+func TestNewGroupingGeneratorCursor(t *testing.T) {
+	cfg, _ := assistant.Get("cursor")
+	resolved, _ := testResolvedPersona(t)
+
+	gen, err := NewGroupingGenerator(cfg, resolved, t.TempDir(), false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := gen.(*CursorGrouping); !ok {
+		t.Errorf("expected *CursorGrouping, got %T", gen)
 	}
 }
 
