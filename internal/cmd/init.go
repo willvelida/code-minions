@@ -169,12 +169,12 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 		green := color.New(color.FgGreen)
 
 		_, _ = green.Fprintln(out, "✓ Created code-minions.yml")
-		fmt.Fprintln(out)
+		_, _ = fmt.Fprintln(out)
 		_, _ = bold.Fprintf(out, "  Project:   %s\n", projectName)
 		_, _ = bold.Fprintf(out, "  Assistant: %s\n", chosenAssistant)
 		_, _ = bold.Fprintf(out, "  Packages:  %s\n", strings.Join(chosenPackages, ", "))
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, "Run 'code-minions install' to install the declared packages.")
+		_, _ = fmt.Fprintln(out)
+		_, _ = fmt.Fprintln(out, "Run 'code-minions install' to install the declared packages.")
 	}
 
 	// --- Step 9: Offer to install ---
@@ -188,12 +188,16 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 			return err
 		}
 		if ok {
-			fmt.Fprintln(cmd.OutOrStdout())
+			_, _ = fmt.Fprintln(cmd.OutOrStdout())
 			// Re-invoke install by finding the root command and executing it
 			root := cmd.Root()
 			installArgs := []string{"install"}
 			if chosenAssistant != "" {
 				installArgs = append(installArgs, "--for", chosenAssistant)
+			}
+			// Ensure install runs against the same target directory
+			if opts.target != "" && opts.target != "." {
+				installArgs = append(installArgs, "--target", opts.target)
 			}
 			root.SetArgs(installArgs)
 			return root.Execute()
@@ -267,6 +271,7 @@ func validatePackageNames(input string, available []model.Package) ([]string, er
 	}
 
 	parts := strings.Split(input, ",")
+	seen := make(map[string]bool)
 	var selected []string
 	for _, part := range parts {
 		name := strings.TrimSpace(part)
@@ -280,7 +285,10 @@ func validatePackageNames(input string, available []model.Package) ([]string, er
 			}
 			return nil, fmt.Errorf("unknown package %q, available: %s", name, strings.Join(validList, ", "))
 		}
-		selected = append(selected, name)
+		if !seen[name] {
+			seen[name] = true
+			selected = append(selected, name)
+		}
 	}
 
 	if len(selected) == 0 {

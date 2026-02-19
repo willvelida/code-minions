@@ -113,7 +113,7 @@ func TestExistsReturnsTrueForExistingFile(t *testing.T) {
 	}
 }
 
-func TestLoadReturnZeroValueForMissingFile(t *testing.T) {
+func TestLoadReturnsZeroValueForMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nonexistent.yml")
 
 	m, err := Load(path)
