@@ -229,7 +229,7 @@ AGENTS.md is not modified during updates.`,
 	cmd.Flags().String("target", ".", "Target directory for update")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to update (omit to auto-detect installed packages)")
 	cmd.Flags().String("persona", "", "Update a persona (re-install all its packages with latest content)")
-	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, cursor, opencode)")
+	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
 
 	return cmd

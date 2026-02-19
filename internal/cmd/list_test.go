@@ -106,10 +106,12 @@ func TestListCommandOutputContainsAssistants(t *testing.T) {
 		"copilot",
 		"claude",
 		"cursor",
+		"gemini",
 		"opencode",
 		"GitHub Copilot",
 		"Claude Code",
 		"Cursor",
+		"Gemini CLI",
 		"OpenCode",
 	}
 	for _, want := range expected {

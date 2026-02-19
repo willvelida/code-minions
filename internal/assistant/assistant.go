@@ -56,6 +56,15 @@ var configs = map[string]Config{
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: ".cursor/rules/instructions.mdc",
 	},
+	"gemini": {
+		Name:             "gemini",
+		Description:      "Gemini CLI",
+		AgentDir:         ".gemini/agents", // package agent files (reference only — Gemini has no native agents dir)
+		SkillDir:         ".gemini/skills", // skills AND persona grouping target
+		MCPConfigPath:    ".gemini/settings.json",
+		MCPConfigKey:     "mcpServers",
+		InstructionsPath: "GEMINI.md",
+	},
 }
 
 // Get returns the configuration for the named assistant, or an error if the
@@ -78,6 +87,14 @@ func List() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// FlagUsage returns a comma-separated list of all registered assistant
+// names, suitable for embedding in --for / --from / --to flag help text.
+// The list is sorted alphabetically and built from the registry so it
+// stays in sync automatically when assistants are added or removed.
+func FlagUsage() string {
+	return strings.Join(List(), ", ")
 }
 
 // NewPathMapper returns a function that remaps file paths from the

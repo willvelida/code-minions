@@ -35,6 +35,8 @@ func NewTranslator(assistant string) (Translator, error) {
 		return &OpenCodeTranslator{}, nil
 	case "cursor":
 		return &CursorTranslator{}, nil
+	case "gemini":
+		return &GeminiTranslator{}, nil
 	default:
 		return nil, fmt.Errorf("no MCP translator for assistant %q", assistant)
 	}

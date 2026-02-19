@@ -46,6 +46,14 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			mcpConfigPath: ".cursor/mcp.json",
 			mcpConfigKey:  "mcpServers",
 		},
+		{
+			name:          "gemini uses .gemini directories",
+			assistant:     "gemini",
+			agentDir:      ".gemini/agents",
+			skillDir:      ".gemini/skills",
+			mcpConfigPath: ".gemini/settings.json",
+			mcpConfigKey:  "mcpServers",
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,17 +105,33 @@ func TestGetUnknownAssistantReturnsError(t *testing.T) {
 func TestListReturnsAllAssistants(t *testing.T) {
 	names := List()
 
-	// We expect exactly 4 assistants
-	if len(names) != 4 {
-		t.Fatalf("List() returned %d names, want 4", len(names))
+	// We expect exactly 5 assistants
+	if len(names) != 5 {
+		t.Fatalf("List() returned %d names, want 5", len(names))
 	}
 
 	// Check each expected name is present
-	expected := []string{"claude", "copilot", "cursor", "opencode"}
+	expected := []string{"claude", "copilot", "cursor", "gemini", "opencode"}
 	for i, want := range expected {
 		if names[i] != want {
 			t.Errorf("List()[%d]: got %q, want %q", i, names[i], want)
 		}
+	}
+}
+
+func TestFlagUsageContainsAllAssistants(t *testing.T) {
+	usage := FlagUsage()
+
+	// Should contain every registered assistant name
+	for _, name := range List() {
+		if !strings.Contains(usage, name) {
+			t.Errorf("FlagUsage() should contain %q, got: %s", name, usage)
+		}
+	}
+
+	// Should be comma-separated
+	if usage != strings.Join(List(), ", ") {
+		t.Errorf("FlagUsage() = %q, want %q", usage, strings.Join(List(), ", "))
 	}
 }
 
@@ -198,6 +222,20 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			assistant: "cursor",
 			input:     "skills/my-skill/SKILL.md",
 			expected:  ".cursor/skills/my-skill/SKILL.md",
+		},
+
+		// --- Gemini: agents and skills remap to .gemini/ ---
+		{
+			name:      "gemini remaps agents",
+			assistant: "gemini",
+			input:     "agents/my-agent.md",
+			expected:  ".gemini/agents/my-agent.md",
+		},
+		{
+			name:      "gemini remaps skills",
+			assistant: "gemini",
+			input:     "skills/my-skill/SKILL.md",
+			expected:  ".gemini/skills/my-skill/SKILL.md",
 		},
 
 		// --- Edge cases ---
@@ -300,6 +338,20 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			name:      "cursor reverses skills",
 			assistant: "cursor",
 			input:     ".cursor/skills/bar/SKILL.md",
+			expected:  "skills/bar/SKILL.md",
+		},
+
+		// --- Gemini: .gemini/agents → agents, .gemini/skills → skills ---
+		{
+			name:      "gemini reverses agents",
+			assistant: "gemini",
+			input:     ".gemini/agents/foo.md",
+			expected:  "agents/foo.md",
+		},
+		{
+			name:      "gemini reverses skills",
+			assistant: "gemini",
+			input:     ".gemini/skills/bar/SKILL.md",
 			expected:  "skills/bar/SKILL.md",
 		},
 
