@@ -434,8 +434,12 @@ func TestGeminiTranslator_HTTP(t *testing.T) {
 	}
 
 	api := servers["remote-api"].(map[string]any)
-	if api["url"] != "https://mcp.example.com/v1" {
-		t.Errorf("url: got %v", api["url"])
+	// Gemini uses "httpUrl" for streamable-http (not "url" + "type": "http")
+	if api["httpUrl"] != "https://mcp.example.com/v1" {
+		t.Errorf("httpUrl: got %v", api["httpUrl"])
+	}
+	if _, hasURL := api["url"]; hasURL {
+		t.Error("streamable-http should use httpUrl, not url")
 	}
 }
 

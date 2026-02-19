@@ -9,45 +9,46 @@ import (
 	"github.com/willvelida/code-minions/internal/registry"
 )
 
-// GeminiGrouping generates a persona agent file for Gemini CLI.
+// GeminiGrouping generates a persona skill file for Gemini CLI.
 //
-// Gemini CLI discovers context from GEMINI.md and the .gemini/
-// directory. Agents are placed in .gemini/agents/ as Markdown files
-// with YAML frontmatter. Skills go in .gemini/skills/.
+// Gemini CLI discovers skills from .gemini/skills/<name>/SKILL.md.
+// Skills provide passive context — instructions that are loaded
+// automatically when the skill is enabled.
 //
-// Gemini's agent discovery model is similar to Claude Code and
-// Cursor — agents are Markdown files with YAML frontmatter
-// describing the agent's purpose and capabilities. MCP server
-// references use the mcpServers: key in the frontmatter, matching
-// Gemini's MCP config format.
+// Unlike Claude/Copilot/Cursor, Gemini doesn't have an agents/
+// directory. Personas map to skills because a persona is essentially
+// a set of instructions describing a role and its capabilities —
+// exactly what a Gemini skill is.
 //
-// Generated file: .gemini/agents/<persona-name>.agent.md
+// MCP server references are NOT included in the skill file. Gemini
+// configures MCP servers in .gemini/settings.json, and skills don't
+// reference them directly.
+//
+// Generated file: .gemini/skills/<persona-name>/SKILL.md
 type GeminiGrouping struct {
 	Config     *assistant.Config
 	Resolved   *registry.ResolvedPersona
 	Target     string
 	DryRun     bool
 	Force      bool
-	MCPServers []string // MCP server names (set via SetMCPServers)
+	MCPServers []string // Unused for Gemini (no frontmatter references)
 }
 
-// SetMCPServers provides MCP server names for frontmatter generation.
-// Gemini uses mcpServers: in YAML frontmatter — each entry is a
-// server name referencing an already-configured server in
-// .gemini/settings.json.
+// SetMCPServers is a no-op for Gemini. MCP servers are configured in
+// .gemini/settings.json — skill files don't reference them.
 func (g *GeminiGrouping) SetMCPServers(servers []string) {
 	g.MCPServers = servers
 }
 
-// Generate creates the persona agent file at
-// .gemini/agents/<persona-name>.agent.md
+// Generate creates the persona skill file at
+// .gemini/skills/<persona-name>/SKILL.md
 func (g *GeminiGrouping) Generate() ([]string, error) {
 	persona := g.Resolved.Persona
 
-	content := g.buildAgentContent()
+	content := g.buildSkillContent()
 
-	// For Gemini: .gemini/agents/senior-dev.agent.md
-	outputPath := path.Join(g.Config.AgentDir, persona.Name+".agent.md")
+	// For Gemini: .gemini/skills/senior-dev/SKILL.md
+	outputPath := path.Join(g.Config.SkillDir, persona.Name, "SKILL.md")
 
 	err := writeGeneratedFile(g.Target, outputPath, []byte(content), g.DryRun, g.Force)
 	if err != nil {
@@ -57,32 +58,20 @@ func (g *GeminiGrouping) Generate() ([]string, error) {
 	return []string{outputPath}, nil
 }
 
-// buildAgentContent generates the full Markdown content for the
-// persona agent, including YAML frontmatter.
-func (g *GeminiGrouping) buildAgentContent() string {
+// buildSkillContent generates plain Markdown content for the persona
+// skill. Gemini skills are plain Markdown — no YAML frontmatter.
+func (g *GeminiGrouping) buildSkillContent() string {
 	persona := g.Resolved.Persona
 
 	var sb strings.Builder
 
-	// YAML frontmatter — Gemini reads this to discover and
-	// describe the agent.
-	sb.WriteString("---\n")
-	fmt.Fprintf(&sb, "description: %s\n", escapeYAMLValue(persona.Description))
-
-	// MCP server references — tells Gemini which MCP servers
-	// this persona can use. Each entry references a server name
-	// already configured in .gemini/settings.json.
-	if len(g.MCPServers) > 0 {
-		sb.WriteString("mcpServers:\n")
-		for _, server := range g.MCPServers {
-			fmt.Fprintf(&sb, "  - %s\n", server)
-		}
-	}
-
-	sb.WriteString("---\n\n")
-
-	// Agent title
+	// Skill title
 	fmt.Fprintf(&sb, "# %s\n\n", persona.Name)
+
+	// Description
+	if persona.Description != "" {
+		fmt.Fprintf(&sb, "%s\n\n", strings.TrimSpace(persona.Description))
+	}
 
 	// Body text — describes the persona's capabilities
 	fmt.Fprintf(&sb, "You are operating as the **%s** persona. You have the following capabilities:\n\n", persona.Name)

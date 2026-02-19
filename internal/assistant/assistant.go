@@ -59,8 +59,8 @@ var configs = map[string]Config{
 	"gemini": {
 		Name:             "gemini",
 		Description:      "Gemini CLI",
-		AgentDir:         ".gemini/agents",
-		SkillDir:         ".gemini/skills",
+		AgentDir:         ".gemini/agents", // package agent files (reference only — Gemini has no native agents dir)
+		SkillDir:         ".gemini/skills", // skills AND persona grouping target
 		MCPConfigPath:    ".gemini/settings.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: "GEMINI.md",

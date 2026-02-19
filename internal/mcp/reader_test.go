@@ -655,6 +655,33 @@ func TestGeminiReader_HTTPServer(t *testing.T) {
 	}
 }
 
+func TestGeminiReader_StreamableHTTPServer(t *testing.T) {
+	input := `{
+  "mcpServers": {
+    "api": {
+      "httpUrl": "https://mcp.example.com/v1",
+      "headers": { "Authorization": "Bearer token" }
+    }
+  }
+}`
+	r := &GeminiReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s := cfg.Servers["api"]
+	if s.Transport != TransportStreamableHTTP {
+		t.Errorf("transport: got %q, want %q", s.Transport, TransportStreamableHTTP)
+	}
+	if s.URL != "https://mcp.example.com/v1" {
+		t.Errorf("url: got %q", s.URL)
+	}
+	if s.Headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", s.Headers)
+	}
+}
+
 func TestGeminiReader_NoMCPServersKey(t *testing.T) {
 	input := `{ "settings": {} }`
 	r := &GeminiReader{}
@@ -857,6 +884,42 @@ func TestRoundTrip_GeminiReadWrite(t *testing.T) {
 	cfg, _, err := reader.Read([]byte(input))
 	if err != nil {
 		t.Fatalf("read: %v", err)
+	}
+
+	writer := &GeminiTranslator{}
+	servers, _, err := writer.Translate(cfg)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	translated, _ := json.Marshal(map[string]any{"mcpServers": servers})
+	cfg2, _, err := reader.Read(translated)
+	if err != nil {
+		t.Fatalf("re-read: %v", err)
+	}
+
+	assertConfigsEqual(t, cfg, cfg2)
+}
+
+// TestRoundTrip_GeminiStreamableHTTP round-trips a streamable-http server
+// through Gemini's httpUrl format.
+func TestRoundTrip_GeminiStreamableHTTP(t *testing.T) {
+	input := `{
+  "mcpServers": {
+    "api": {
+      "httpUrl": "https://mcp.example.com/v1",
+      "headers": { "Authorization": "Bearer token" }
+    }
+  }
+}`
+	reader := &GeminiReader{}
+	cfg, _, err := reader.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	if cfg.Servers["api"].Transport != TransportStreamableHTTP {
+		t.Fatalf("expected streamable-http, got %q", cfg.Servers["api"].Transport)
 	}
 
 	writer := &GeminiTranslator{}

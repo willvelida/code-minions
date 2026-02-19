@@ -20,9 +20,15 @@ import (
 //	  }
 //	}
 //
-// Gemini CLI uses the same JSON schema as Claude Code and Cursor for
-// MCP servers (mcpServers key, command/args/env for stdio, url for
-// HTTP/SSE) but stores the config in .gemini/settings.json.
+// Gemini CLI stores MCP config in .gemini/settings.json under the
+// "mcpServers" key. Unlike Copilot/Claude (which use "type": "http"
+// to distinguish streamable-http from SSE), Gemini uses separate
+// field names:
+//   - "command" + "args" + "env" → stdio
+//   - "url"     → SSE (SSEClientTransport)
+//   - "httpUrl"  → Streamable HTTP (StreamableHTTPClientTransport)
+//
+// Headers work with both "url" and "httpUrl".
 type GeminiTranslator struct{}
 
 func (g *GeminiTranslator) ConfigPath() string { return ".gemini/settings.json" }
@@ -46,10 +52,23 @@ func (g *GeminiTranslator) Translate(cfg *Config) (map[string]any, []string, err
 			}
 			servers[name] = entry
 
-		case TransportSSE, TransportStreamableHTTP:
-			// Gemini CLI supports HTTP-based MCP servers via url
+		case TransportSSE:
+			// Gemini uses "url" for SSE transport
 			entry := map[string]any{
 				"url": s.URL,
+			}
+			if len(s.Headers) > 0 {
+				entry["headers"] = s.Headers
+			}
+			if len(s.Env) > 0 {
+				entry["env"] = s.Env
+			}
+			servers[name] = entry
+
+		case TransportStreamableHTTP:
+			// Gemini uses "httpUrl" for streamable-http transport
+			entry := map[string]any{
+				"httpUrl": s.URL,
 			}
 			if len(s.Headers) > 0 {
 				entry["headers"] = s.Headers
@@ -69,17 +88,14 @@ func (g *GeminiTranslator) Translate(cfg *Config) (map[string]any, []string, err
 
 // GeminiReader parses Gemini CLI's .gemini/settings.json format.
 //
-// Gemini format:
+// Gemini uses different field names to distinguish transports:
+//   - "command" + "args" → stdio
+//   - "url"              → SSE
+//   - "httpUrl"           → streamable HTTP
 //
-//	{
-//	  "mcpServers": {
-//	    "github": {
-//	      "command": "npx",
-//	      "args": ["-y", "@modelcontextprotocol/server-github"],
-//	      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "" }
-//	    }
-//	  }
-//	}
+// This differs from Copilot/Claude which use "type": "http" as a
+// discriminator. We therefore cannot use readStandardFormat() and
+// need Gemini-specific parsing.
 type GeminiReader struct{}
 
 func (r *GeminiReader) ConfigPath() string { return ".gemini/settings.json" }
@@ -101,5 +117,66 @@ func (r *GeminiReader) Read(data []byte) (*Config, []string, error) {
 		return nil, nil, fmt.Errorf("failed to parse Gemini mcpServers: %w", err)
 	}
 
-	return readStandardFormat(servers, "Gemini")
+	return readGeminiFormat(servers)
+}
+
+// readGeminiFormat parses Gemini's MCP server entries. Transport is
+// determined by which URL field is present:
+//   - "httpUrl" → streamable-http
+//   - "url"     → SSE
+//   - "command" → stdio
+func readGeminiFormat(servers map[string]map[string]any) (*Config, []string, error) {
+	cfg := &Config{Servers: make(map[string]Server)}
+	var warnings []string
+
+	names := sortedKeys(servers)
+
+	for _, name := range names {
+		entry := servers[name]
+		s := Server{}
+
+		if httpURL, ok := entry["httpUrl"].(string); ok && httpURL != "" {
+			// httpUrl → streamable-http transport
+			s.Transport = TransportStreamableHTTP
+			s.URL = httpURL
+		} else if url, ok := entry["url"].(string); ok && url != "" {
+			// url → SSE transport
+			s.Transport = TransportSSE
+			s.URL = url
+		} else {
+			// Fallback: stdio transport
+			s.Transport = TransportStdio
+			command, _ := entry["command"].(string)
+			if command == "" {
+				warnings = append(warnings, fmt.Sprintf("server %q: missing command/url/httpUrl in Gemini config, skipping", name))
+				continue
+			}
+			s.Command = command
+
+			// Args
+			if argsRaw, ok := entry["args"]; ok {
+				if args, err := toStringSlice(argsRaw); err == nil {
+					s.Args = args
+				}
+			}
+		}
+
+		// Headers (applies to both url and httpUrl)
+		if headersRaw, ok := entry["headers"]; ok {
+			if headersMap, err := toStringMap(headersRaw); err == nil {
+				s.Headers = headersMap
+			}
+		}
+
+		// Env
+		if envRaw, ok := entry["env"]; ok {
+			if envMap, err := toStringMap(envRaw); err == nil {
+				s.Env = envMap
+			}
+		}
+
+		cfg.Servers[name] = s
+	}
+
+	return cfg, warnings, nil
 }

@@ -339,8 +339,8 @@ func TestPersonaInstallerInstallCursor(t *testing.T) {
 
 func TestPersonaInstallerInstallGemini(t *testing.T) {
 	// This test verifies that installing a persona for Gemini:
-	// 1. Copies files to .gemini/agents/ and .gemini/skills/
-	// 2. Generates a persona agent at .gemini/agents/senior-dev.agent.md
+	// 1. Copies package files to .gemini/agents/ and .gemini/skills/
+	// 2. Generates a persona skill at .gemini/skills/senior-dev/SKILL.md
 	resolved, _ := testResolvedPersona(t)
 	target := t.TempDir()
 
@@ -372,25 +372,25 @@ func TestPersonaInstallerInstallGemini(t *testing.T) {
 		}
 	}
 
-	// Verify persona agent was generated
-	personaAgentPath := filepath.Join(target, ".gemini/agents/senior-dev.agent.md")
-	data, err := os.ReadFile(personaAgentPath)
+	// Verify persona skill was generated (NOT agent)
+	personaSkillPath := filepath.Join(target, ".gemini/skills/senior-dev/SKILL.md")
+	data, err := os.ReadFile(personaSkillPath)
 	if err != nil {
-		t.Fatalf("failed to read persona agent: %v", err)
+		t.Fatalf("failed to read persona skill: %v", err)
 	}
 
 	content := string(data)
 
-	// Check frontmatter
-	if !strings.Contains(content, "description:") {
-		t.Error("persona agent missing frontmatter description")
+	// Gemini skills are plain Markdown — no YAML frontmatter
+	if strings.HasPrefix(content, "---") {
+		t.Error("persona skill should NOT have YAML frontmatter")
 	}
 	// Check body
 	if !strings.Contains(content, "senior-dev") {
-		t.Error("persona agent missing persona name in body")
+		t.Error("persona skill missing persona name in body")
 	}
 	if !strings.Contains(content, "Git Workflow") {
-		t.Error("persona agent missing package reference")
+		t.Error("persona skill missing package reference")
 	}
 
 	if result.TotalErrors() > 0 {
@@ -883,10 +883,10 @@ func TestPersonaGroupingIncludesMCPServers(t *testing.T) {
 			wantMCP:   []string{"mcpServers:", "github", "linear"},
 		},
 		{
-			name:      "gemini includes MCP servers",
+			name:      "gemini omits MCP from skill",
 			assistant: "gemini",
-			wantFile:  ".gemini/agents/pr-dev.agent.md",
-			wantMCP:   []string{"mcpServers:", "github", "linear"},
+			wantFile:  ".gemini/skills/pr-dev/SKILL.md",
+			wantMCP:   []string{"pr-dev", "You are operating as"},
 		},
 	}
 
