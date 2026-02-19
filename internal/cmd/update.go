@@ -64,8 +64,9 @@ AGENTS.md is not modified during updates.`,
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			// When --package is provided, use buildPackageList (same as install).
-			// When no flags are provided, detect what's already installed.
+			// When --package is provided, validate and resolve the explicit list.
+			// When omitted, update only what is already installed (unlike install,
+			// which falls through to the manifest or all packages).
 			var packageDirs []string
 			if packageFlag != "" {
 				var err error
