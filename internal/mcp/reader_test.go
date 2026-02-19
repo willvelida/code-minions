@@ -1075,7 +1075,7 @@ GITHUB_PERSONAL_ACCESS_TOKEN = ""
 
 	// Re-read: build TOML by translating servers back through reader
 	// We need to wrap in the expected top-level key for TOML parsing
-	tomlInput := buildCodexTOML(servers)
+	tomlInput := buildCodexTOML(t, servers)
 	cfg2, _, err := reader.Read([]byte(tomlInput))
 	if err != nil {
 		t.Fatalf("re-read: %v", err)
@@ -1111,7 +1111,7 @@ Authorization = "Bearer token"
 		t.Fatalf("translate: %v", err)
 	}
 
-	tomlInput := buildCodexTOML(servers)
+	tomlInput := buildCodexTOML(t, servers)
 	cfg2, _, err := reader.Read([]byte(tomlInput))
 	if err != nil {
 		t.Fatalf("re-read: %v", err)
@@ -1122,11 +1122,14 @@ Authorization = "Bearer token"
 
 // buildCodexTOML is a test helper that wraps translated servers into
 // Codex TOML format for round-trip testing.
-func buildCodexTOML(servers map[string]any) string {
+func buildCodexTOML(t *testing.T, servers map[string]any) string {
+	t.Helper()
 	doc := map[string]any{"mcp_servers": servers}
 	var buf bytes.Buffer
 	enc := toml.NewEncoder(&buf)
-	_ = enc.Encode(doc)
+	if err := enc.Encode(doc); err != nil {
+		t.Fatalf("buildCodexTOML: failed to encode TOML: %v", err)
+	}
 	return buf.String()
 }
 

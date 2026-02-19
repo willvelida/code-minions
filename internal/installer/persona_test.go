@@ -995,6 +995,16 @@ func TestPersonaGroupingIncludesMCPServers(t *testing.T) {
 					t.Errorf("grouping file missing %q\ngot:\n%s", want, content)
 				}
 			}
+
+			// For skill-based assistants (gemini, codex) that omit MCP,
+			// verify MCP references are actually absent.
+			if strings.Contains(tt.name, "omits MCP") {
+				for _, absent := range []string{"mcpServers", "tools:", "github", "linear"} {
+					if strings.Contains(content, absent) {
+						t.Errorf("skill file should not contain MCP reference %q\ngot:\n%s", absent, content)
+					}
+				}
+			}
 		})
 	}
 }

@@ -139,7 +139,11 @@ func mergeInto(doc map[string]any, translated map[string]any, configKey string, 
 		if m, ok := raw.(map[string]any); ok {
 			existingServers = m
 		} else {
-			existingServers = make(map[string]any)
+			// Existing configKey value is not an object/table — preserve it
+			// and skip the merge to avoid silently dropping user config.
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("existing %q config is not an object; skipping MCP merge", configKey))
+			return result
 		}
 	} else {
 		existingServers = make(map[string]any)
