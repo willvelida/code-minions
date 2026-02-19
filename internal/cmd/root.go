@@ -13,6 +13,9 @@ func NewRootCommand(content fs.FS) *cobra.Command {
 		Long: `code-minions is a CLI tool that installs reusable AI agent skills
 and configurations into your project.
 
+Get started with 'code-minions init' to scaffold a project manifest,
+then run 'code-minions install' to install the declared packages.
+
 Available components:
   - agents:    AI agent definitions (.agent.md files)
   - skills:    Step-by-step procedures for common workflows`,
@@ -25,6 +28,7 @@ Available components:
 	cmd.AddCommand(newShowCommand(content))
 	cmd.AddCommand(newSearchCommand(content))
 	cmd.AddCommand(newTransferCommand(content))
+	cmd.AddCommand(newInitCommand(content))
 	cmd.AddCommand(newMCPCommand())
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newCompletionCommand())
