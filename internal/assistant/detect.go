@@ -10,9 +10,9 @@ import (
 // and directories, returning the names of all assistants whose markers are
 // found. The result is sorted alphabetically.
 //
-// Detection checks each registered assistant's InstructionsPath and AgentDir
-// relative to target. If either exists (file or directory), that assistant
-// is included in the result.
+// Detection checks each registered assistant's InstructionsPath, AgentDir,
+// and MCPConfigPath relative to target. If any of these exists (file or
+// directory), that assistant is included in the result.
 func Detect(target string) []string {
 	var found []string
 

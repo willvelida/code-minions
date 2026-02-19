@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -110,8 +109,9 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 		return fmt.Errorf("code-minions.yml already exists in %s\n\nUse --force to overwrite", absTarget)
 	}
 
-	// Determine whether we're interactive
-	interactive := isInteractiveFunc() && !opts.yes && opts.mode != OutputJSON
+	// Determine whether we're interactive.
+	// Quiet mode is non-interactive (consistent with uninstall).
+	interactive := isInteractiveFunc() && !opts.yes && opts.mode != OutputJSON && opts.mode != OutputQuiet
 
 	// --- Step 2: Detect assistants ---
 	detected := assistant.Detect(absTarget)
@@ -180,7 +180,7 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 	// --- Step 9: Offer to install ---
 	if interactive {
 		ok, err := confirmPrompt(
-			os.Stdin,
+			cmd.InOrStdin(),
 			cmd.OutOrStdout(),
 			"Run 'code-minions install' now? [y/N] ",
 		)
@@ -200,6 +200,12 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 				installArgs = append(installArgs, "--target", opts.target)
 			}
 			root.SetArgs(installArgs)
+			// Reset persistent output-mode flags so install does not inherit init's mode.
+			for _, name := range []string{"json", "verbose", "quiet"} {
+				if f := root.PersistentFlags().Lookup(name); f != nil {
+					_ = f.Value.Set("false")
+				}
+			}
 			return root.Execute()
 		}
 	}
@@ -228,7 +234,7 @@ func resolveAssistant(cmd *cobra.Command, opts initOptions, detected []string, i
 
 	// Interactive: prompt the user
 	chosen, err := selectAssistant(
-		os.Stdin,
+		cmd.InOrStdin(),
 		cmd.OutOrStdout(),
 		detected,
 		assistant.List(),
@@ -259,7 +265,7 @@ func resolvePackages(cmd *cobra.Command, opts initOptions, available []model.Pac
 	}
 
 	// Interactive: prompt the user
-	return selectPackages(os.Stdin, cmd.OutOrStdout(), available)
+	return selectPackages(cmd.InOrStdin(), cmd.OutOrStdout(), available)
 }
 
 // validatePackageNames parses a comma-separated list of package names
