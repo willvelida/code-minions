@@ -92,6 +92,7 @@ code-minions install --force
 code-minions install --package developer-mentor --for copilot
 code-minions install --package developer-mentor --for claude
 code-minions install --package developer-mentor --for cursor
+code-minions install --package developer-mentor --for gemini
 code-minions install --package developer-mentor --for opencode
 
 # List available packages, standards, and assistants
@@ -116,7 +117,7 @@ code-minions install --package git-workflow --quiet
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--package` | string | all | Comma-separated list of packages to install |
-| `--for` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `opencode`) |
+| `--for` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `gemini`, `opencode`) |
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
@@ -149,7 +150,7 @@ The uninstall command prompts for confirmation before removing files. You will a
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--package` | string | all | Comma-separated list of packages to uninstall |
-| `--for` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `opencode`) — **required** when uninstalling everything |
+| `--for` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `gemini`, `opencode`) — **required** when uninstalling everything |
 | `--target` | string | `.` | Target directory to uninstall from |
 | `--dry-run` | bool | false | Show what would be removed without deleting files |
 | `--yes` / `-y` | bool | false | Skip confirmation prompt and proceed with removal |
@@ -181,7 +182,7 @@ Update overwrites installed files with the latest embedded content. When run wit
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--package` | string | | Comma-separated list of packages to update (omit to auto-detect installed) |
-| `--for` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `opencode`) |
+| `--for` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `gemini`, `opencode`) |
 | `--target` | string | `.` | Target directory |
 | `--dry-run` | bool | false | Show what would be updated without writing files |
 | `--json` | bool | false | Output results as JSON |
@@ -217,8 +218,8 @@ MCP server configurations are automatically translated between the source and ta
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--from` | string | | Source coding assistant (`copilot`, `claude`, `cursor`, `opencode`) — **required** |
-| `--to` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `opencode`) — **required** |
+| `--from` | string | | Source coding assistant (`copilot`, `claude`, `cursor`, `gemini`, `opencode`) — **required** |
+| `--to` | string | | Target coding assistant (`copilot`, `claude`, `cursor`, `gemini`, `opencode`) — **required** |
 | `--target` | string | `.` | Working directory |
 | `--dry-run` | bool | false | Preview changes without writing files |
 | `--force` | bool | false | Overwrite existing files at the destination |
@@ -312,6 +313,7 @@ Use the `--for` flag to install packages into the directories expected by your c
 | GitHub Copilot | `copilot` | `.github/agents/` | `skills/` |
 | Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` |
 | Cursor | `cursor` | `.cursor/agents/` | `.cursor/skills/` |
+| Gemini CLI | `gemini` | `.gemini/agents/` | `.gemini/skills/` |
 | OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` |
 
 Without `--for`, files are installed to generic locations (`agents/`, `skills/`).

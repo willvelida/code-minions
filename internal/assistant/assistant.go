@@ -56,6 +56,15 @@ var configs = map[string]Config{
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: ".cursor/rules/instructions.mdc",
 	},
+	"gemini": {
+		Name:             "gemini",
+		Description:      "Gemini CLI",
+		AgentDir:         ".gemini/agents",
+		SkillDir:         ".gemini/skills",
+		MCPConfigPath:    ".gemini/settings.json",
+		MCPConfigKey:     "mcpServers",
+		InstructionsPath: "GEMINI.md",
+	},
 }
 
 // Get returns the configuration for the named assistant, or an error if the

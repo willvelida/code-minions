@@ -36,6 +36,8 @@ func NewReader(assistant string) (Reader, error) {
 		return &OpenCodeReader{}, nil
 	case "cursor":
 		return &CursorReader{}, nil
+	case "gemini":
+		return &GeminiReader{}, nil
 	default:
 		return nil, fmt.Errorf("no MCP reader for assistant %q", assistant)
 	}
