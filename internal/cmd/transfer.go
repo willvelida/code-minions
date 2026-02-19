@@ -141,8 +141,8 @@ layout because it contains assistant-specific paths.`,
 		},
 	}
 
-	cmd.Flags().String("from", "", "Source coding assistant (copilot, claude, cursor, opencode)")
-	cmd.Flags().String("to", "", "Target coding assistant (copilot, claude, cursor, opencode)")
+	cmd.Flags().String("from", "", "Source coding assistant ("+assistant.FlagUsage()+")")
+	cmd.Flags().String("to", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().String("target", ".", "Target directory")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files at the destination")

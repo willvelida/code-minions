@@ -89,6 +89,14 @@ func List() []string {
 	return names
 }
 
+// FlagUsage returns a comma-separated list of all registered assistant
+// names, suitable for embedding in --for / --from / --to flag help text.
+// The list is sorted alphabetically and built from the registry so it
+// stays in sync automatically when assistants are added or removed.
+func FlagUsage() string {
+	return strings.Join(List(), ", ")
+}
+
 // NewPathMapper returns a function that remaps file paths from the
 // generic package layout (agents/, skills/, standards/) to the
 // directories this assistant expects.

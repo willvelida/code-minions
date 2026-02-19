@@ -119,6 +119,22 @@ func TestListReturnsAllAssistants(t *testing.T) {
 	}
 }
 
+func TestFlagUsageContainsAllAssistants(t *testing.T) {
+	usage := FlagUsage()
+
+	// Should contain every registered assistant name
+	for _, name := range List() {
+		if !strings.Contains(usage, name) {
+			t.Errorf("FlagUsage() should contain %q, got: %s", name, usage)
+		}
+	}
+
+	// Should be comma-separated
+	if usage != strings.Join(List(), ", ") {
+		t.Errorf("FlagUsage() = %q, want %q", usage, strings.Join(List(), ", "))
+	}
+}
+
 func TestGetReturnsCopy(t *testing.T) {
 	cfg, err := Get("copilot")
 	if err != nil {
