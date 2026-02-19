@@ -508,7 +508,7 @@ files are found in the correct assistant-specific location.`,
 	}
 
 	cmd.Flags().String("target", ".", "Target directory to uninstall from")
-	cmd.Flags().String("package", "", "Comma-separated list of packages to uninstall (omit to uninstall all)")
+	cmd.Flags().String("package", "", "Comma-separated list of packages to uninstall (omit to use manifest packages if present, otherwise all)")
 	cmd.Flags().String("persona", "", "Uninstall a persona (a named bundle of packages)")
 	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().Bool("dry-run", false, "Show what would be removed without deleting files")

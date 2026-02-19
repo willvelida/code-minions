@@ -97,7 +97,7 @@ func TestBuildPackageListReadsManifest(t *testing.T) {
 	}
 }
 
-func TestBuildPackageListManifestEmptyPackagesFallsBack(t *testing.T) {
+func TestBuildPackageListEmptyManifestInstallsNothing(t *testing.T) {
 	content := testContentFS()
 	target := t.TempDir()
 

@@ -84,20 +84,49 @@ func Save(path string, m *ProjectManifest) error {
 	content := []byte(headerComment)
 	content = append(content, data...)
 
-	// Atomic write: write to a temp file in the same directory, then rename.
-	// This avoids leaving a partially-written manifest if the process is
-	// interrupted mid-write.
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, content, 0644); err != nil {
+	// Atomic write: write to a uniquely named temp file in the same directory,
+	// then rename into place. This avoids leaving a partially-written manifest
+	// if the process is interrupted mid-write.
+	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary manifest file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	if _, err := tmpFile.Write(content); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
-	// os.Rename on Windows fails when the destination already exists.
-	// Remove the target first to ensure the rename succeeds cross-platform.
-	_ = os.Remove(path)
-	if err := os.Rename(tmp, path); err != nil {
-		// Clean up the temp file on rename failure.
-		_ = os.Remove(tmp)
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+
+	// On Windows, os.Rename fails if the destination already exists. Use a
+	// backup-and-restore strategy to avoid data loss if the replacement fails.
+	backupPath := path + ".bak"
+	hadBackup := false
+	if err := os.Rename(path, backupPath); err != nil {
+		if !os.IsNotExist(err) {
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("failed to prepare manifest backup: %w", err)
+		}
+	} else {
+		hadBackup = true
+	}
+
+	if err := os.Rename(tmpPath, path); err != nil {
+		if hadBackup {
+			_ = os.Rename(backupPath, path)
+		}
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+
+	// Replacement succeeded; clean up the backup.
+	if hadBackup {
+		_ = os.Remove(backupPath)
 	}
 
 	return nil
