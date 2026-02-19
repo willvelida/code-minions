@@ -136,6 +136,34 @@ layout because it contains assistant-specific paths.`,
 				transferResult.Copied = append(transferResult.Copied, agentsMDPath)
 			}
 
+			// Step 4: Generate CLAUDE.md when transferring to Claude.
+			// Only Claude gets a generated instructions file for now because
+			// BuildClaudeMDForPackages emits Claude-specific @import syntax.
+			// The file is always regenerated (not copied) because it contains
+			// assistant-specific @import paths.
+			if strings.EqualFold(to, "claude") && toCfg.InstructionsPath != "" {
+				if !dryRun {
+					_ = os.Remove(filepath.Join(target, toCfg.InstructionsPath))
+				}
+				instrHandler := &installer.InstructionsFileHandler{
+					Target:   target,
+					DryRun:   dryRun,
+					FileName: toCfg.InstructionsPath,
+					Stdin:    os.Stdin,
+					Stdout:   handlerStdout,
+				}
+				// Build package names from transferred files to generate content.
+				// We extract unique package names from the copied file paths.
+				instrPkgNames := extractPackageNames(transferResult.Copied, toCfg)
+				instrContent := installer.BuildClaudeMDForPackages(instrPkgNames, toCfg)
+				instrAction, instrErr := instrHandler.OnInstall([]byte(instrContent))
+				if instrErr != nil {
+					transferResult.Errors = append(transferResult.Errors, fmt.Sprintf("%s: %v", toCfg.InstructionsPath, instrErr))
+				} else if instrAction == "created" {
+					transferResult.Copied = append(transferResult.Copied, toCfg.InstructionsPath)
+				}
+			}
+
 			// --- Output ---
 			return renderTransferOutput(cmd, mode, from, to, dryRun, cleanup, transferResult, mcpResult)
 		},
@@ -318,4 +346,38 @@ func renderTransferOutput(
 	}
 
 	return nil
+}
+
+// extractPackageNames derives unique package names from a list of
+// copied file paths by looking at the assistant's skill directory.
+// For example, ".claude/skills/git-workflow/SKILL.md" → "git-workflow".
+func extractPackageNames(paths []string, cfg *assistant.Config) []string {
+	seen := make(map[string]bool)
+	var names []string
+
+	skillPrefix := cfg.SkillDir + "/"
+	agentPrefix := cfg.AgentDir + "/"
+
+	for _, p := range paths {
+		var name string
+		if strings.HasPrefix(p, skillPrefix) {
+			// .claude/skills/git-workflow/SKILL.md → git-workflow
+			rest := strings.TrimPrefix(p, skillPrefix)
+			if idx := strings.Index(rest, "/"); idx > 0 {
+				name = rest[:idx]
+			}
+		} else if strings.HasPrefix(p, agentPrefix) && strings.HasSuffix(p, ".agent.md") {
+			// .claude/agents/git-workflow.agent.md → git-workflow
+			// Only .agent.md files are package agents; AGENTS.md is a
+			// routing file and should be ignored.
+			rest := strings.TrimPrefix(p, agentPrefix)
+			name = strings.TrimSuffix(rest, ".agent.md")
+		}
+		if name != "" && !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+
+	return names
 }

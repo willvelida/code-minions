@@ -154,6 +154,42 @@ preview changes without writing any files.`,
 				}
 			}
 
+			// Create CLAUDE.md when installing for Claude.
+			// Only Claude gets a generated instructions file for now because
+			// BuildClaudeMDForPackages emits Claude-specific @import syntax.
+			// Other assistants will get their own content builders in future.
+			if strings.EqualFold(forFlag, "claude") && len(packageDirs) > 0 {
+				cfg, cfgErr := assistant.Get(forFlag)
+				if cfgErr == nil && cfg.InstructionsPath != "" {
+					instrStdout := io.Writer(os.Stdout)
+					if mode == OutputJSON || mode == OutputQuiet {
+						instrStdout = io.Discard
+					}
+					instrHandler := &installer.InstructionsFileHandler{
+						Target:   target,
+						DryRun:   dryRun,
+						FileName: cfg.InstructionsPath,
+						Stdin:    os.Stdin,
+						Stdout:   instrStdout,
+					}
+					// Build package names for content generation
+					var pkgNames []string
+					for _, pkgDir := range packageDirs {
+						pkgNames = append(pkgNames, strings.TrimPrefix(pkgDir, "packages/"))
+					}
+					instrContent := installer.BuildClaudeMDForPackages(pkgNames, cfg)
+					instrAction, instrErr := instrHandler.OnInstall([]byte(instrContent))
+					if instrErr != nil {
+						combinedResult.Errors = append(combinedResult.Errors,
+							fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
+					} else if instrAction == "created" {
+						combinedResult.Copied = append(combinedResult.Copied, cfg.InstructionsPath)
+					} else {
+						combinedResult.Skipped = append(combinedResult.Skipped, cfg.InstructionsPath)
+					}
+				}
+			}
+
 			// --- MCP server processing ---
 			// When --for is set, translate each package's mcp.yaml into
 			// the assistant's native JSON format and merge it in.
