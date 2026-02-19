@@ -195,6 +195,10 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 			if chosenAssistant != "" {
 				installArgs = append(installArgs, "--for", chosenAssistant)
 			}
+			// Pass the selected packages so install doesn't default to all
+			if len(chosenPackages) > 0 {
+				installArgs = append(installArgs, "--package", strings.Join(chosenPackages, ","))
+			}
 			// Ensure install runs against the same target directory
 			if opts.target != "" && opts.target != "." {
 				installArgs = append(installArgs, "--target", opts.target)

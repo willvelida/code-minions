@@ -127,7 +127,7 @@ code-minions install --package git-workflow --quiet
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--assistant` | string | | Assistant to configure (skips prompt) |
-| `--packages` | string | all | Comma-separated packages to include (skips prompt) |
+| `--packages` | string | `""` (all in non-interactive mode) | Comma-separated packages to include (skips prompt) |
 | `--target` | string | `.` | Target directory for the manifest |
 | `--yes` | bool | false | Accept defaults without prompting |
 | `--force` | bool | false | Overwrite existing `code-minions.yml` |
