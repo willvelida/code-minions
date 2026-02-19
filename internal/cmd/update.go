@@ -34,6 +34,9 @@ AGENTS.md is not modified during updates.`,
 
 			// --- Persona update branch ---
 			// Update means: re-resolve and re-install with force=true.
+			// Note: resolveForFlag is intentionally NOT called here. Persona
+			// installs target a single, explicitly-named assistant, so --for
+			// is required and must not be auto-resolved from the manifest.
 			if personaFlag != "" {
 				if packageFlag != "" {
 					return fmt.Errorf("--persona and --package cannot be used together")

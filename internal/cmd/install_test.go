@@ -101,7 +101,7 @@ func TestBuildPackageListManifestEmptyPackagesFallsBack(t *testing.T) {
 	content := testContentFS()
 	target := t.TempDir()
 
-	// Manifest exists but packages list is empty → install all
+	// Manifest exists but packages list is empty → install nothing
 	manifestPath := filepath.Join(target, "code-minions.yml")
 	if err := os.WriteFile(manifestPath, []byte("name: test\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -111,9 +111,9 @@ func TestBuildPackageListManifestEmptyPackagesFallsBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Should fall back to all packages
-	if len(dirs) != 2 {
-		t.Errorf("expected 2 packages (all), got %d: %v", len(dirs), dirs)
+	// Empty packages in an existing manifest means "install nothing"
+	if len(dirs) != 0 {
+		t.Errorf("expected 0 packages, got %d: %v", len(dirs), dirs)
 	}
 }
 

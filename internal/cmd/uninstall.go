@@ -243,7 +243,11 @@ files are found in the correct assistant-specific location.`,
 			// Update project manifest (code-minions.yml) to remove uninstalled packages
 			if !dryRun {
 				projManifestPath := projManifest.DefaultPath(target)
-				if exists, _ := projManifest.Exists(projManifestPath); exists {
+				exists, existsErr := projManifest.Exists(projManifestPath)
+				if existsErr != nil {
+					combinedResult.Errors = append(combinedResult.Errors,
+						fmt.Sprintf("%s exists check: %v", projManifest.FileName, existsErr))
+				} else if exists {
 					m, err := projManifest.Load(projManifestPath)
 					if err != nil {
 						combinedResult.Errors = append(combinedResult.Errors,

@@ -91,6 +91,9 @@ func Save(path string, m *ProjectManifest) error {
 	if err := os.WriteFile(tmp, content, 0644); err != nil {
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
+	// os.Rename on Windows fails when the destination already exists.
+	// Remove the target first to ensure the rename succeeds cross-platform.
+	_ = os.Remove(path)
 	if err := os.Rename(tmp, path); err != nil {
 		// Clean up the temp file on rename failure.
 		_ = os.Remove(tmp)

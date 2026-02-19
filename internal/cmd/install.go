@@ -113,7 +113,11 @@ preview changes without writing any files.`,
 			if packageFlag == "" {
 				manifestPath := manifest.DefaultPath(target)
 				if exists, _ := manifest.Exists(manifestPath); exists {
-					verbosePrintf(cmd, mode, "reading packages from %s\n", manifest.FileName)
+					if len(packageDirs) > 0 {
+						verbosePrintf(cmd, mode, "reading packages from %s\n", manifest.FileName)
+					} else {
+						verbosePrintf(cmd, mode, "%s has no packages listed; nothing to install\n", manifest.FileName)
+					}
 				}
 			}
 
@@ -537,17 +541,24 @@ func buildPackageList(content fs.FS, packageFlag string, target string) ([]strin
 	// Note: warnings are not printed here because resolveForFlag (which runs
 	// before buildPackageList) already loads with LoadStrict and prints them.
 	manifestPath := manifest.DefaultPath(target)
-	if exists, _ := manifest.Exists(manifestPath); exists {
+	exists, err := manifest.Exists(manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check %s: %w", manifest.FileName, err)
+	}
+	if exists {
 		m, err := manifest.Load(manifestPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read %s: %w", manifest.FileName, err)
 		}
-		if len(m.Packages) > 0 {
-			return validateAndBuildDirs(content, strings.Join(m.Packages, ","))
+		// An existing manifest with an empty packages list means "no packages";
+		// only fall back to all packages when there is no manifest at all.
+		if len(m.Packages) == 0 {
+			return nil, nil
 		}
+		return validateAndBuildDirs(content, strings.Join(m.Packages, ","))
 	}
 
-	// Fallback: install all packages (backward compatible)
+	// No manifest present: install all packages (backward compatible)
 	return allPackageDirs(content)
 }
 
