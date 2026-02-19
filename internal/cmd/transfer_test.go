@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/willvelida/code-minions/internal/assistant"
 )
 
 // seedTransferSource creates source files in the given target dir using
@@ -702,5 +704,97 @@ func TestTransferRegeneratesAgentsMD(t *testing.T) {
 	}
 	if len(data) == 0 {
 		t.Error("AGENTS.md should not be empty after regeneration")
+	}
+}
+
+// TestExtractPackageNames verifies the helper that derives package names
+// from copied file paths during transfer.
+func TestExtractPackageNames(t *testing.T) {
+	cfg := &assistant.Config{
+		SkillDir: ".claude/skills",
+		AgentDir: ".claude/agents",
+	}
+
+	tests := []struct {
+		name     string
+		paths    []string
+		expected []string
+	}{
+		{
+			name: "skill paths extracted",
+			paths: []string{
+				".claude/skills/git-workflow/SKILL.md",
+				".claude/skills/git-workflow/actions/commit.md",
+			},
+			expected: []string{"git-workflow"},
+		},
+		{
+			name: "agent.md files extracted",
+			paths: []string{
+				".claude/agents/git-workflow.agent.md",
+			},
+			expected: []string{"git-workflow"},
+		},
+		{
+			name: "AGENTS.md excluded",
+			paths: []string{
+				".claude/agents/AGENTS.md",
+				".claude/skills/git-workflow/SKILL.md",
+			},
+			expected: []string{"git-workflow"},
+		},
+		{
+			name: "duplicates deduplicated",
+			paths: []string{
+				".claude/skills/git-workflow/SKILL.md",
+				".claude/agents/git-workflow.agent.md",
+				".claude/skills/git-workflow/actions/commit.md",
+			},
+			expected: []string{"git-workflow"},
+		},
+		{
+			name: "multiple packages",
+			paths: []string{
+				".claude/skills/git-workflow/SKILL.md",
+				".claude/skills/threat-modelling/SKILL.md",
+				".claude/agents/git-workflow.agent.md",
+			},
+			expected: []string{"git-workflow", "threat-modelling"},
+		},
+		{
+			name:     "empty paths",
+			paths:    []string{},
+			expected: nil,
+		},
+		{
+			name: "unrelated paths ignored",
+			paths: []string{
+				"CLAUDE.md",
+				"README.md",
+				".claude/settings.local.json",
+			},
+			expected: nil,
+		},
+		{
+			name: "skill path without subdirectory ignored",
+			paths: []string{
+				".claude/skills/",
+			},
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractPackageNames(tt.paths, cfg)
+			if len(result) != len(tt.expected) {
+				t.Fatalf("expected %d names, got %d: %v", len(tt.expected), len(result), result)
+			}
+			for i, name := range result {
+				if name != tt.expected[i] {
+					t.Errorf("expected[%d] = %q, got %q", i, tt.expected[i], name)
+				}
+			}
+		})
 	}
 }

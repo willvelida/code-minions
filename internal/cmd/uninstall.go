@@ -254,10 +254,10 @@ files are found in the correct assistant-specific location.`,
 					}
 				}
 
-				// Handle assistant-specific instructions file (e.g. CLAUDE.md)
-				if forFlag != "" && len(packageDirs) > 0 {
+				// Handle CLAUDE.md removal (Claude-only for now)
+				if strings.EqualFold(forFlag, "claude") && len(packageDirs) > 0 {
 					cfg, cfgErr := assistant.Get(forFlag)
-					if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+					if cfgErr == nil && cfg.InstructionsPath != "" {
 						instrHandler := &installer.InstructionsFileHandler{
 							Target:   target,
 							DryRun:   dryRun,
@@ -339,10 +339,10 @@ files are found in the correct assistant-specific location.`,
 					}
 				}
 
-				// Handle assistant-specific instructions file (e.g. CLAUDE.md)
-				if forFlag != "" && len(packageDirs) > 0 {
+				// Handle CLAUDE.md removal (Claude-only for now)
+				if strings.EqualFold(forFlag, "claude") && len(packageDirs) > 0 {
 					cfg, cfgErr := assistant.Get(forFlag)
-					if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+					if cfgErr == nil && cfg.InstructionsPath != "" {
 						instrHandler := &installer.InstructionsFileHandler{
 							Target:   target,
 							DryRun:   dryRun,
@@ -436,10 +436,10 @@ files are found in the correct assistant-specific location.`,
 				}
 			}
 
-			// Handle assistant-specific instructions file (e.g. CLAUDE.md)
-			if forFlag != "" && len(packageDirs) > 0 {
+			// Handle CLAUDE.md removal (Claude-only for now)
+			if strings.EqualFold(forFlag, "claude") && len(packageDirs) > 0 {
 				cfg, cfgErr := assistant.Get(forFlag)
-				if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+				if cfgErr == nil && cfg.InstructionsPath != "" {
 					instrHandler := &installer.InstructionsFileHandler{
 						Target:   target,
 						DryRun:   dryRun,

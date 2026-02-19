@@ -136,11 +136,12 @@ layout because it contains assistant-specific paths.`,
 				transferResult.Copied = append(transferResult.Copied, agentsMDPath)
 			}
 
-			// Step 4: Generate assistant-specific instructions file (e.g. CLAUDE.md)
-			// when the target assistant has an InstructionsPath distinct from AGENTS.md.
-			// Like AGENTS.md, the instructions file is always regenerated (not copied)
-			// because it contains assistant-specific @import paths.
-			if toCfg.InstructionsPath != "" && toCfg.InstructionsPath != "AGENTS.md" {
+			// Step 4: Generate CLAUDE.md when transferring to Claude.
+			// Only Claude gets a generated instructions file for now because
+			// BuildClaudeMDForPackages emits Claude-specific @import syntax.
+			// The file is always regenerated (not copied) because it contains
+			// assistant-specific @import paths.
+			if strings.EqualFold(to, "claude") && toCfg.InstructionsPath != "" {
 				if !dryRun {
 					_ = os.Remove(filepath.Join(target, toCfg.InstructionsPath))
 				}

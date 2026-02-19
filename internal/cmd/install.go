@@ -154,12 +154,13 @@ preview changes without writing any files.`,
 				}
 			}
 
-			// Create assistant-specific instructions file (e.g. CLAUDE.md)
-			// when --for is set and the assistant has an InstructionsPath
-			// distinct from AGENTS.md.
-			if forFlag != "" && len(packageDirs) > 0 {
+			// Create CLAUDE.md when installing for Claude.
+			// Only Claude gets a generated instructions file for now because
+			// BuildClaudeMDForPackages emits Claude-specific @import syntax.
+			// Other assistants will get their own content builders in future.
+			if strings.EqualFold(forFlag, "claude") && len(packageDirs) > 0 {
 				cfg, cfgErr := assistant.Get(forFlag)
-				if cfgErr == nil && cfg.InstructionsPath != "" && cfg.InstructionsPath != "AGENTS.md" {
+				if cfgErr == nil && cfg.InstructionsPath != "" {
 					instrStdout := io.Writer(os.Stdout)
 					if mode == OutputJSON || mode == OutputQuiet {
 						instrStdout = io.Discard
