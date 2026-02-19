@@ -73,6 +73,15 @@ winget install willvelida.code-minions
 ### Usage
 
 ```bash
+# Scaffold a project manifest interactively
+code-minions init
+
+# Non-interactive init with defaults
+code-minions init --yes
+
+# Specify assistant and packages explicitly
+code-minions init --assistant copilot --packages threat-modelling,git-workflow
+
 # Install everything (all packages)
 code-minions install
 
@@ -112,6 +121,17 @@ code-minions install --package git-workflow --verbose
 # Quiet mode for CI pipelines (exit code only)
 code-minions install --package git-workflow --quiet
 ```
+
+### Init flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--assistant` | string | | Assistant to configure (skips prompt) |
+| `--packages` | string | `""` (all in non-interactive mode) | Comma-separated packages to include (skips prompt) |
+| `--target` | string | `.` | Target directory for the manifest |
+| `--yes` | bool | false | Accept defaults without prompting |
+| `--force` | bool | false | Overwrite existing `code-minions.yml` |
+| `--json` | bool | false | Output results as JSON |
 
 ### Install flags
 
