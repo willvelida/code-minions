@@ -84,7 +84,16 @@ func Save(path string, m *ProjectManifest) error {
 	content := []byte(headerComment)
 	content = append(content, data...)
 
-	if err := os.WriteFile(path, content, 0644); err != nil {
+	// Atomic write: write to a temp file in the same directory, then rename.
+	// This avoids leaving a partially-written manifest if the process is
+	// interrupted mid-write.
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, content, 0644); err != nil {
+		return fmt.Errorf("failed to write manifest: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		// Clean up the temp file on rename failure.
+		_ = os.Remove(tmp)
 		return fmt.Errorf("failed to write manifest: %w", err)
 	}
 

@@ -245,7 +245,10 @@ files are found in the correct assistant-specific location.`,
 				projManifestPath := projManifest.DefaultPath(target)
 				if exists, _ := projManifest.Exists(projManifestPath); exists {
 					m, err := projManifest.Load(projManifestPath)
-					if err == nil {
+					if err != nil {
+						combinedResult.Errors = append(combinedResult.Errors,
+							fmt.Sprintf("%s load: %v", projManifest.FileName, err))
+					} else {
 						changed := false
 						for _, pkgDir := range packageDirs {
 							pkgName := strings.TrimPrefix(pkgDir, "packages/")

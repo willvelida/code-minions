@@ -6,10 +6,9 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
-
-	"path/filepath"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -284,7 +283,10 @@ preview changes without writing any files.`,
 			if !dryRun && packageFlag != "" {
 				manifestPath := manifest.DefaultPath(target)
 				m, err := manifest.Load(manifestPath)
-				if err == nil {
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors,
+						fmt.Sprintf("%s load: %v", manifest.FileName, err))
+				} else {
 					// Set project name if this is a new manifest
 					if m.Name == "" {
 						absTarget, absErr := filepath.Abs(target)
@@ -472,13 +474,14 @@ func resolveForFlag(cmd *cobra.Command, forFlag, target string, mode OutputMode)
 	manifestPath := manifest.DefaultPath(target)
 	result, err := manifest.LoadStrict(manifestPath)
 	if err != nil {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", manifest.FileName, err)
 		return forFlag, nil
 	}
 	m := result.Manifest
 
 	// Print any structure warnings (unknown fields etc.)
 	for _, w := range result.Warnings {
-		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %s\n", manifest.FileName, w)
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %s\n", manifest.FileName, w)
 	}
 
 	if m.Assistant == "" && forFlag == "" {
@@ -500,8 +503,11 @@ func resolveForFlag(cmd *cobra.Command, forFlag, target string, mode OutputMode)
 	updateAssistant, _ := cmd.Flags().GetBool("update-assistant")
 	if updateAssistant {
 		m.Assistant = forFlag
-		_ = manifest.Save(manifestPath, m)
-		verbosePrintf(cmd, mode, "updated assistant to %q in %s\n", forFlag, manifest.FileName)
+		if saveErr := manifest.Save(manifestPath, m); saveErr != nil {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", manifest.FileName, saveErr)
+		} else {
+			verbosePrintf(cmd, mode, "updated assistant to %q in %s\n", forFlag, manifest.FileName)
+		}
 		return forFlag, nil
 	}
 
@@ -509,10 +515,12 @@ func resolveForFlag(cmd *cobra.Command, forFlag, target string, mode OutputMode)
 	if isInteractiveFunc() && mode != OutputJSON && mode != OutputQuiet {
 		msg := fmt.Sprintf("Manifest uses %q but you specified %q. Update %s? [y/N] ",
 			m.Assistant, forFlag, manifest.FileName)
-		ok, _ := confirmPrompt(os.Stdin, os.Stdout, msg)
+		ok, _ := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), msg)
 		if ok {
 			m.Assistant = forFlag
-			_ = manifest.Save(manifestPath, m)
+			if saveErr := manifest.Save(manifestPath, m); saveErr != nil {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s: %v\n", manifest.FileName, saveErr)
+			}
 		}
 	}
 
@@ -525,18 +533,17 @@ func buildPackageList(content fs.FS, packageFlag string, target string) ([]strin
 		return validateAndBuildDirs(content, packageFlag)
 	}
 
-	// No --package flag: try reading the manifest
+	// No --package flag: try reading the manifest.
+	// Note: warnings are not printed here because resolveForFlag (which runs
+	// before buildPackageList) already loads with LoadStrict and prints them.
 	manifestPath := manifest.DefaultPath(target)
 	if exists, _ := manifest.Exists(manifestPath); exists {
-		result, err := manifest.LoadStrict(manifestPath)
+		m, err := manifest.Load(manifestPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read %s: %w", manifest.FileName, err)
 		}
-		for _, w := range result.Warnings {
-			fmt.Fprintf(os.Stderr, "warning: %s: %s\n", manifest.FileName, w)
-		}
-		if len(result.Manifest.Packages) > 0 {
-			return validateAndBuildDirs(content, strings.Join(result.Manifest.Packages, ","))
+		if len(m.Packages) > 0 {
+			return validateAndBuildDirs(content, strings.Join(m.Packages, ","))
 		}
 	}
 
