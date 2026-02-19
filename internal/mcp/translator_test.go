@@ -349,6 +349,65 @@ func TestOpenCodeTranslator_ConfigPath(t *testing.T) {
 	}
 }
 
+// --- Cursor ---
+
+func TestCursorTranslator_Stdio(t *testing.T) {
+	tr := &CursorTranslator{}
+	servers, warnings, err := tr.Translate(testStdioConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Errorf("unexpected warnings: %v", warnings)
+	}
+
+	github := servers["github"].(map[string]any)
+	if github["command"] != "npx" {
+		t.Errorf("command: got %v", github["command"])
+	}
+}
+
+func TestCursorTranslator_HTTP(t *testing.T) {
+	tr := &CursorTranslator{}
+	servers, _, err := tr.Translate(testHTTPConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["remote-api"].(map[string]any)
+	if api["url"] != "https://mcp.example.com/v1" {
+		t.Errorf("url: got %v", api["url"])
+	}
+}
+
+func TestCursorTranslator_SSE(t *testing.T) {
+	tr := &CursorTranslator{}
+	servers, _, err := tr.Translate(testSSEConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	api := servers["sse-api"].(map[string]any)
+	if api["url"] != "https://sse.example.com/events" {
+		t.Errorf("url: got %v", api["url"])
+	}
+	// Cursor should include env for SSE
+	env := api["env"].(map[string]string)
+	if env["API_KEY"] != "secret" {
+		t.Errorf("env: got %v", env)
+	}
+}
+
+func TestCursorTranslator_ConfigPath(t *testing.T) {
+	tr := &CursorTranslator{}
+	if tr.ConfigPath() != ".cursor/mcp.json" {
+		t.Errorf("ConfigPath: got %q", tr.ConfigPath())
+	}
+	if tr.ConfigKey() != "mcpServers" {
+		t.Errorf("ConfigKey: got %q", tr.ConfigKey())
+	}
+}
+
 // --- Factory ---
 
 func TestNewTranslator(t *testing.T) {
@@ -359,6 +418,7 @@ func TestNewTranslator(t *testing.T) {
 		{"copilot", false},
 		{"claude", false},
 		{"opencode", false},
+		{"cursor", false},
 		{"unknown", true},
 	}
 
@@ -385,7 +445,7 @@ func TestNewTranslator(t *testing.T) {
 // ConfigPath() and ConfigKey() return the same values as the corresponding
 // assistant.Config. This prevents drift between the two sources.
 func TestTranslatorConfigMatchesAssistant(t *testing.T) {
-	names := []string{"copilot", "claude", "opencode"}
+	names := []string{"copilot", "claude", "opencode", "cursor"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			tr, err := NewTranslator(name)

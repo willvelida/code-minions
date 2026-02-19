@@ -38,6 +38,14 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			mcpConfigPath: "opencode.json",
 			mcpConfigKey:  "mcp",
 		},
+		{
+			name:          "cursor uses .cursor directories",
+			assistant:     "cursor",
+			agentDir:      ".cursor/agents",
+			skillDir:      ".cursor/skills",
+			mcpConfigPath: ".cursor/mcp.json",
+			mcpConfigKey:  "mcpServers",
+		},
 	}
 
 	for _, tt := range tests {
@@ -89,13 +97,13 @@ func TestGetUnknownAssistantReturnsError(t *testing.T) {
 func TestListReturnsAllAssistants(t *testing.T) {
 	names := List()
 
-	// We expect exactly 3 assistants
-	if len(names) != 3 {
-		t.Fatalf("List() returned %d names, want 3", len(names))
+	// We expect exactly 4 assistants
+	if len(names) != 4 {
+		t.Fatalf("List() returned %d names, want 4", len(names))
 	}
 
 	// Check each expected name is present
-	expected := []string{"claude", "copilot", "opencode"}
+	expected := []string{"claude", "copilot", "cursor", "opencode"}
 	for i, want := range expected {
 		if names[i] != want {
 			t.Errorf("List()[%d]: got %q, want %q", i, names[i], want)
@@ -176,6 +184,20 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			assistant: "opencode",
 			input:     "skills/my-skill/actions/create.md",
 			expected:  ".opencode/skills/my-skill/actions/create.md",
+		},
+
+		// --- Cursor: agents and skills remap to .cursor/ ---
+		{
+			name:      "cursor remaps agents",
+			assistant: "cursor",
+			input:     "agents/my-agent.md",
+			expected:  ".cursor/agents/my-agent.md",
+		},
+		{
+			name:      "cursor remaps skills",
+			assistant: "cursor",
+			input:     "skills/my-skill/SKILL.md",
+			expected:  ".cursor/skills/my-skill/SKILL.md",
 		},
 
 		// --- Edge cases ---
@@ -264,6 +286,20 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			name:      "opencode reverses skills",
 			assistant: "opencode",
 			input:     ".opencode/skills/bar/SKILL.md",
+			expected:  "skills/bar/SKILL.md",
+		},
+
+		// --- Cursor: .cursor/agents → agents, .cursor/skills → skills ---
+		{
+			name:      "cursor reverses agents",
+			assistant: "cursor",
+			input:     ".cursor/agents/foo.md",
+			expected:  "agents/foo.md",
+		},
+		{
+			name:      "cursor reverses skills",
+			assistant: "cursor",
+			input:     ".cursor/skills/bar/SKILL.md",
 			expected:  "skills/bar/SKILL.md",
 		},
 

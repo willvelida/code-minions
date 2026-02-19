@@ -375,7 +375,7 @@ preview changes without writing any files.`,
 	cmd.Flags().String("target", ".", "Target directory for installation")
 	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to install all)")
 	cmd.Flags().String("persona", "", "Install a persona (a named bundle of packages)")
-	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, opencode)")
+	cmd.Flags().String("for", "", "Target coding assistant (copilot, claude, cursor, opencode)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
 

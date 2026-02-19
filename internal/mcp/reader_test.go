@@ -513,6 +513,87 @@ func TestOpenCodeReader_RemoteMissingURL(t *testing.T) {
 	}
 }
 
+// --- Cursor Reader ---
+
+func TestCursorReader_StdioServer(t *testing.T) {
+	input := `{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "" }
+    }
+  }
+}`
+	r := &CursorReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s := cfg.Servers["github"]
+	if s.Transport != TransportStdio {
+		t.Errorf("transport: got %q, want %q", s.Transport, TransportStdio)
+	}
+	if s.Command != "npx" {
+		t.Errorf("command: got %q, want %q", s.Command, "npx")
+	}
+	if len(s.Args) != 2 {
+		t.Errorf("args: got %v", s.Args)
+	}
+}
+
+func TestCursorReader_HTTPServer(t *testing.T) {
+	input := `{
+  "mcpServers": {
+    "api": {
+      "url": "https://mcp.example.com/v1",
+      "headers": { "Authorization": "Bearer token" },
+      "env": { "API_KEY": "secret" }
+    }
+  }
+}`
+	r := &CursorReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s := cfg.Servers["api"]
+	if s.Transport != TransportSSE {
+		t.Errorf("transport: got %q, want %q", s.Transport, TransportSSE)
+	}
+	if s.URL != "https://mcp.example.com/v1" {
+		t.Errorf("url: got %q", s.URL)
+	}
+	if s.Headers["Authorization"] != "Bearer token" {
+		t.Errorf("headers: got %v", s.Headers)
+	}
+	if s.Env["API_KEY"] != "secret" {
+		t.Errorf("env: got %v", s.Env)
+	}
+}
+
+func TestCursorReader_NoMCPServersKey(t *testing.T) {
+	input := `{ "settings": {} }`
+	r := &CursorReader{}
+	cfg, _, err := r.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Servers) != 0 {
+		t.Errorf("expected 0 servers, got %d", len(cfg.Servers))
+	}
+}
+
+func TestCursorReader_MalformedJSON(t *testing.T) {
+	r := &CursorReader{}
+	_, _, err := r.Read([]byte("{bad"))
+	if err == nil {
+		t.Fatal("expected error for malformed JSON")
+	}
+}
+
 // --- NewReader factory ---
 
 func TestNewReader_ValidAssistants(t *testing.T) {
@@ -523,6 +604,7 @@ func TestNewReader_ValidAssistants(t *testing.T) {
 		{"copilot", ".vscode/mcp.json"},
 		{"claude", ".claude/settings.local.json"},
 		{"opencode", "opencode.json"},
+		{"cursor", ".cursor/mcp.json"},
 	}
 
 	for _, tt := range tests {
@@ -638,6 +720,38 @@ func TestRoundTrip_OpenCodeReadWrite(t *testing.T) {
 	}
 
 	translated, _ := json.Marshal(map[string]any{"mcp": servers})
+	cfg2, _, err := reader.Read(translated)
+	if err != nil {
+		t.Fatalf("re-read: %v", err)
+	}
+
+	assertConfigsEqual(t, cfg, cfg2)
+}
+
+// TestRoundTrip_CursorReadWrite reads Cursor config and round-trips it.
+func TestRoundTrip_CursorReadWrite(t *testing.T) {
+	input := `{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "" }
+    }
+  }
+}`
+	reader := &CursorReader{}
+	cfg, _, err := reader.Read([]byte(input))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	writer := &CursorTranslator{}
+	servers, _, err := writer.Translate(cfg)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+
+	translated, _ := json.Marshal(map[string]any{"mcpServers": servers})
 	cfg2, _, err := reader.Read(translated)
 	if err != nil {
 		t.Fatalf("re-read: %v", err)
