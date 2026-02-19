@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	projManifest "github.com/willvelida/code-minions/internal/manifest"
 	"github.com/willvelida/code-minions/internal/mcp"
 )
 
@@ -66,6 +67,14 @@ files are found in the correct assistant-specific location.`,
 				return runPersonaUninstall(cmd, content, personaFlag, forFlag, target, dryRun, yesFlag)
 			}
 
+			mode := getOutputMode(cmd)
+
+			// Resolve --for: fall back to manifest's assistant field
+			forFlag, err := resolveForFlag(cmd, forFlag, target, mode)
+			if err != nil {
+				return err
+			}
+
 			if packageFlag == "" && forFlag == "" {
 				return fmt.Errorf("when uninstalling everything, --for is required to identify the correct file locations\n\nUsage: code-minions uninstall --for <assistant>\n\nAvailable assistants: %s",
 					strings.Join(assistant.List(), ", "))
@@ -80,12 +89,10 @@ files are found in the correct assistant-specific location.`,
 				pathMapper = cfg.NewPathMapper()
 			}
 
-			packageDirs, err := buildPackageList(content, packageFlag)
+			packageDirs, err := buildPackageList(content, packageFlag, target)
 			if err != nil {
 				return err
 			}
-
-			mode := getOutputMode(cmd)
 
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
@@ -229,6 +236,30 @@ files are found in the correct assistant-specific location.`,
 					}
 					if err := installer.SaveManifest(target, manifest); err != nil {
 						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+					}
+				}
+			}
+
+			// Update project manifest (code-minions.yml) to remove uninstalled packages
+			if !dryRun {
+				projManifestPath := projManifest.DefaultPath(target)
+				if exists, _ := projManifest.Exists(projManifestPath); exists {
+					m, err := projManifest.Load(projManifestPath)
+					if err == nil {
+						changed := false
+						for _, pkgDir := range packageDirs {
+							pkgName := strings.TrimPrefix(pkgDir, "packages/")
+							if m.RemovePackage(pkgName) {
+								changed = true
+								verbosePrintf(cmd, mode, "removed %q from %s\n", pkgName, projManifest.FileName)
+							}
+						}
+						if changed {
+							if saveErr := projManifest.Save(projManifestPath, m); saveErr != nil {
+								combinedResult.Errors = append(combinedResult.Errors,
+									fmt.Sprintf("%s: %v", projManifest.FileName, saveErr))
+							}
+						}
 					}
 				}
 			}
@@ -475,6 +506,7 @@ files are found in the correct assistant-specific location.`,
 	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().Bool("dry-run", false, "Show what would be removed without deleting files")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt and proceed with removal")
+	cmd.Flags().Bool("update-assistant", false, "Update the manifest's assistant field when --for differs")
 
 	return cmd
 }

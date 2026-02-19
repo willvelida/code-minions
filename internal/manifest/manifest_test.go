@@ -272,3 +272,163 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// --- AddPackage / RemovePackage / HasPackage tests ---
+
+func TestAddPackageToEmptyList(t *testing.T) {
+	m := &ProjectManifest{Name: "test"}
+	added := m.AddPackage("git-workflow")
+	if !added {
+		t.Error("expected AddPackage to return true for new package")
+	}
+	if len(m.Packages) != 1 || m.Packages[0] != "git-workflow" {
+		t.Errorf("Packages: got %v, want [git-workflow]", m.Packages)
+	}
+}
+
+func TestAddPackageDuplicateReturnsFalse(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Packages: []string{"git-workflow"}}
+	added := m.AddPackage("git-workflow")
+	if added {
+		t.Error("expected AddPackage to return false for duplicate")
+	}
+	if len(m.Packages) != 1 {
+		t.Errorf("Packages length: got %d, want 1", len(m.Packages))
+	}
+}
+
+func TestRemovePackageExisting(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Packages: []string{"a", "b", "c"}}
+	removed := m.RemovePackage("b")
+	if !removed {
+		t.Error("expected RemovePackage to return true")
+	}
+	if len(m.Packages) != 2 {
+		t.Fatalf("Packages length: got %d, want 2", len(m.Packages))
+	}
+	if m.Packages[0] != "a" || m.Packages[1] != "c" {
+		t.Errorf("Packages: got %v, want [a c]", m.Packages)
+	}
+}
+
+func TestRemovePackageMissing(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Packages: []string{"a"}}
+	removed := m.RemovePackage("nonexistent")
+	if removed {
+		t.Error("expected RemovePackage to return false for missing package")
+	}
+	if len(m.Packages) != 1 {
+		t.Errorf("Packages length: got %d, want 1", len(m.Packages))
+	}
+}
+
+func TestHasPackage(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Packages: []string{"git-workflow", "threat-modelling"}}
+	if !m.HasPackage("git-workflow") {
+		t.Error("expected HasPackage to return true for existing package")
+	}
+	if m.HasPackage("nonexistent") {
+		t.Error("expected HasPackage to return false for missing package")
+	}
+}
+
+// --- LoadStrict tests ---
+
+func TestLoadStrictNoWarningsForValidFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+	content := []byte("name: test\nassistant: copilot\npackages:\n  - git-workflow\n")
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := LoadStrict(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected no warnings, got %v", result.Warnings)
+	}
+	if result.Manifest.Name != "test" {
+		t.Errorf("Name: got %q, want %q", result.Manifest.Name, "test")
+	}
+}
+
+func TestLoadStrictWarnsOnUnknownField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+	content := []byte("name: test\nunknown_field: something\n")
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := LoadStrict(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Warnings) == 0 {
+		t.Error("expected warnings for unknown field, got none")
+	}
+	// Manifest should still be parsed
+	if result.Manifest.Name != "test" {
+		t.Errorf("Name: got %q, want %q", result.Manifest.Name, "test")
+	}
+}
+
+func TestLoadStrictReturnZeroForMissing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nonexistent.yml")
+	result, err := LoadStrict(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Manifest.Name != "" {
+		t.Errorf("expected empty Name, got %q", result.Manifest.Name)
+	}
+	if len(result.Warnings) != 0 {
+		t.Errorf("expected no warnings, got %v", result.Warnings)
+	}
+}
+
+// --- Validate tests ---
+
+func TestValidateMissingName(t *testing.T) {
+	m := &ProjectManifest{}
+	problems := m.Validate(nil, nil)
+	if len(problems) == 0 {
+		t.Error("expected validation error for missing name")
+	}
+}
+
+func TestValidateUnknownAssistant(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Assistant: "invalid"}
+	problems := m.Validate([]string{"copilot", "claude"}, nil)
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "unknown assistant") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected unknown assistant warning, got %v", problems)
+	}
+}
+
+func TestValidateValidAssistant(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Assistant: "copilot"}
+	problems := m.Validate([]string{"copilot", "claude"}, nil)
+	if len(problems) != 0 {
+		t.Errorf("expected no problems, got %v", problems)
+	}
+}
+
+func TestValidateUnknownPackage(t *testing.T) {
+	m := &ProjectManifest{Name: "test", Packages: []string{"git-workflow", "fake"}}
+	problems := m.Validate(nil, []string{"git-workflow", "threat-modelling"})
+	found := false
+	for _, p := range problems {
+		if strings.Contains(p, "unknown package") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected unknown package warning, got %v", problems)
+	}
+}

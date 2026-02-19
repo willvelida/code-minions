@@ -47,6 +47,11 @@ AGENTS.md is not modified during updates.`,
 			}
 
 			// If --for is set, look up the assistant config and build a path mapper
+			forFlag, err := resolveForFlag(cmd, forFlag, target, mode)
+			if err != nil {
+				return err
+			}
+
 			var pathMapper func(string) string
 			if forFlag != "" {
 				cfg, err := assistant.Get(forFlag)
@@ -61,7 +66,7 @@ AGENTS.md is not modified during updates.`,
 			var packageDirs []string
 			if packageFlag != "" {
 				var err error
-				packageDirs, err = buildPackageList(content, packageFlag)
+				packageDirs, err = buildPackageList(content, packageFlag, target)
 				if err != nil {
 					return err
 				}
@@ -231,6 +236,7 @@ AGENTS.md is not modified during updates.`,
 	cmd.Flags().String("persona", "", "Update a persona (re-install all its packages with latest content)")
 	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
 	cmd.Flags().Bool("dry-run", false, "Show what would be updated without writing files")
+	cmd.Flags().Bool("update-assistant", false, "Update the manifest's assistant field when --for differs")
 
 	return cmd
 }
