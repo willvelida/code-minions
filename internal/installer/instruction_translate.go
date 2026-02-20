@@ -21,8 +21,8 @@ type InstructionTranslator interface {
 }
 
 // NewInstructionTranslator returns a translator for the named assistant.
-// Returns nil (no translation needed) for assistants that accept the
-// generic .instructions.md format natively.
+// Assistants that accept the generic .instructions.md format natively use
+// PassthroughInstructionTranslator to return content unchanged.
 func NewInstructionTranslator(assistant string) InstructionTranslator {
 	switch assistant {
 	case "cursor":
@@ -50,13 +50,19 @@ func (t *PassthroughInstructionTranslator) TranslateContent(content []byte, file
 type CursorInstructionTranslator struct{}
 
 func (t *CursorInstructionTranslator) TranslateContent(content []byte, filename string) ([]byte, string, error) {
+	newName := toCursorFilename(filename)
+
+	// When content is nil (filename-only transform during uninstall),
+	// skip the frontmatter translation entirely.
+	if content == nil {
+		return nil, newName, nil
+	}
+
 	translated, err := translateFrontmatter(content)
 	if err != nil {
 		return nil, "", fmt.Errorf("translating %s for Cursor: %w", filename, err)
 	}
 
-	// Rename: foo.instructions.md → foo.mdc
-	newName := toCursorFilename(filename)
 	return translated, newName, nil
 }
 
