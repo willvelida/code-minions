@@ -70,10 +70,10 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			if i.FileTransformer != nil && !d.IsDir() {
 				// We'll apply the actual content transform during the write phase below.
 				// For now, just transform the filename portion of the output path.
-				dir := ""
+				parentDir := ""
 				name := outputPath
 				if idx := strings.LastIndex(outputPath, "/"); idx >= 0 {
-					dir = outputPath[:idx+1]
+					parentDir = outputPath[:idx+1]
 					name = outputPath[idx+1:]
 				}
 				_, newName, err := i.FileTransformer(nil, name)
@@ -82,7 +82,7 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 					return nil
 				}
 				if newName != name {
-					outputPath = dir + newName
+					outputPath = parentDir + newName
 					fileTransformApplied = true
 				}
 			}

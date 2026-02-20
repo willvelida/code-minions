@@ -50,13 +50,20 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 			// Apply FileTransformer to the filename portion *before* PathMapper
 			// so that the mapped path uses the transformed name (e.g. .mdc for Cursor).
 			if i.FileTransformer != nil && !d.IsDir() {
-				dir := filepath.Dir(outputPath)
-				base := filepath.Base(outputPath)
-				_, newName, ferr := i.FileTransformer(nil, base)
+				// Split into directory and filename using forward slashes
+				// (not filepath.Dir/Join which would produce backslashes on Windows,
+				// breaking PathMapper's forward-slash prefix matching).
+				parentDir := ""
+				baseName := outputPath
+				if idx := strings.LastIndex(outputPath, "/"); idx >= 0 {
+					parentDir = outputPath[:idx+1]
+					baseName = outputPath[idx+1:]
+				}
+				_, newName, ferr := i.FileTransformer(nil, baseName)
 				if ferr != nil {
 					result.Errors = append(result.Errors, fmt.Sprintf("failed to transform %s: %v", outputPath, ferr))
-				} else if newName != base {
-					outputPath = filepath.Join(dir, newName)
+				} else if newName != baseName {
+					outputPath = parentDir + newName
 				}
 			}
 
