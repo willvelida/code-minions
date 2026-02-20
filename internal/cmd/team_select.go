@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// promptTeamName reads a team name from stdin and validates it.
+// promptTeamName reads a team name from stdin and checks that it is non-empty.
 func promptTeamName(stdin io.Reader, stdout io.Writer) (string, error) {
 	if _, err := fmt.Fprint(stdout, "Team name: "); err != nil {
 		return "", err

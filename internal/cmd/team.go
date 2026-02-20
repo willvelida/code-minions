@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/model"
 	"github.com/willvelida/code-minions/internal/registry"
 	"gopkg.in/yaml.v3"
@@ -141,8 +142,12 @@ func runTeamInit(cmd *cobra.Command, content fs.FS, opts teamInitOptions) error 
 		outputPath = filepath.Join(cwd, outputPath)
 	}
 
-	if _, err := os.Stat(outputPath); err == nil && !opts.force {
-		return fmt.Errorf("%s already exists\n\nUse --force to overwrite", opts.outputFlag)
+	if _, err := os.Stat(outputPath); err == nil {
+		if !opts.force {
+			return fmt.Errorf("%s already exists\n\nUse --force to overwrite", opts.outputFlag)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to check output path: %w", err)
 	}
 
 	// --- Step 2: Build registry and list packages ---
@@ -280,16 +285,25 @@ func resolveTeamDescription(cmd *cobra.Command, opts teamInitOptions, teamName s
 }
 
 // resolveTeamAssistant determines the default assistant from flags, defaults, or prompts.
+// The result is validated against the set of known assistants.
 func resolveTeamAssistant(cmd *cobra.Command, opts teamInitOptions, interactive bool) (string, error) {
+	var name string
 	if opts.assistantFlag != "" {
-		return opts.assistantFlag, nil
+		name = opts.assistantFlag
+	} else if !interactive {
+		name = "copilot"
+	} else {
+		var err error
+		name, err = promptAssistant(cmd.InOrStdin(), cmd.OutOrStdout())
+		if err != nil {
+			return "", err
+		}
 	}
 
-	if !interactive {
-		return "copilot", nil
+	if _, err := assistant.Get(name); err != nil {
+		return "", err
 	}
-
-	return promptAssistant(cmd.InOrStdin(), cmd.OutOrStdout())
+	return name, nil
 }
 
 // resolveEnforcePackages determines the enforce_packages setting from flags or prompts.
@@ -322,32 +336,20 @@ func resolvePersonas(cmd *cobra.Command, opts teamInitOptions, packages []model.
 		}, nil
 	}
 
-	// Interactive: persona loop
+	// Interactive: persona loop — a team needs at least one persona,
+	// so the first iteration always runs without a confirmation prompt.
 	var personas []model.PersonaRef
 	first := true
 
 	for {
-		prompt := "Add another persona? (Y/n) "
-		if first {
-			prompt = "Add a persona? (Y/n) "
-		}
-
-		ok, err := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), prompt)
-		if err != nil {
-			return nil, err
-		}
-
-		// For the first prompt, default to yes (treat non-"n" as yes)
-		if first && !ok {
-			// confirmPrompt returns false for empty input; for "Add a persona?"
-			// we treat empty as yes since a team needs at least one persona.
-			// Re-check: only skip if user explicitly said no.
-			// Actually, confirmPrompt treats empty as "no". Let's just
-			// always add the first persona since a team needs at least one.
-		}
-
-		if !first && !ok {
-			break
+		if !first {
+			ok, err := confirmPrompt(cmd.InOrStdin(), cmd.OutOrStdout(), "Add another persona? (y/N) ")
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				break
+			}
 		}
 		first = false
 
@@ -416,6 +418,7 @@ func writeTeamYAML(path string, team *model.Team) error {
 	// On Windows, os.Rename fails if the destination already exists.
 	backupPath := path + ".bak"
 	hadBackup := false
+	_ = os.Remove(backupPath) // Remove stale backup to avoid rename collision on Windows.
 	if err := os.Rename(path, backupPath); err != nil {
 		if !os.IsNotExist(err) {
 			_ = os.Remove(tmpPath)
@@ -460,7 +463,11 @@ func buildPersonaResults(personas []model.PersonaRef) []personaResult {
 func formatPersonaSummary(personas []model.PersonaRef) string {
 	parts := make([]string, len(personas))
 	for i, p := range personas {
-		parts[i] = fmt.Sprintf("%s (%d packages)", p.Name, len(p.Packages))
+		noun := "packages"
+		if len(p.Packages) == 1 {
+			noun = "package"
+		}
+		parts[i] = fmt.Sprintf("%s (%d %s)", p.Name, len(p.Packages), noun)
 	}
 	return strings.Join(parts, ", ")
 }
