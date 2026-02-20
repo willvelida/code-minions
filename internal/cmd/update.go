@@ -46,7 +46,7 @@ AGENTS.md is not modified during updates.`,
 						"Usage: code-minions update --persona <name> --for <assistant>")
 				}
 				// Re-install with force=true is the update.
-				return runPersonaInstall(cmd, content, personaFlag, forFlag, target, true, dryRun)
+				return runPersonaInstall(cmd, content, personaFlag, forFlag, "", target, true, dryRun)
 			}
 
 			// If --for is set, look up the assistant config and build a path mapper

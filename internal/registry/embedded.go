@@ -15,15 +15,23 @@ import (
 // built-in packages shipped with the CLI binary.
 type EmbeddedSource struct {
 	content fs.FS
+	name    string
 }
 
 // NewEmbeddedSource creates a Source backed by an embedded filesystem.
 // The filesystem must contain packages under a "packages/" directory.
 func NewEmbeddedSource(content fs.FS) *EmbeddedSource {
-	return &EmbeddedSource{content: content}
+	return &EmbeddedSource{content: content, name: "embedded"}
 }
 
-func (s *EmbeddedSource) Name() string { return "embedded" }
+// NewEmbeddedSourceWithName creates a Source backed by an embedded
+// filesystem with a custom name. This is used for local directory
+// sources that behave like embedded sources but need a distinct name.
+func NewEmbeddedSourceWithName(content fs.FS, name string) *EmbeddedSource {
+	return &EmbeddedSource{content: content, name: name}
+}
+
+func (s *EmbeddedSource) Name() string { return s.name }
 func (s *EmbeddedSource) Type() string { return "embedded" }
 
 // ListPackages returns all packages found under packages/ in the
