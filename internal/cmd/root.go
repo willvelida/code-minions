@@ -10,7 +10,19 @@ func NewRootCommand(content fs.FS) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "code-minions",
 		Short: "Install code-minions agents and skills into your repository",
-		Long: `code-minions is a CLI tool that installs reusable AI agent skills
+		Long: `
+   ____  ___  ____  ____
+  / ___|/ _ \|  _ \| ___|
+ | |   | | | | | | |  _|
+ | |___| |_| | |_| | |___
+  \____|\___/|____/|_____|
+  __  __ ___ _   _ ___ ___  _   _ ____
+ |  \/  |_ _| \ | |_ _/ _ \| \ | / ___|
+ | |\/| || ||  \| || | | | |  \| \___ \
+ | |  | || || |\  || | |_| | |\  |___) |
+ |_|  |_|___|_| \_|___\___/|_| \_|____/
+
+code-minions is a CLI tool that installs reusable AI agent skills
 and configurations into your project.
 
 Get started with 'code-minions init' to scaffold a project manifest,
