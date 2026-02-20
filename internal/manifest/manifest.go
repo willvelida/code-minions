@@ -25,6 +25,7 @@ type ProjectManifest struct {
 	Name      string   `yaml:"name"`
 	Version   string   `yaml:"version,omitempty"`
 	Assistant string   `yaml:"assistant,omitempty"`
+	Template  string   `yaml:"template,omitempty"`
 	Packages  []string `yaml:"packages,omitempty"`
 }
 

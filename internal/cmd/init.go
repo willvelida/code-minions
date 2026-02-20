@@ -19,6 +19,7 @@ import (
 type initResult struct {
 	ManifestPath string   `json:"manifest_path"`
 	Assistant    string   `json:"assistant"`
+	Template     string   `json:"template,omitempty"`
 	Packages     []string `json:"packages"`
 }
 
@@ -29,22 +30,34 @@ func newInitCommand(content fs.FS) *cobra.Command {
 		Long: `Create a code-minions.yml project manifest interactively.
 
 The init command detects which coding assistants are configured in the
-workspace, lists available packages, and writes a manifest file that
-declares the desired configuration.
+workspace, lets you choose a starting template, and writes a manifest
+file that declares the desired configuration.
 
-In non-interactive mode (--yes flag or non-TTY stdin), defaults are
-used for all choices: the first detected assistant (or copilot) and
-all available packages.
+Templates provide curated package sets for common project archetypes:
+minimal, standard, security, fullstack, and docs. Use --list-templates
+to see all available templates.
+
+In non-interactive mode (--yes flag or non-TTY stdin), the "standard"
+template is used by default. Use --template to select a specific one.
 
 The generated manifest can then be used by "code-minions install" to
 reproducibly install the declared packages.`,
 		Example: `  # Interactive setup
   code-minions init
 
-  # Non-interactive with defaults
+  # Non-interactive with defaults (uses "standard" template)
   code-minions init --yes
 
-  # Specify assistant and packages explicitly
+  # Use a specific template
+  code-minions init --template security
+
+  # List available templates
+  code-minions init --list-templates
+
+  # Non-interactive with a specific template
+  code-minions init --template fullstack --assistant copilot --yes
+
+  # Specify assistant and packages explicitly (no template)
   code-minions init --assistant copilot --packages threat-modelling,git-workflow
 
   # Overwrite existing manifest
@@ -56,6 +69,8 @@ reproducibly install the declared packages.`,
 			target, _ := cmd.Flags().GetString("target")
 			assistantFlag, _ := cmd.Flags().GetString("assistant")
 			packagesFlag, _ := cmd.Flags().GetString("packages")
+			templateFlag, _ := cmd.Flags().GetString("template")
+			listTemplatesFlag, _ := cmd.Flags().GetBool("list-templates")
 			yesFlag, _ := cmd.Flags().GetBool("yes")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 
@@ -65,6 +80,8 @@ reproducibly install the declared packages.`,
 				target:        target,
 				assistantFlag: assistantFlag,
 				packagesFlag:  packagesFlag,
+				templateFlag:  templateFlag,
+				listTemplates: listTemplatesFlag,
 				yes:           yesFlag,
 				force:         forceFlag,
 				mode:          mode,
@@ -75,8 +92,12 @@ reproducibly install the declared packages.`,
 	cmd.Flags().String("target", ".", "Target directory for the manifest")
 	cmd.Flags().String("assistant", "", "Assistant to configure (skip prompt)")
 	cmd.Flags().String("packages", "", "Comma-separated packages to include (skip prompt)")
+	cmd.Flags().String("template", "", "Use a predefined template (minimal, standard, security, fullstack, docs)")
+	cmd.Flags().Bool("list-templates", false, "List available templates and exit")
 	cmd.Flags().Bool("yes", false, "Accept defaults without prompting")
 	cmd.Flags().Bool("force", false, "Overwrite existing code-minions.yml")
+
+	cmd.MarkFlagsMutuallyExclusive("template", "packages")
 
 	return cmd
 }
@@ -86,12 +107,19 @@ type initOptions struct {
 	target        string
 	assistantFlag string
 	packagesFlag  string
+	templateFlag  string
+	listTemplates bool
 	yes           bool
 	force         bool
 	mode          OutputMode
 }
 
 func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
+	// --- Step 0: Handle --list-templates early exit ---
+	if opts.listTemplates {
+		return runListTemplates(cmd, content, opts)
+	}
+
 	// Resolve absolute target path
 	absTarget, err := filepath.Abs(opts.target)
 	if err != nil {
@@ -117,6 +145,24 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 	detected := assistant.Detect(absTarget)
 	verbosePrintf(cmd, opts.mode, "detected assistants: %v\n", detected)
 
+	// --- Step 2.5: Choose template ---
+	src := registry.NewEmbeddedSource(content)
+	pkgModels, err := src.ListPackages()
+	if err != nil {
+		return fmt.Errorf("failed to list packages: %w", err)
+	}
+
+	selectedTemplate, err := resolveTemplate(cmd, opts, interactive)
+	if err != nil {
+		return err
+	}
+
+	var templateName string
+	if selectedTemplate != nil {
+		templateName = selectedTemplate.Name
+		verbosePrintf(cmd, opts.mode, "selected template: %s\n", templateName)
+	}
+
 	// --- Step 3: Choose assistant ---
 	chosenAssistant, err := resolveAssistant(cmd, opts, detected, interactive)
 	if err != nil {
@@ -124,27 +170,26 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 	}
 	verbosePrintf(cmd, opts.mode, "selected assistant: %s\n", chosenAssistant)
 
-	// --- Step 4: List available packages ---
-	src := registry.NewEmbeddedSource(content)
-	pkgModels, err := src.ListPackages()
-	if err != nil {
-		return fmt.Errorf("failed to list packages: %w", err)
-	}
-
-	// --- Step 5: Choose packages ---
-	chosenPackages, err := resolvePackages(cmd, opts, pkgModels, interactive)
-	if err != nil {
-		return err
+	// --- Step 4: Choose packages (template or manual) ---
+	var chosenPackages []string
+	if selectedTemplate != nil {
+		chosenPackages = resolveTemplatePackages(selectedTemplate, pkgModels)
+	} else {
+		chosenPackages, err = resolvePackages(cmd, opts, pkgModels, interactive)
+		if err != nil {
+			return err
+		}
 	}
 	verbosePrintf(cmd, opts.mode, "selected packages: %v\n", chosenPackages)
 
-	// --- Step 6: Build the project name ---
+	// --- Step 5: Build the project name ---
 	projectName := filepath.Base(absTarget)
 
-	// --- Step 7: Build and write manifest ---
+	// --- Step 6: Build and write manifest ---
 	m := &manifest.ProjectManifest{
 		Name:      projectName,
 		Assistant: chosenAssistant,
+		Template:  templateName,
 		Packages:  chosenPackages,
 	}
 
@@ -152,10 +197,11 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 		return err
 	}
 
-	// --- Step 8: Output ---
+	// --- Step 7: Output ---
 	result := initResult{
 		ManifestPath: manifest.FileName,
 		Assistant:    chosenAssistant,
+		Template:     templateName,
 		Packages:     nonNil(chosenPackages),
 	}
 
@@ -168,10 +214,17 @@ func runInit(cmd *cobra.Command, content fs.FS, opts initOptions) error {
 		bold := color.New(color.Bold)
 		green := color.New(color.FgGreen)
 
-		_, _ = green.Fprintln(out, "✓ Created code-minions.yml")
+		if templateName != "" {
+			_, _ = green.Fprintf(out, "✓ Created code-minions.yml with template %q\n", templateName)
+		} else {
+			_, _ = green.Fprintln(out, "✓ Created code-minions.yml")
+		}
 		_, _ = fmt.Fprintln(out)
 		_, _ = bold.Fprintf(out, "  Project:   %s\n", projectName)
 		_, _ = bold.Fprintf(out, "  Assistant: %s\n", chosenAssistant)
+		if templateName != "" {
+			_, _ = bold.Fprintf(out, "  Template:  %s\n", templateName)
+		}
 		_, _ = bold.Fprintf(out, "  Packages:  %s\n", strings.Join(chosenPackages, ", "))
 		_, _ = fmt.Fprintln(out)
 		_, _ = fmt.Fprintln(out, "Run 'code-minions install' to install the declared packages.")
@@ -306,4 +359,73 @@ func validatePackageNames(input string, available []model.Package) ([]string, er
 	}
 
 	return selected, nil
+}
+
+// resolveTemplate determines which template to use, either from flags,
+// defaults (for non-interactive), or by prompting the user.
+// Returns nil when the user chooses "blank" (manual package selection).
+func resolveTemplate(cmd *cobra.Command, opts initOptions, interactive bool) (*Template, error) {
+	// Explicit --packages flag means no template
+	if opts.packagesFlag != "" {
+		return nil, nil
+	}
+
+	// Explicit --template flag takes priority
+	if opts.templateFlag != "" {
+		return getTemplate(opts.templateFlag)
+	}
+
+	// Non-interactive: use default template
+	if !interactive {
+		return getTemplate(defaultTemplateName)
+	}
+
+	// Interactive: prompt the user
+	return selectTemplate(cmd.InOrStdin(), cmd.OutOrStdout(), listTemplates())
+}
+
+// runListTemplates handles the --list-templates flag by printing all available
+// templates and returning without creating a manifest.
+func runListTemplates(cmd *cobra.Command, content fs.FS, opts initOptions) error {
+	templates := listTemplates()
+
+	// Resolve fullstack packages for display
+	src := registry.NewEmbeddedSource(content)
+	pkgModels, err := src.ListPackages()
+	if err != nil {
+		return fmt.Errorf("failed to list packages: %w", err)
+	}
+
+	if opts.mode == OutputJSON {
+		// For JSON output, resolve package lists
+		type templateJSON struct {
+			Name        string   `json:"name"`
+			Description string   `json:"description"`
+			Packages    []string `json:"packages"`
+		}
+		var out []templateJSON
+		for _, t := range templates {
+			pkgs := resolveTemplatePackages(&t, pkgModels)
+			out = append(out, templateJSON{
+				Name:        t.Name,
+				Description: t.Description,
+				Packages:    pkgs,
+			})
+		}
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(out)
+	}
+
+	if opts.mode != OutputQuiet {
+		w := cmd.OutOrStdout()
+		_, _ = fmt.Fprintln(w, "Available templates:")
+		_, _ = fmt.Fprintln(w)
+		for _, t := range templates {
+			pkgs := resolveTemplatePackages(&t, pkgModels)
+			_, _ = fmt.Fprintf(w, "  %-12s — %s\n", t.Name, t.Description)
+			_, _ = fmt.Fprintf(w, "               Packages: %s\n", strings.Join(pkgs, ", "))
+			_, _ = fmt.Fprintln(w)
+		}
+	}
+
+	return nil
 }

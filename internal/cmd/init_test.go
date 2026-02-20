@@ -297,7 +297,7 @@ func TestInitInvalidPackage(t *testing.T) {
 	}
 }
 
-func TestInitYesDefaultsToAllPackages(t *testing.T) {
+func TestInitYesDefaultsToStandardTemplate(t *testing.T) {
 	color.NoColor = true
 	t.Cleanup(func() { color.NoColor = false })
 
@@ -321,9 +321,12 @@ func TestInitYesDefaultsToAllPackages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load manifest: %v", err)
 	}
-	// Should include all packages from the test FS
-	if len(m.Packages) != 2 {
-		t.Errorf("expected 2 packages (all), got %d: %v", len(m.Packages), m.Packages)
+	// --yes defaults to "standard" template: git-workflow, developer-mentor, raise-pull-requests
+	if m.Template != "standard" {
+		t.Errorf("Template: got %q, want %q", m.Template, "standard")
+	}
+	if len(m.Packages) != 3 {
+		t.Errorf("expected 3 packages (standard template), got %d: %v", len(m.Packages), m.Packages)
 	}
 }
 
@@ -384,5 +387,308 @@ func TestInitProjectNameFromDirectory(t *testing.T) {
 	expectedName := filepath.Base(dir)
 	if m.Name != expectedName {
 		t.Errorf("Name: got %q, want %q (should match directory name)", m.Name, expectedName)
+	}
+}
+
+func TestInitWithTemplateStandard(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "standard", "--assistant", "copilot", "--yes"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m, err := manifest.Load(manifest.DefaultPath(dir))
+	if err != nil {
+		t.Fatalf("failed to load manifest: %v", err)
+	}
+	if m.Template != "standard" {
+		t.Errorf("Template: got %q, want %q", m.Template, "standard")
+	}
+	// standard template: git-workflow, developer-mentor, raise-pull-requests
+	expected := []string{"git-workflow", "developer-mentor", "raise-pull-requests"}
+	if len(m.Packages) != len(expected) {
+		t.Fatalf("Packages: got %v, want %v", m.Packages, expected)
+	}
+	for i, pkg := range expected {
+		if m.Packages[i] != pkg {
+			t.Errorf("Packages[%d]: got %q, want %q", i, m.Packages[i], pkg)
+		}
+	}
+}
+
+func TestInitWithTemplateMinimal(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "minimal", "--assistant", "copilot", "--yes"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m, err := manifest.Load(manifest.DefaultPath(dir))
+	if err != nil {
+		t.Fatalf("failed to load manifest: %v", err)
+	}
+	if m.Template != "minimal" {
+		t.Errorf("Template: got %q, want %q", m.Template, "minimal")
+	}
+	if len(m.Packages) != 1 || m.Packages[0] != "git-workflow" {
+		t.Errorf("Packages: got %v, want [git-workflow]", m.Packages)
+	}
+}
+
+func TestInitWithTemplateFullstack(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "fullstack", "--assistant", "copilot", "--yes"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m, err := manifest.Load(manifest.DefaultPath(dir))
+	if err != nil {
+		t.Fatalf("failed to load manifest: %v", err)
+	}
+	if m.Template != "fullstack" {
+		t.Errorf("Template: got %q, want %q", m.Template, "fullstack")
+	}
+	// fullstack should include all packages from the test FS
+	if len(m.Packages) != 2 {
+		t.Errorf("expected 2 packages (all in test FS), got %d: %v", len(m.Packages), m.Packages)
+	}
+}
+
+func TestInitWithInvalidTemplate(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "nonexistent", "--yes"})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown template, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown template") {
+		t.Errorf("error should mention 'unknown template', got: %v", err)
+	}
+}
+
+func TestInitTemplateAndPackagesMutuallyExclusive(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "standard", "--packages", "git-workflow", "--yes"})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error when --template and --packages are both set, got nil")
+	}
+}
+
+func TestInitListTemplates(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--list-templates"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Available templates:") {
+		t.Error("output should contain 'Available templates:'")
+	}
+	for _, name := range []string{"minimal", "standard", "security", "fullstack", "docs"} {
+		if !strings.Contains(output, name) {
+			t.Errorf("output should list template %q", name)
+		}
+	}
+	// Should not create a manifest
+	// (no --target was needed since no manifest is created)
+}
+
+func TestInitListTemplatesJSON(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--list-templates", "--json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var templates []struct {
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Packages    []string `json:"packages"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &templates); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v\nraw: %s", err, buf.String())
+	}
+	if len(templates) != 5 {
+		t.Errorf("expected 5 templates in JSON, got %d", len(templates))
+	}
+}
+
+func TestInitWithTemplateJSON(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "security", "--assistant", "copilot", "--json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result initResult
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v\nraw: %s", err, buf.String())
+	}
+	if result.Template != "security" {
+		t.Errorf("Template: got %q, want %q", result.Template, "security")
+	}
+	if result.Assistant != "copilot" {
+		t.Errorf("Assistant: got %q, want %q", result.Assistant, "copilot")
+	}
+}
+
+func TestInitWithPackagesFlagNoTemplate(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--packages", "threat-modelling", "--assistant", "copilot", "--yes"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m, err := manifest.Load(manifest.DefaultPath(dir))
+	if err != nil {
+		t.Fatalf("failed to load manifest: %v", err)
+	}
+	// --packages skips template entirely
+	if m.Template != "" {
+		t.Errorf("Template should be empty when --packages is used, got %q", m.Template)
+	}
+	if len(m.Packages) != 1 || m.Packages[0] != "threat-modelling" {
+		t.Errorf("Packages: got %v, want [threat-modelling]", m.Packages)
+	}
+}
+
+func TestInitTemplateOutputShowsTemplateName(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	origInteractive := isInteractiveFunc
+	isInteractiveFunc = func() bool { return false }
+	t.Cleanup(func() { isInteractiveFunc = origInteractive })
+
+	dir := t.TempDir()
+	content := testContentFSForInit()
+
+	var buf bytes.Buffer
+	root := NewRootCommand(content)
+	root.SetOut(&buf)
+	root.SetArgs([]string{"init", "--target", dir, "--template", "minimal", "--assistant", "copilot", "--yes"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "minimal") {
+		t.Error("output should mention the template name")
+	}
+	if !strings.Contains(output, "Template:") {
+		t.Error("output should contain 'Template:' line")
 	}
 }
