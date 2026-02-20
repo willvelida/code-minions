@@ -33,10 +33,14 @@ type Team struct {
 }
 
 // PersonaRef is a reference to a persona within a team.
+// When Packages is non-empty, the persona is defined inline with its
+// own curated package set. When Packages is empty, the persona is a
+// reference to an existing persona definition resolved at install time.
 type PersonaRef struct {
-	Name    string `yaml:"name" json:"name"`
-	Version string `yaml:"version,omitempty" json:"version,omitempty"`
-	Source  string `yaml:"source,omitempty" json:"source,omitempty"`
+	Name     string       `yaml:"name" json:"name"`
+	Version  string       `yaml:"version,omitempty" json:"version,omitempty"`
+	Source   string       `yaml:"source,omitempty" json:"source,omitempty"`
+	Packages []PackageRef `yaml:"packages,omitempty" json:"packages,omitempty"`
 }
 
 // TeamConfig holds team-level settings.
