@@ -20,11 +20,12 @@ type Package struct {
 
 // PackageContents declares what files a package provides.
 type PackageContents struct {
-	Agents    []string `yaml:"agents,omitempty" json:"agents,omitempty"`
-	Skills    []string `yaml:"skills,omitempty" json:"skills,omitempty"`
-	MCP       []string `yaml:"mcp,omitempty" json:"mcp,omitempty"`
-	Standards []string `yaml:"standards,omitempty" json:"standards,omitempty"`
-	Actions   []string `yaml:"actions,omitempty" json:"actions,omitempty"`
+	Agents       []string `yaml:"agents,omitempty" json:"agents,omitempty"`
+	Skills       []string `yaml:"skills,omitempty" json:"skills,omitempty"`
+	MCP          []string `yaml:"mcp,omitempty" json:"mcp,omitempty"`
+	Standards    []string `yaml:"standards,omitempty" json:"standards,omitempty"`
+	Actions      []string `yaml:"actions,omitempty" json:"actions,omitempty"`
+	Instructions []string `yaml:"instructions,omitempty" json:"instructions,omitempty"`
 }
 
 // DependencyRef is a reference to another package.

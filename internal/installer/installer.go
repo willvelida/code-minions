@@ -17,12 +17,13 @@ var SkipFiles = map[string]bool{
 
 // Installer copies embedded package content to a target directory.
 type Installer struct {
-	Content     fs.FS
-	Target      string
-	Force       bool
-	DryRun      bool
-	StripPrefix string
-	PathMapper  func(path string) string // Optional: transforms output paths (e.g. for assistant-specific layouts)
+	Content         fs.FS
+	Target          string
+	Force           bool
+	DryRun          bool
+	StripPrefix     string
+	PathMapper      func(path string) string                                      // Optional: transforms output paths (e.g. for assistant-specific layouts)
+	FileTransformer func(content []byte, filename string) ([]byte, string, error) // Optional: transforms file content and name (e.g. .instructions.md → .mdc for Cursor)
 }
 
 // Result tracks what happened during an installation.
@@ -60,6 +61,30 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			// Skip metadata files that shouldn't be installed
 			if !d.IsDir() && SkipFiles[d.Name()] {
 				return nil
+			}
+
+			// Apply optional file transformer (e.g. .instructions.md → .mdc for Cursor).
+			// This runs before PathMapper so directory remapping still applies
+			// to the (possibly renamed) file.
+			var fileTransformApplied bool
+			if i.FileTransformer != nil && !d.IsDir() {
+				// We'll apply the actual content transform during the write phase below.
+				// For now, just transform the filename portion of the output path.
+				parentDir := ""
+				name := outputPath
+				if idx := strings.LastIndex(outputPath, "/"); idx >= 0 {
+					parentDir = outputPath[:idx+1]
+					name = outputPath[idx+1:]
+				}
+				_, newName, err := i.FileTransformer(nil, name)
+				if err != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("failed to transform %s: %v", outputPath, err))
+					return nil
+				}
+				if newName != name {
+					outputPath = parentDir + newName
+					fileTransformApplied = true
+				}
 			}
 
 			// Apply optional path mapping (e.g. agents/ → .github/agents/ for Copilot)
@@ -121,6 +146,19 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("failed to read %s: %v", outputPath, err))
 				return nil
+			}
+
+			// Apply content transformation if a file transformer is set
+			// and the filename was transformed (indicating this file type
+			// needs content transformation too).
+			if i.FileTransformer != nil && fileTransformApplied {
+				origName := d.Name()
+				transformedData, _, transformErr := i.FileTransformer(data, origName)
+				if transformErr != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("failed to transform content of %s: %v", outputPath, transformErr))
+					return nil
+				}
+				data = transformedData
 			}
 
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {

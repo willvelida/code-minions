@@ -22,6 +22,8 @@ contents:
     - skills/creating-agents/standards/code-style.md
     - skills/creating-agents/standards/commands-and-tools.md
     - skills/creating-agents/standards/persona.md
+  instructions:
+    - instructions/agent-files.instructions.md
 
 compatibility:
   - copilot

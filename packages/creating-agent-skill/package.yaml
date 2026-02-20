@@ -22,6 +22,9 @@ contents:
     - skills/creating-agent-skill/standards/naming.md
     - skills/creating-agent-skill/standards/specification.md
     - skills/creating-agent-skill/standards/structure.md
+  instructions:
+    - instructions/agent-skill-yaml.instructions.md
+    - instructions/agent-skill-actions.instructions.md
 
 compatibility:
   - copilot

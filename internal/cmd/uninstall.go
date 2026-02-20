@@ -99,17 +99,23 @@ files are found in the correct assistant-specific location.`,
 				fmt.Println()
 			}
 
+			// Build instruction translator so uninstall finds renamed files
+			// (e.g. Cursor's .mdc instead of .instructions.md).
+			instrTranslator := installer.NewInstructionTranslator(forFlag)
+			fileTransformer := instrTranslator.TranslateContent
+
 			// --- Confirmation gate (skip for dry-run) ---
 			if !dryRun && !yesFlag {
 				// Phase 1: pre-flight scan to count files that would be removed
 				scanResult := &installer.UninstallResult{}
 				for _, pkgDir := range packageDirs {
 					inst := &installer.Installer{
-						Content:     content,
-						Target:      target,
-						DryRun:      true, // always dry-run for the scan
-						StripPrefix: pkgDir,
-						PathMapper:  pathMapper,
+						Content:         content,
+						Target:          target,
+						DryRun:          true, // always dry-run for the scan
+						StripPrefix:     pkgDir,
+						PathMapper:      pathMapper,
+						FileTransformer: fileTransformer,
 					}
 					result, err := inst.Uninstall([]string{pkgDir})
 					if err != nil {
@@ -170,11 +176,12 @@ files are found in the correct assistant-specific location.`,
 			combinedResult := &installer.UninstallResult{}
 			for _, pkgDir := range packageDirs {
 				inst := &installer.Installer{
-					Content:     content,
-					Target:      target,
-					DryRun:      dryRun,
-					StripPrefix: pkgDir,
-					PathMapper:  pathMapper,
+					Content:         content,
+					Target:          target,
+					DryRun:          dryRun,
+					StripPrefix:     pkgDir,
+					PathMapper:      pathMapper,
+					FileTransformer: fileTransformer,
 				}
 				result, err := inst.Uninstall([]string{pkgDir})
 				if err != nil {

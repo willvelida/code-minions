@@ -14,6 +14,7 @@ type Config struct {
 	Description      string // Human-readable label, e.g. "GitHub Copilot"
 	AgentDir         string // Where agent .md files go, e.g. ".github/agents"
 	SkillDir         string // Where skill directories go, e.g. "skills"
+	InstructionDir   string // Where file-pattern instructions go, e.g. ".github/instructions"
 	MCPConfigPath    string // Where MCP server config lives, e.g. ".vscode/mcp.json"
 	MCPConfigKey     string // Top-level JSON key for MCP servers, e.g. "servers"
 	InstructionsPath string // Where global instructions live, e.g. ".github/copilot-instructions.md"
@@ -25,6 +26,7 @@ var configs = map[string]Config{
 		Description:      "GitHub Copilot",
 		AgentDir:         ".github/agents",
 		SkillDir:         "skills",
+		InstructionDir:   ".github/instructions",
 		MCPConfigPath:    ".vscode/mcp.json",
 		MCPConfigKey:     "servers",
 		InstructionsPath: ".github/copilot-instructions.md",
@@ -34,6 +36,7 @@ var configs = map[string]Config{
 		Description:      "Claude Code",
 		AgentDir:         ".claude/agents",
 		SkillDir:         ".claude/skills",
+		InstructionDir:   ".claude/instructions",
 		MCPConfigPath:    ".claude/settings.local.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: "CLAUDE.md",
@@ -43,6 +46,7 @@ var configs = map[string]Config{
 		Description:      "OpenCode",
 		AgentDir:         ".opencode/agents",
 		SkillDir:         ".opencode/skills",
+		InstructionDir:   ".opencode/instructions",
 		MCPConfigPath:    "opencode.json",
 		MCPConfigKey:     "mcp",
 		InstructionsPath: ".opencode/instructions.md",
@@ -52,6 +56,7 @@ var configs = map[string]Config{
 		Description:      "Cursor",
 		AgentDir:         ".cursor/agents",
 		SkillDir:         ".cursor/skills",
+		InstructionDir:   ".cursor/rules",
 		MCPConfigPath:    ".cursor/mcp.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: ".cursor/rules/instructions.mdc",
@@ -59,8 +64,9 @@ var configs = map[string]Config{
 	"gemini": {
 		Name:             "gemini",
 		Description:      "Gemini CLI",
-		AgentDir:         ".gemini/agents", // package agent files (reference only — Gemini has no native agents dir)
-		SkillDir:         ".gemini/skills", // skills AND persona grouping target
+		AgentDir:         ".gemini/agents",       // package agent files (reference only — Gemini has no native agents dir)
+		SkillDir:         ".gemini/skills",       // skills AND persona grouping target
+		InstructionDir:   ".gemini/instructions", // file-pattern instruction files
 		MCPConfigPath:    ".gemini/settings.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: "GEMINI.md",
@@ -70,6 +76,7 @@ var configs = map[string]Config{
 		Description:      "Codex CLI",
 		AgentDir:         ".agents/agents",
 		SkillDir:         ".agents/skills",
+		InstructionDir:   ".agents/instructions",
 		MCPConfigPath:    ".codex/config.toml",
 		MCPConfigKey:     "mcp_servers",
 		InstructionsPath: "AGENTS.md",
@@ -132,6 +139,7 @@ func (c *Config) NewPathMapper() func(string) string {
 	remaps := []remap{
 		{from: "agents", to: c.AgentDir},
 		{from: "skills", to: c.SkillDir},
+		{from: "instructions", to: c.InstructionDir},
 	}
 
 	return func(p string) string {
@@ -175,6 +183,7 @@ func (c *Config) NewReversePathMapper() func(string) string {
 	remaps := []remap{
 		{from: c.AgentDir, to: "agents"},
 		{from: c.SkillDir, to: "skills"},
+		{from: c.InstructionDir, to: "instructions"},
 	}
 
 	return func(p string) string {

@@ -22,6 +22,8 @@ contents:
     - skills/creating-devcontainers/standards/features.md
     - skills/creating-devcontainers/standards/security.md
     - skills/creating-devcontainers/standards/template.json
+  instructions:
+    - instructions/devcontainer-json.instructions.md
 
 compatibility:
   - copilot

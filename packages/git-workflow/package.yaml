@@ -30,6 +30,9 @@ contents:
     - skills/git-workflow/standards/code-review.md
     - skills/git-workflow/standards/commit-messages.md
     - skills/git-workflow/standards/merge-strategy.md
+  instructions:
+    - instructions/git-config.instructions.md
+    - instructions/commit-messages.instructions.md
 
 compatibility:
   - copilot
