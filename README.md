@@ -76,10 +76,19 @@ winget install willvelida.code-minions
 # Scaffold a project manifest interactively
 code-minions init
 
-# Non-interactive init with defaults
+# Non-interactive init with defaults (uses "standard" template)
 code-minions init --yes
 
-# Specify assistant and packages explicitly
+# Use a specific template
+code-minions init --template security
+
+# List available templates
+code-minions init --list-templates
+
+# Non-interactive with a specific template
+code-minions init --template fullstack --assistant copilot --yes
+
+# Specify assistant and packages explicitly (no template)
 code-minions init --assistant copilot --packages threat-modelling,git-workflow
 
 # Install everything (all packages)

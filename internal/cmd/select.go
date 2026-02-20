@@ -143,3 +143,71 @@ func selectAssistant(stdin io.Reader, stdout io.Writer, detected []string, allAs
 
 	return input, nil
 }
+
+// selectTemplate displays a numbered list of templates plus a "blank" option
+// and reads the user's choice. Returns the selected Template or nil for blank
+// (choose packages manually).
+func selectTemplate(stdin io.Reader, stdout io.Writer, templates []Template) (*Template, error) {
+	if len(templates) == 0 {
+		return nil, nil
+	}
+
+	// Find index of the default template ("standard")
+	defaultIdx := 1 // fallback to second item
+	for i, t := range templates {
+		if t.Name == defaultTemplateName {
+			defaultIdx = i
+			break
+		}
+	}
+
+	// Display the numbered list
+	if _, err := fmt.Fprintln(stdout, "\nChoose a starting template:"); err != nil {
+		return nil, err
+	}
+	for i, t := range templates {
+		if _, err := fmt.Fprintf(stdout, "  [%d] %-12s — %s\n", i+1, t.Name, t.Description); err != nil {
+			return nil, err
+		}
+	}
+	// Add "blank" as the last option
+	blankIdx := len(templates) + 1
+	if _, err := fmt.Fprintf(stdout, "  [%d] %-12s — %s\n", blankIdx, "blank", "Choose packages manually"); err != nil {
+		return nil, err
+	}
+
+	if _, err := fmt.Fprintf(stdout, "\nEnter template number [default: %d]: ", defaultIdx+1); err != nil {
+		return nil, err
+	}
+
+	// Read the user's input
+	reader := bufio.NewReader(stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil && line == "" {
+		// EOF with no input — use default
+		return &templates[defaultIdx], nil
+	}
+
+	input := strings.TrimSpace(line)
+
+	// Empty input → use default
+	if input == "" {
+		return &templates[defaultIdx], nil
+	}
+
+	num, err := strconv.Atoi(input)
+	if err != nil {
+		return nil, fmt.Errorf("invalid selection %q: expected a number", input)
+	}
+
+	if num < 1 || num > blankIdx {
+		return nil, fmt.Errorf("invalid selection %d: must be between 1 and %d", num, blankIdx)
+	}
+
+	// "blank" option
+	if num == blankIdx {
+		return nil, nil
+	}
+
+	return &templates[num-1], nil
+}
