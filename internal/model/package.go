@@ -11,6 +11,11 @@ type Package struct {
 	Contents      PackageContents `yaml:"contents,omitempty" json:"contents"`
 	Compatibility []string        `yaml:"compatibility,omitempty" json:"compatibility,omitempty"`
 	Dependencies  []DependencyRef `yaml:"dependencies,omitempty" json:"dependencies,omitempty"`
+
+	// Source is the name of the registry source this package came from.
+	// Populated at runtime by Registry.ListPackages — not persisted in
+	// package.yaml.
+	Source string `yaml:"-" json:"source,omitempty"`
 }
 
 // PackageContents declares what files a package provides.

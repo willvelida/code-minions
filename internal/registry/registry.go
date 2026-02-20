@@ -39,7 +39,7 @@ func (r *Registry) ResolvePackage(name string) (*model.Package, Source, error) {
 			return nil, nil, fmt.Errorf("source %q: %w", src.Name(), err)
 		}
 	}
-	return nil, nil, fmt.Errorf("package %q not found in any source", name)
+	return nil, nil, fmt.Errorf("package %q: %w", name, ErrNotFound)
 }
 
 // ResolvePersona finds a persona by name across all sources.
@@ -53,7 +53,7 @@ func (r *Registry) ResolvePersona(name string) (*model.Persona, Source, error) {
 			return nil, nil, fmt.Errorf("source %q: %w", src.Name(), err)
 		}
 	}
-	return nil, nil, fmt.Errorf("persona %q not found in any source", name)
+	return nil, nil, fmt.Errorf("persona %q: %w", name, ErrNotFound)
 }
 
 // ResolveTeam finds a team by name across all sources.
@@ -67,7 +67,7 @@ func (r *Registry) ResolveTeam(name string) (*model.Team, Source, error) {
 			return nil, nil, fmt.Errorf("source %q: %w", src.Name(), err)
 		}
 	}
-	return nil, nil, fmt.Errorf("team %q not found in any source", name)
+	return nil, nil, fmt.Errorf("team %q: %w", name, ErrNotFound)
 }
 
 // ListPackages returns packages from all sources, deduplicated by name.
@@ -84,6 +84,7 @@ func (r *Registry) ListPackages() ([]model.Package, error) {
 		for _, pkg := range pkgs {
 			if !seen[pkg.Name] {
 				seen[pkg.Name] = true
+				pkg.Source = src.Name()
 				all = append(all, pkg)
 			}
 		}

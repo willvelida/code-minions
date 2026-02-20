@@ -25,21 +25,32 @@ and a short description.
 Use --detail to also see what each package contains (agents, skills,
 actions, standards).
 
+Use --from to list packages from a specific source (a configured source
+name or a Git URL).
+
 Use this command to discover what packages are available before running
 install, or to check which assistants are supported by the --for flag.`,
 		Example: `  # List all available packages and assistants
   code-minions list
 
   # List with content details
-  code-minions list --detail`,
+  code-minions list --detail
+
+  # List packages from a specific source
+  code-minions list --from my-team
+
+  # List packages from a Git URL
+  code-minions list --from https://github.com/org/packages.git`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			detail, _ := cmd.Flags().GetBool("detail")
+			fromFlag, _ := cmd.Flags().GetString("from")
 
 			// Collect package data via the registry
 			type packageEntry struct {
 				Name        string                 `json:"name"`
 				Version     string                 `json:"version,omitempty"`
 				Description string                 `json:"description,omitempty"`
+				Source      string                 `json:"source,omitempty"`
 				Contents    *model.PackageContents `json:"contents,omitempty"`
 			}
 			type assistantEntry struct {
@@ -47,8 +58,25 @@ install, or to check which assistants are supported by the --for flag.`,
 				Description string `json:"description"`
 			}
 
-			src := registry.NewEmbeddedSource(content)
-			pkgModels, err := src.ListPackages()
+			// Build source(s) based on --from flag
+			var reg *registry.Registry
+			if fromFlag != "" {
+				var err error
+				reg, err = registry.BuildRegistryWithFrom(content, fromFlag)
+				if err != nil {
+					return fmt.Errorf("failed to build registry: %w", err)
+				}
+			} else {
+				// Auto-load all configured sources alongside embedded.
+				// Failing sources are warned-and-skipped.
+				var err error
+				reg, err = registry.BuildRegistryWithWarnings(content, cmd.ErrOrStderr())
+				if err != nil {
+					return fmt.Errorf("failed to build registry: %w", err)
+				}
+			}
+
+			pkgModels, err := reg.ListPackages()
 			if err != nil {
 				return fmt.Errorf("failed to list packages: %w", err)
 			}
@@ -59,6 +87,7 @@ install, or to check which assistants are supported by the --for flag.`,
 					Name:        p.Name,
 					Version:     p.Version,
 					Description: p.Description,
+					Source:      p.Source,
 				}
 				if detail {
 					c := p.Contents
@@ -82,8 +111,12 @@ install, or to check which assistants are supported by the --for flag.`,
 			}
 
 			var personas []personaEntry
-			personaModels, err := src.ListPersonas()
-			if err == nil {
+			// Collect personas from all registry sources
+			for _, src := range reg.Sources() {
+				personaModels, pErr := src.ListPersonas()
+				if pErr != nil {
+					continue
+				}
 				for _, p := range personaModels {
 					entry := personaEntry{
 						Name:        p.Name,
@@ -114,7 +147,7 @@ install, or to check which assistants are supported by the --for flag.`,
 
 			// Verbose: show source info
 			for _, p := range pkgs {
-				verbosePrintf(cmd, mode, "source: embedded, package: %s, version: %s\n", p.Name, p.Version)
+				verbosePrintf(cmd, mode, "source: %s, package: %s, version: %s\n", p.Source, p.Name, p.Version)
 			}
 
 			// truncateDesc shortens descriptions for terminal display
@@ -180,6 +213,7 @@ install, or to check which assistants are supported by the --for flag.`,
 	}
 
 	cmd.Flags().Bool("detail", false, "Show package contents (agents, skills, actions, standards)")
+	cmd.Flags().String("from", "", "List packages from a specific source (name or Git URL)")
 
 	return cmd
 }
