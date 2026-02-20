@@ -26,6 +26,7 @@ type PackageContents struct {
 	Standards    []string `yaml:"standards,omitempty" json:"standards,omitempty"`
 	Actions      []string `yaml:"actions,omitempty" json:"actions,omitempty"`
 	Instructions []string `yaml:"instructions,omitempty" json:"instructions,omitempty"`
+	Prompts      []string `yaml:"prompts,omitempty" json:"prompts,omitempty"`
 }
 
 // DependencyRef is a reference to another package.

@@ -234,6 +234,7 @@ func contentsSummary(w io.Writer, accent, dim *color.Color, c *model.PackageCont
 		{"actions", len(c.Actions)},
 		{"standards", len(c.Standards)},
 		{"instructions", len(c.Instructions)},
+		{"prompts", len(c.Prompts)},
 		{"mcp", len(c.MCP)},
 	}
 

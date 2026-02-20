@@ -27,6 +27,9 @@ contents:
     - skills/developer-mentor/standards/skill-assessment.md
   instructions:
     - instructions/mentoring-files.instructions.md
+  prompts:
+    - prompts/explain-concept.prompt.md
+    - prompts/review-approach.prompt.md
 
 compatibility:
   - copilot

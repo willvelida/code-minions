@@ -24,6 +24,8 @@ contents:
     - skills/creating-agents/standards/persona.md
   instructions:
     - instructions/agent-files.instructions.md
+  prompts:
+    - prompts/create-agent.prompt.md
 
 compatibility:
   - copilot

@@ -25,6 +25,9 @@ contents:
   instructions:
     - instructions/markdown-docs.instructions.md
     - instructions/readme-files.instructions.md
+  prompts:
+    - prompts/create-readme.prompt.md
+    - prompts/create-contributing.prompt.md
 
 compatibility:
   - copilot

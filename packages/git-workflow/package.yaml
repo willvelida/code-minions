@@ -33,6 +33,9 @@ contents:
   instructions:
     - instructions/git-config.instructions.md
     - instructions/commit-messages.instructions.md
+  prompts:
+    - prompts/commit-changes.prompt.md
+    - prompts/create-feature-branch.prompt.md
 
 compatibility:
   - copilot
