@@ -414,7 +414,7 @@ Installed with `--for claude`, this becomes `.claude/commands/explain-concept.md
 ```markdown
 ---
 description: "Get a level-adaptive explanation of a software concept"
-concept: The software concept to explain
+concept: "The software concept to explain"
 ---
 
 # Explain Concept
