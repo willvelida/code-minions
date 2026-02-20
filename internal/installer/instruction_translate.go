@@ -118,8 +118,8 @@ func translateFrontmatter(content []byte) ([]byte, error) {
 
 		// Convert applyTo → globs
 		if strings.HasPrefix(trimmed, "applyTo:") {
-			value := strings.TrimPrefix(trimmed, "applyTo:")
-			newLines = append(newLines, "globs:"+value)
+			value := strings.TrimSpace(strings.TrimPrefix(trimmed, "applyTo:"))
+			newLines = append(newLines, "globs: "+value)
 			hasGlobs = true
 			continue
 		}
