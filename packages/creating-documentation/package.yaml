@@ -22,6 +22,9 @@ contents:
     - skills/creating-documentation/standards/markdown.md
     - skills/creating-documentation/standards/readme-structure.md
     - skills/creating-documentation/standards/writing-style.md
+  instructions:
+    - instructions/markdown-docs.instructions.md
+    - instructions/readme-files.instructions.md
 
 compatibility:
   - copilot

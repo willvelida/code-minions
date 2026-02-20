@@ -23,6 +23,8 @@ contents:
     - skills/raise-pull-requests/standards/pr-size.md
     - skills/raise-pull-requests/standards/pull-request-template.md
     - skills/raise-pull-requests/standards/self-review-checklist.md
+  instructions:
+    - instructions/pr-templates.instructions.md
 
 compatibility:
   - copilot

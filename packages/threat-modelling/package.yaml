@@ -22,6 +22,9 @@ contents:
     - skills/threat-modelling/standards/checklist.md
     - skills/threat-modelling/standards/document-template.md
     - skills/threat-modelling/standards/stride-framework.md
+  instructions:
+    - instructions/security-infra.instructions.md
+    - instructions/security-code.instructions.md
 
 compatibility:
   - copilot

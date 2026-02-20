@@ -146,6 +146,7 @@ preview changes without writing any files.`,
 
 			// Install each package (with prefix stripping)
 			combinedResult := &installer.Result{}
+			instrTranslator := installer.NewInstructionTranslator(forFlag)
 			for _, pkgDir := range packageDirs {
 				inst := &installer.Installer{
 					Content:     content,
@@ -154,6 +155,11 @@ preview changes without writing any files.`,
 					DryRun:      dryRun,
 					StripPrefix: pkgDir,
 					PathMapper:  pathMapper,
+				}
+				// Set file transformer for assistants that need instruction
+				// file translation (e.g. Cursor converts .instructions.md → .mdc)
+				if instrTranslator != nil {
+					inst.FileTransformer = instrTranslator.TranslateContent
 				}
 				result, err := inst.Install([]string{pkgDir})
 				if err != nil {
@@ -298,14 +304,21 @@ preview changes without writing any files.`,
 							if strings.HasPrefix(f, "agents/"+pkgName+"/") ||
 								strings.HasPrefix(f, "agents/"+pkgName+".") ||
 								strings.HasPrefix(f, "skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, "instructions/") ||
 								strings.HasPrefix(f, ".github/agents/"+pkgName+"/") ||
 								strings.HasPrefix(f, ".github/agents/"+pkgName+".") ||
+								strings.HasPrefix(f, ".github/instructions/") ||
 								strings.HasPrefix(f, ".claude/agents/"+pkgName+"/") ||
 								strings.HasPrefix(f, ".claude/agents/"+pkgName+".") ||
 								strings.HasPrefix(f, ".claude/skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".claude/instructions/") ||
 								strings.HasPrefix(f, ".opencode/agents/"+pkgName+"/") ||
 								strings.HasPrefix(f, ".opencode/agents/"+pkgName+".") ||
-								strings.HasPrefix(f, ".opencode/skills/"+pkgName+"/") {
+								strings.HasPrefix(f, ".opencode/skills/"+pkgName+"/") ||
+								strings.HasPrefix(f, ".opencode/instructions/") ||
+								strings.HasPrefix(f, ".cursor/rules/") ||
+								strings.HasPrefix(f, ".gemini/instructions/") ||
+								strings.HasPrefix(f, ".agents/instructions/") {
 								pkgFiles = append(pkgFiles, f)
 							}
 						}

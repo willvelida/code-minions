@@ -41,5 +41,13 @@ func TestEmbeddedContentContainsPackages(t *testing.T) {
 		if err != nil {
 			t.Errorf("package %q missing skills/ directory: %v", pkg, err)
 		}
+
+		// Check it has an instructions subdirectory
+		entries, err := fs.ReadDir(Content, "packages/"+pkg+"/instructions")
+		if err != nil {
+			t.Errorf("package %q missing instructions/ directory: %v", pkg, err)
+		} else if len(entries) == 0 {
+			t.Errorf("package %q has empty instructions/ directory", pkg)
+		}
 	}
 }

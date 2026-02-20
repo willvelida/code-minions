@@ -7,60 +7,67 @@ import (
 
 func TestGetReturnsCorrectConfig(t *testing.T) {
 	tests := []struct {
-		name          string // Description shown in test output
-		assistant     string // Input to Get()
-		agentDir      string // Expected AgentDir
-		skillDir      string // Expected SkillDir
-		mcpConfigPath string // Expected MCPConfigPath
-		mcpConfigKey  string // Expected MCPConfigKey
+		name           string // Description shown in test output
+		assistant      string // Input to Get()
+		agentDir       string // Expected AgentDir
+		skillDir       string // Expected SkillDir
+		instructionDir string // Expected InstructionDir
+		mcpConfigPath  string // Expected MCPConfigPath
+		mcpConfigKey   string // Expected MCPConfigKey
 	}{
 		{
-			name:          "copilot uses .github/agents",
-			assistant:     "copilot",
-			agentDir:      ".github/agents",
-			skillDir:      "skills",
-			mcpConfigPath: ".vscode/mcp.json",
-			mcpConfigKey:  "servers",
+			name:           "copilot uses .github/agents",
+			assistant:      "copilot",
+			agentDir:       ".github/agents",
+			skillDir:       "skills",
+			instructionDir: ".github/instructions",
+			mcpConfigPath:  ".vscode/mcp.json",
+			mcpConfigKey:   "servers",
 		},
 		{
-			name:          "claude uses .claude directories",
-			assistant:     "claude",
-			agentDir:      ".claude/agents",
-			skillDir:      ".claude/skills",
-			mcpConfigPath: ".claude/settings.local.json",
-			mcpConfigKey:  "mcpServers",
+			name:           "claude uses .claude directories",
+			assistant:      "claude",
+			agentDir:       ".claude/agents",
+			skillDir:       ".claude/skills",
+			instructionDir: ".claude/instructions",
+			mcpConfigPath:  ".claude/settings.local.json",
+			mcpConfigKey:   "mcpServers",
 		},
 		{
-			name:          "opencode uses .opencode directories",
-			assistant:     "opencode",
-			agentDir:      ".opencode/agents",
-			skillDir:      ".opencode/skills",
-			mcpConfigPath: "opencode.json",
-			mcpConfigKey:  "mcp",
+			name:           "opencode uses .opencode directories",
+			assistant:      "opencode",
+			agentDir:       ".opencode/agents",
+			skillDir:       ".opencode/skills",
+			instructionDir: ".opencode/instructions",
+			mcpConfigPath:  "opencode.json",
+			mcpConfigKey:   "mcp",
 		},
 		{
-			name:          "cursor uses .cursor directories",
-			assistant:     "cursor",
-			agentDir:      ".cursor/agents",
-			skillDir:      ".cursor/skills",
-			mcpConfigPath: ".cursor/mcp.json",
-			mcpConfigKey:  "mcpServers",
+			name:           "cursor uses .cursor directories",
+			assistant:      "cursor",
+			agentDir:       ".cursor/agents",
+			skillDir:       ".cursor/skills",
+			instructionDir: ".cursor/rules",
+			mcpConfigPath:  ".cursor/mcp.json",
+			mcpConfigKey:   "mcpServers",
 		},
 		{
-			name:          "gemini uses .gemini directories",
-			assistant:     "gemini",
-			agentDir:      ".gemini/agents",
-			skillDir:      ".gemini/skills",
-			mcpConfigPath: ".gemini/settings.json",
-			mcpConfigKey:  "mcpServers",
+			name:           "gemini uses .gemini directories",
+			assistant:      "gemini",
+			agentDir:       ".gemini/agents",
+			skillDir:       ".gemini/skills",
+			instructionDir: ".gemini/instructions",
+			mcpConfigPath:  ".gemini/settings.json",
+			mcpConfigKey:   "mcpServers",
 		},
 		{
-			name:          "codex uses .agents directories",
-			assistant:     "codex",
-			agentDir:      ".agents/agents",
-			skillDir:      ".agents/skills",
-			mcpConfigPath: ".codex/config.toml",
-			mcpConfigKey:  "mcp_servers",
+			name:           "codex uses .agents directories",
+			assistant:      "codex",
+			agentDir:       ".agents/agents",
+			skillDir:       ".agents/skills",
+			instructionDir: ".agents/instructions",
+			mcpConfigPath:  ".codex/config.toml",
+			mcpConfigKey:   "mcp_servers",
 		},
 	}
 
@@ -80,6 +87,9 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			}
 			if cfg.SkillDir != tt.skillDir {
 				t.Errorf("SkillDir: got %q, want %q", cfg.SkillDir, tt.skillDir)
+			}
+			if cfg.InstructionDir != tt.instructionDir {
+				t.Errorf("InstructionDir: got %q, want %q", cfg.InstructionDir, tt.instructionDir)
 			}
 			if cfg.MCPConfigPath != tt.mcpConfigPath {
 				t.Errorf("MCPConfigPath: got %q, want %q", cfg.MCPConfigPath, tt.mcpConfigPath)
@@ -265,6 +275,38 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			input:     "skills/dev-mentor/standards/checklist.md",
 			expected:  ".opencode/skills/dev-mentor/standards/checklist.md",
 		},
+
+		// --- Instructions ---
+		{
+			name:      "copilot remaps instructions to .github/instructions",
+			assistant: "copilot",
+			input:     "instructions/security.instructions.md",
+			expected:  ".github/instructions/security.instructions.md",
+		},
+		{
+			name:      "claude remaps instructions to .claude/instructions",
+			assistant: "claude",
+			input:     "instructions/security.instructions.md",
+			expected:  ".claude/instructions/security.instructions.md",
+		},
+		{
+			name:      "cursor remaps instructions to .cursor/rules",
+			assistant: "cursor",
+			input:     "instructions/security.instructions.md",
+			expected:  ".cursor/rules/security.instructions.md",
+		},
+		{
+			name:      "gemini remaps instructions to .gemini/instructions",
+			assistant: "gemini",
+			input:     "instructions/security.instructions.md",
+			expected:  ".gemini/instructions/security.instructions.md",
+		},
+		{
+			name:      "codex remaps instructions to .agents/instructions",
+			assistant: "codex",
+			input:     "instructions/security.instructions.md",
+			expected:  ".agents/instructions/security.instructions.md",
+		},
 	}
 
 	for _, tt := range tests {
@@ -396,6 +438,32 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			input:     ".opencode/skills/dev-mentor/standards/checklist.md",
 			expected:  "skills/dev-mentor/standards/checklist.md",
 		},
+
+		// --- Instructions (reverse) ---
+		{
+			name:      "copilot reverses instructions",
+			assistant: "copilot",
+			input:     ".github/instructions/security.instructions.md",
+			expected:  "instructions/security.instructions.md",
+		},
+		{
+			name:      "claude reverses instructions",
+			assistant: "claude",
+			input:     ".claude/instructions/security.instructions.md",
+			expected:  "instructions/security.instructions.md",
+		},
+		{
+			name:      "cursor reverses instructions from rules",
+			assistant: "cursor",
+			input:     ".cursor/rules/security.mdc",
+			expected:  "instructions/security.mdc",
+		},
+		{
+			name:      "codex reverses instructions",
+			assistant: "codex",
+			input:     ".agents/instructions/security.instructions.md",
+			expected:  "instructions/security.instructions.md",
+		},
 	}
 
 	for _, tt := range tests {
@@ -423,6 +491,8 @@ func TestPathMapperRoundTrip(t *testing.T) {
 		"skills/dev-mentor/SKILL.md",
 		"skills/dev-mentor/actions/create.md",
 		"agents/git-workflow.agent.md",
+		"instructions/security.instructions.md",
+		"instructions/python-standards.instructions.md",
 	}
 
 	for _, assistant := range List() {

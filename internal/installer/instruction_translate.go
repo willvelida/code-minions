@@ -1,0 +1,175 @@
+package installer
+
+import (
+	"bytes"
+	"fmt"
+	"strings"
+)
+
+// InstructionTranslator converts generic .instructions.md files into the
+// format expected by a specific coding assistant.
+//
+// Most assistants accept the generic format as-is (pass-through). Cursor
+// is the notable exception — it uses .mdc files with `globs` frontmatter
+// instead of `applyTo`.
+type InstructionTranslator interface {
+	// TranslateContent converts the file content and returns the translated
+	// content along with the target filename. For most assistants, these
+	// are unchanged. For Cursor, the file is renamed to .mdc and the
+	// frontmatter is converted.
+	TranslateContent(content []byte, filename string) ([]byte, string, error)
+}
+
+// NewInstructionTranslator returns a translator for the named assistant.
+// Returns nil (no translation needed) for assistants that accept the
+// generic .instructions.md format natively.
+func NewInstructionTranslator(assistant string) InstructionTranslator {
+	switch assistant {
+	case "cursor":
+		return &CursorInstructionTranslator{}
+	default:
+		// All other assistants accept .instructions.md as-is.
+		return &PassthroughInstructionTranslator{}
+	}
+}
+
+// PassthroughInstructionTranslator returns content and filename unchanged.
+type PassthroughInstructionTranslator struct{}
+
+func (t *PassthroughInstructionTranslator) TranslateContent(content []byte, filename string) ([]byte, string, error) {
+	return content, filename, nil
+}
+
+// CursorInstructionTranslator converts .instructions.md files to .mdc
+// format with Cursor-native frontmatter.
+//
+// Translation rules:
+//   - applyTo → globs (Cursor's native glob key)
+//   - Add alwaysApply: false (since we're targeting specific file patterns)
+//   - Rename file from .instructions.md to .mdc
+type CursorInstructionTranslator struct{}
+
+func (t *CursorInstructionTranslator) TranslateContent(content []byte, filename string) ([]byte, string, error) {
+	translated, err := translateFrontmatter(content)
+	if err != nil {
+		return nil, "", fmt.Errorf("translating %s for Cursor: %w", filename, err)
+	}
+
+	// Rename: foo.instructions.md → foo.mdc
+	newName := toCursorFilename(filename)
+	return translated, newName, nil
+}
+
+// toCursorFilename converts a generic instruction filename to a Cursor .mdc filename.
+// "security.instructions.md" → "security.mdc"
+// "foo.md" → "foo.mdc" (fallback)
+func toCursorFilename(name string) string {
+	if strings.HasSuffix(name, ".instructions.md") {
+		return strings.TrimSuffix(name, ".instructions.md") + ".mdc"
+	}
+	// Fallback: replace the last extension
+	if idx := strings.LastIndex(name, "."); idx > 0 {
+		return name[:idx] + ".mdc"
+	}
+	return name + ".mdc"
+}
+
+// translateFrontmatter converts generic instruction frontmatter to Cursor format.
+//
+// Input:
+//
+//	---
+//	description: Security standards
+//	applyTo: '**/*.{tf,bicep}'
+//	---
+//
+// Output:
+//
+//	---
+//	description: Security standards
+//	globs: '**/*.{tf,bicep}'
+//	alwaysApply: false
+//	---
+func translateFrontmatter(content []byte) ([]byte, error) {
+	// Split into frontmatter and body
+	frontmatter, body, hasFrontmatter := splitFrontmatter(content)
+	if !hasFrontmatter {
+		// No frontmatter — wrap in Cursor frontmatter with alwaysApply: true
+		// (since there's no pattern, it should always apply)
+		var buf bytes.Buffer
+		buf.WriteString("---\nalwaysApply: true\n---\n")
+		buf.Write(content)
+		return buf.Bytes(), nil
+	}
+
+	// Convert frontmatter lines
+	var newLines []string
+	hasAlwaysApply := false
+	hasGlobs := false
+
+	for _, line := range strings.Split(frontmatter, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		// Convert applyTo → globs
+		if strings.HasPrefix(trimmed, "applyTo:") {
+			value := strings.TrimPrefix(trimmed, "applyTo:")
+			newLines = append(newLines, "globs:"+value)
+			hasGlobs = true
+			continue
+		}
+
+		// Pass through other keys
+		if strings.HasPrefix(trimmed, "alwaysApply:") {
+			hasAlwaysApply = true
+		}
+		newLines = append(newLines, line)
+	}
+
+	// Add alwaysApply: false if we have globs and it wasn't already set
+	if hasGlobs && !hasAlwaysApply {
+		newLines = append(newLines, "alwaysApply: false")
+	}
+	// If no globs (no applyTo), add alwaysApply: true
+	if !hasGlobs && !hasAlwaysApply {
+		newLines = append(newLines, "alwaysApply: true")
+	}
+
+	// Reconstruct
+	var buf bytes.Buffer
+	buf.WriteString("---\n")
+	buf.WriteString(strings.Join(newLines, "\n"))
+	buf.WriteString("\n---\n")
+	buf.Write(body)
+	return buf.Bytes(), nil
+}
+
+// splitFrontmatter separates YAML frontmatter from body content.
+// Returns the frontmatter content (without delimiters), the body,
+// and whether frontmatter was found.
+func splitFrontmatter(content []byte) (string, []byte, bool) {
+	s := string(content)
+
+	// Must start with ---
+	if !strings.HasPrefix(strings.TrimSpace(s), "---") {
+		return "", content, false
+	}
+
+	// Find the closing ---
+	trimmed := strings.TrimSpace(s)
+	rest := trimmed[3:] // skip opening ---
+	rest = strings.TrimPrefix(rest, "\r\n")
+	rest = strings.TrimPrefix(rest, "\n")
+
+	closingIdx := strings.Index(rest, "\n---")
+	if closingIdx < 0 {
+		return "", content, false
+	}
+
+	frontmatter := rest[:closingIdx]
+	body := rest[closingIdx+4:] // skip \n---
+	// Trim leading newline from body
+	body = strings.TrimPrefix(body, "\r\n")
+	body = strings.TrimPrefix(body, "\n")
+
+	return frontmatter, []byte(body), true
+}

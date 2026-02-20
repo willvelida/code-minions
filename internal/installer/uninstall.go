@@ -47,6 +47,17 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 				}
 			}
 
+			// Apply FileTransformer to the filename portion *before* PathMapper
+			// so that the mapped path uses the transformed name (e.g. .mdc for Cursor).
+			if i.FileTransformer != nil && !d.IsDir() {
+				dir := filepath.Dir(outputPath)
+				base := filepath.Base(outputPath)
+				_, newName, ferr := i.FileTransformer(nil, base)
+				if ferr == nil && newName != base {
+					outputPath = filepath.Join(dir, newName)
+				}
+			}
+
 			if i.PathMapper != nil {
 				outputPath = i.PathMapper(outputPath)
 			}

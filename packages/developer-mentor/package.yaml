@@ -25,6 +25,8 @@ contents:
     - skills/developer-mentor/standards/mentoring-principles.md
     - skills/developer-mentor/standards/questioning-techniques.md
     - skills/developer-mentor/standards/skill-assessment.md
+  instructions:
+    - instructions/mentoring-files.instructions.md
 
 compatibility:
   - copilot

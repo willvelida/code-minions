@@ -24,11 +24,11 @@ A collection of reusable assets for AI coding agents to enhance AI-assisted deve
 
 code-minions provides structured knowledge that AI agents can load to perform development tasks consistently and effectively. It includes:
 
-- **Packages** — Bundled agents and skills for common workflows (git operations, documentation, DevContainers)
+- **Packages** — Bundled agents, skills, and file-targeted instructions for common workflows (git operations, documentation, DevContainers)
 
 ## CLI
 
-code-minions includes a CLI tool that installs packages (made up of Agents and Agent Skills) into your own repositories.
+code-minions includes a CLI tool that installs packages (made up of Agents, Agent Skills, and Instructions) into your own repositories.
 
 ### Installation
 
@@ -331,16 +331,18 @@ packages/
 
 Use the `--for` flag to install packages into the directories expected by your coding assistant:
 
-| Assistant | `--for` value | Agents placed in | Skills placed in |
-|-----------|--------------|------------------|------------------|
-| GitHub Copilot | `copilot` | `.github/agents/` | `skills/` |
-| Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` |
-| Codex CLI | `codex` | `.agents/agents/` | `.agents/skills/` |
-| Cursor | `cursor` | `.cursor/agents/` | `.cursor/skills/` |
-| Gemini CLI | `gemini` | `.gemini/agents/` | `.gemini/skills/` |
-| OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` |
+| Assistant | `--for` value | Agents placed in | Skills placed in | Instructions placed in |
+|-----------|--------------|------------------|------------------|------------------------|
+| GitHub Copilot | `copilot` | `.github/agents/` | `skills/` | `.github/instructions/` |
+| Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` | `.claude/instructions/` |
+| Codex CLI | `codex` | `.agents/agents/` | `.agents/skills/` | `.agents/instructions/` |
+| Cursor | `cursor` | `.cursor/agents/` | `.cursor/skills/` | `.cursor/rules/` (as `.mdc`) |
+| Gemini CLI | `gemini` | `.gemini/agents/` | `.gemini/skills/` | `.gemini/instructions/` |
+| OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` | `.opencode/instructions/` |
 
-Without `--for`, files are installed to generic locations (`agents/`, `skills/`).
+Without `--for`, files are installed to generic locations (`agents/`, `skills/`, `instructions/`).
+
+Instruction files (`.instructions.md`) use `applyTo` frontmatter to target specific file patterns. For Cursor, they are automatically converted to `.mdc` format with `globs` frontmatter.
 
 ## Contributing
 
