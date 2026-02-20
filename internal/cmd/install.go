@@ -148,6 +148,7 @@ preview changes without writing any files.`,
 			combinedResult := &installer.Result{}
 			perPkgCopied := make(map[string][]string) // pkgName → copied files
 			instrTranslator := installer.NewInstructionTranslator(forFlag)
+			promptTranslator := installer.NewPromptTranslator(forFlag)
 			for _, pkgDir := range packageDirs {
 				inst := &installer.Installer{
 					Content:     content,
@@ -157,11 +158,16 @@ preview changes without writing any files.`,
 					StripPrefix: pkgDir,
 					PathMapper:  pathMapper,
 				}
-				// Set file transformer for instruction file translation
-				// (e.g. Cursor converts .instructions.md → .mdc).
-				// NewInstructionTranslator always returns a valid translator
-				// (PassthroughInstructionTranslator for non-Cursor assistants).
-				inst.FileTransformer = instrTranslator.TranslateContent
+				// Set file transformer for instruction and prompt file translation.
+				// Dispatches based on file extension: .prompt.md files go through
+				// the prompt translator, everything else through the instruction
+				// translator (which is a pass-through for non-instruction files).
+				inst.FileTransformer = func(content []byte, filename string) ([]byte, string, error) {
+					if strings.HasSuffix(filename, ".prompt.md") {
+						return promptTranslator.TranslateContent(content, filename)
+					}
+					return instrTranslator.TranslateContent(content, filename)
+				}
 				result, err := inst.Install([]string{pkgDir})
 				if err != nil {
 					return fmt.Errorf("installation failed: %w", err)

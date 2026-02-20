@@ -49,5 +49,13 @@ func TestEmbeddedContentContainsPackages(t *testing.T) {
 		} else if len(entries) == 0 {
 			t.Errorf("package %q has empty instructions/ directory", pkg)
 		}
+
+		// Check it has a prompts subdirectory
+		promptEntries, err := fs.ReadDir(Content, "packages/"+pkg+"/prompts")
+		if err != nil {
+			t.Errorf("package %q missing prompts/ directory: %v", pkg, err)
+		} else if len(promptEntries) == 0 {
+			t.Errorf("package %q has empty prompts/ directory", pkg)
+		}
 	}
 }

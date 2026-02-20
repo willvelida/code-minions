@@ -25,6 +25,8 @@ contents:
     - skills/raise-pull-requests/standards/self-review-checklist.md
   instructions:
     - instructions/pr-templates.instructions.md
+  prompts:
+    - prompts/create-pull-request.prompt.md
 
 compatibility:
   - copilot

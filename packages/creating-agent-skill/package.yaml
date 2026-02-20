@@ -25,6 +25,8 @@ contents:
   instructions:
     - instructions/agent-skill-yaml.instructions.md
     - instructions/agent-skill-actions.instructions.md
+  prompts:
+    - prompts/create-skill.prompt.md
 
 compatibility:
   - copilot

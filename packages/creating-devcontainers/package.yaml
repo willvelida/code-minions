@@ -24,6 +24,8 @@ contents:
     - skills/creating-devcontainers/standards/template.json
   instructions:
     - instructions/devcontainer-json.instructions.md
+  prompts:
+    - prompts/create-devcontainer.prompt.md
 
 compatibility:
   - copilot

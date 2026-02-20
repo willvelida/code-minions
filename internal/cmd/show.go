@@ -134,6 +134,8 @@ Use 'code-minions list' to see all available package names.`,
 			showContents("Skills", pkg.Contents.Skills)
 			showContents("Actions", pkg.Contents.Actions)
 			showContents("Standards", pkg.Contents.Standards)
+			showContents("Instructions", pkg.Contents.Instructions)
+			showContents("Prompts", pkg.Contents.Prompts)
 			showContents("MCP", pkg.Contents.MCP)
 
 			// Dependencies

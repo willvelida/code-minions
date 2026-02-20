@@ -15,6 +15,7 @@ type Config struct {
 	AgentDir         string // Where agent .md files go, e.g. ".github/agents"
 	SkillDir         string // Where skill directories go, e.g. "skills"
 	InstructionDir   string // Where file-pattern instructions go, e.g. ".github/instructions"
+	PromptDir        string // Where prompt/command files go, e.g. ".github/prompts"
 	MCPConfigPath    string // Where MCP server config lives, e.g. ".vscode/mcp.json"
 	MCPConfigKey     string // Top-level JSON key for MCP servers, e.g. "servers"
 	InstructionsPath string // Where global instructions live, e.g. ".github/copilot-instructions.md"
@@ -27,6 +28,7 @@ var configs = map[string]Config{
 		AgentDir:         ".github/agents",
 		SkillDir:         "skills",
 		InstructionDir:   ".github/instructions",
+		PromptDir:        ".github/prompts",
 		MCPConfigPath:    ".vscode/mcp.json",
 		MCPConfigKey:     "servers",
 		InstructionsPath: ".github/copilot-instructions.md",
@@ -37,6 +39,7 @@ var configs = map[string]Config{
 		AgentDir:         ".claude/agents",
 		SkillDir:         ".claude/skills",
 		InstructionDir:   ".claude/instructions",
+		PromptDir:        ".claude/commands",
 		MCPConfigPath:    ".claude/settings.local.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: "CLAUDE.md",
@@ -47,6 +50,7 @@ var configs = map[string]Config{
 		AgentDir:         ".opencode/agents",
 		SkillDir:         ".opencode/skills",
 		InstructionDir:   ".opencode/instructions",
+		PromptDir:        ".opencode/commands",
 		MCPConfigPath:    "opencode.json",
 		MCPConfigKey:     "mcp",
 		InstructionsPath: ".opencode/instructions.md",
@@ -57,6 +61,7 @@ var configs = map[string]Config{
 		AgentDir:         ".cursor/agents",
 		SkillDir:         ".cursor/skills",
 		InstructionDir:   ".cursor/rules",
+		PromptDir:        ".cursor/rules",
 		MCPConfigPath:    ".cursor/mcp.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: ".cursor/rules/instructions.mdc",
@@ -67,6 +72,7 @@ var configs = map[string]Config{
 		AgentDir:         ".gemini/agents",       // package agent files (reference only — Gemini has no native agents dir)
 		SkillDir:         ".gemini/skills",       // skills AND persona grouping target
 		InstructionDir:   ".gemini/instructions", // file-pattern instruction files
+		PromptDir:        ".gemini/commands",     // custom slash commands (.toml files)
 		MCPConfigPath:    ".gemini/settings.json",
 		MCPConfigKey:     "mcpServers",
 		InstructionsPath: "GEMINI.md",
@@ -77,6 +83,7 @@ var configs = map[string]Config{
 		AgentDir:         ".agents/agents",
 		SkillDir:         ".agents/skills",
 		InstructionDir:   ".agents/instructions",
+		PromptDir:        ".agents/prompts",
 		MCPConfigPath:    ".codex/config.toml",
 		MCPConfigKey:     "mcp_servers",
 		InstructionsPath: "AGENTS.md",
@@ -140,6 +147,7 @@ func (c *Config) NewPathMapper() func(string) string {
 		{from: "agents", to: c.AgentDir},
 		{from: "skills", to: c.SkillDir},
 		{from: "instructions", to: c.InstructionDir},
+		{from: "prompts", to: c.PromptDir},
 	}
 
 	return func(p string) string {
@@ -184,18 +192,48 @@ func (c *Config) NewReversePathMapper() func(string) string {
 		{from: c.AgentDir, to: "agents"},
 		{from: c.SkillDir, to: "skills"},
 		{from: c.InstructionDir, to: "instructions"},
+		{from: c.PromptDir, to: "prompts"},
 	}
 
 	return func(p string) string {
+		// Collect all entries whose prefix matches the path. When an
+		// assistant uses the same directory for multiple generic prefixes
+		// (e.g. Cursor maps both instructions/ and prompts/ to
+		// .cursor/rules/), we need to pick the best match using the
+		// file extension as a tie-breaker.
+		var candidates []remap
 		for _, r := range remaps {
 			if p == r.from || strings.HasPrefix(p, r.from+"/") {
 				if r.from == r.to {
 					return p
 				}
-				rest := strings.TrimPrefix(p, r.from)
-				return path.Join(r.to, rest)
+				candidates = append(candidates, r)
 			}
 		}
+
+		if len(candidates) == 1 {
+			rest := strings.TrimPrefix(p, candidates[0].from)
+			return path.Join(candidates[0].to, rest)
+		}
+
+		if len(candidates) > 1 {
+			// Disambiguate by file extension: .prompt.md → prompts,
+			// .instructions.md → instructions, etc.
+			extHints := map[string]string{
+				"prompts":      ".prompt.md",
+				"instructions": ".instructions.md",
+			}
+			for _, r := range candidates {
+				if ext, ok := extHints[r.to]; ok && strings.HasSuffix(p, ext) {
+					rest := strings.TrimPrefix(p, r.from)
+					return path.Join(r.to, rest)
+				}
+			}
+			// No extension match — fall through to first candidate
+			rest := strings.TrimPrefix(p, candidates[0].from)
+			return path.Join(candidates[0].to, rest)
+		}
+
 		return p
 	}
 }

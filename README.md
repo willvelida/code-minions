@@ -24,11 +24,11 @@ A collection of reusable assets for AI coding agents to enhance AI-assisted deve
 
 code-minions provides structured knowledge that AI agents can load to perform development tasks consistently and effectively. It includes:
 
-- **Packages** — Bundled agents, skills, and file-targeted instructions for common workflows (git operations, documentation, DevContainers)
+- **Packages** — Bundled agents, skills, instructions, and prompts for common workflows (git operations, documentation, DevContainers)
 
 ## CLI
 
-code-minions includes a CLI tool that installs packages (made up of Agents, Agent Skills, and Instructions) into your own repositories.
+code-minions includes a CLI tool that installs packages (made up of Agents, Agent Skills, Instructions, and Prompts) into your own repositories.
 
 ### Installation
 
@@ -331,18 +331,108 @@ packages/
 
 Use the `--for` flag to install packages into the directories expected by your coding assistant:
 
-| Assistant | `--for` value | Agents placed in | Skills placed in | Instructions placed in |
-|-----------|--------------|------------------|------------------|------------------------|
-| GitHub Copilot | `copilot` | `.github/agents/` | `skills/` | `.github/instructions/` |
-| Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` | `.claude/instructions/` |
-| Codex CLI | `codex` | `.agents/agents/` | `.agents/skills/` | `.agents/instructions/` |
-| Cursor | `cursor` | `.cursor/agents/` | `.cursor/skills/` | `.cursor/rules/` (as `.mdc`) |
-| Gemini CLI | `gemini` | `.gemini/agents/` | `.gemini/skills/` | `.gemini/instructions/` |
-| OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` | `.opencode/instructions/` |
+| Assistant | `--for` value | Agents placed in | Skills placed in | Instructions placed in | Prompts placed in |
+|-----------|--------------|------------------|------------------|------------------------|-------------------|
+| GitHub Copilot | `copilot` | `.github/agents/` | `skills/` | `.github/instructions/` | `.github/prompts/` (`.prompt.md`) |
+| Claude Code | `claude` | `.claude/agents/` | `.claude/skills/` | `.claude/instructions/` | `.claude/commands/` (`.md`) |
+| Codex CLI | `codex` | `.agents/agents/` | `.agents/skills/` | `.agents/instructions/` | `.agents/prompts/` (`.md`) |
+| Cursor | `cursor` | `.cursor/agents/` | `.cursor/skills/` | `.cursor/rules/` (as `.mdc`) | `.cursor/rules/` (`.mdc`) |
+| Gemini CLI | `gemini` | `.gemini/agents/` | `.gemini/skills/` | `.gemini/instructions/` | `.gemini/commands/` (`.toml`) |
+| OpenCode | `opencode` | `.opencode/agents/` | `.opencode/skills/` | `.opencode/instructions/` | `.opencode/commands/` (`.md`) |
 
-Without `--for`, files are installed to generic locations (`agents/`, `skills/`, `instructions/`).
+Without `--for`, files are installed to generic locations (`agents/`, `skills/`, `instructions/`, `prompts/`).
 
 Instruction files (`.instructions.md`) use `applyTo` frontmatter to target specific file patterns. For Cursor, they are automatically converted to `.mdc` format with `globs` frontmatter.
+
+Prompt files (`.prompt.md`) are reusable slash commands that users can invoke from their assistant's chat interface. See [Prompts](#prompts) below for the canonical format and translation details.
+
+## Prompts
+
+Prompts are reusable slash commands (`.prompt.md` files) that users can invoke from their coding assistant's chat interface. Each package can include prompt files in a `prompts/` directory.
+
+### Canonical format
+
+The canonical format is GitHub Copilot's `.prompt.md` with YAML frontmatter:
+
+```markdown
+---
+description: "Short description of what this prompt does"
+mode: ask
+input:
+  - name: concept
+    description: "The concept to explain"
+  - name: scope
+    description: "Optional scope constraint"
+---
+
+# Prompt Title
+
+Prompt body using **${input:concept}** and **${input:scope}** variable syntax.
+```
+
+**Frontmatter fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `description` | Yes | Short summary shown in the slash command picker |
+| `mode` | No | Copilot-specific mode (`ask`, `edit`, `agent`) — dropped for other assistants |
+| `input` | No | Array of named input variables the user is prompted to fill |
+
+### Translation per assistant
+
+When installing with `--for`, prompt files are automatically translated to each assistant's native format:
+
+| Assistant | Format | Extension | Variable syntax | Notes |
+|-----------|--------|-----------|-----------------|-------|
+| Copilot | Markdown + YAML frontmatter | `.prompt.md` | `${input:name}` | Canonical — no translation |
+| Claude | Markdown + YAML frontmatter | `.md` | `$name` | `input` array → named frontmatter keys; `mode` dropped |
+| OpenCode | Markdown | `.md` | `$1`, `$2` / `$ARGUMENTS` | Positional args (≤3 inputs) or `$ARGUMENTS` (4+); `mode`/`input` dropped |
+| Gemini | TOML | `.toml` | `{{args}}` | Body in triple-quoted `prompt` key; all variables → `{{args}}` |
+| Cursor | MDC (Markdown Components) | `.mdc` | `[placeholder]` | Added `alwaysApply: false`; variables replaced with `[placeholder]` |
+| Codex | Markdown reference | `.md` | `[placeholder]` | Reference document; variables replaced with `[placeholder]` |
+
+### Example
+
+A prompt file at `packages/developer-mentor/prompts/explain-concept.prompt.md`:
+
+```markdown
+---
+description: "Get a level-adaptive explanation of a software concept"
+mode: ask
+input:
+  - name: concept
+    description: "The software concept to explain"
+---
+
+# Explain Concept
+
+Explain **${input:concept}** using a level-adaptive mentoring approach.
+```
+
+Installed with `--for claude`, this becomes `.claude/commands/explain-concept.md`:
+
+```markdown
+---
+description: "Get a level-adaptive explanation of a software concept"
+concept: The software concept to explain
+---
+
+# Explain Concept
+
+Explain **$concept** using a level-adaptive mentoring approach.
+```
+
+Installed with `--for gemini`, this becomes `.gemini/commands/explain-concept.toml`:
+
+```toml
+description = "Get a level-adaptive explanation of a software concept"
+prompt = """
+
+# Explain Concept
+
+Explain **{{args}}** using a level-adaptive mentoring approach.
+"""
+```
 
 ## Contributing
 

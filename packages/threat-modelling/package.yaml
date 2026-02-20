@@ -25,6 +25,8 @@ contents:
   instructions:
     - instructions/security-infra.instructions.md
     - instructions/security-code.instructions.md
+  prompts:
+    - prompts/threat-assessment.prompt.md
 
 compatibility:
   - copilot

@@ -12,6 +12,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 		agentDir       string // Expected AgentDir
 		skillDir       string // Expected SkillDir
 		instructionDir string // Expected InstructionDir
+		promptDir      string // Expected PromptDir
 		mcpConfigPath  string // Expected MCPConfigPath
 		mcpConfigKey   string // Expected MCPConfigKey
 	}{
@@ -21,6 +22,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			agentDir:       ".github/agents",
 			skillDir:       "skills",
 			instructionDir: ".github/instructions",
+			promptDir:      ".github/prompts",
 			mcpConfigPath:  ".vscode/mcp.json",
 			mcpConfigKey:   "servers",
 		},
@@ -30,6 +32,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			agentDir:       ".claude/agents",
 			skillDir:       ".claude/skills",
 			instructionDir: ".claude/instructions",
+			promptDir:      ".claude/commands",
 			mcpConfigPath:  ".claude/settings.local.json",
 			mcpConfigKey:   "mcpServers",
 		},
@@ -39,6 +42,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			agentDir:       ".opencode/agents",
 			skillDir:       ".opencode/skills",
 			instructionDir: ".opencode/instructions",
+			promptDir:      ".opencode/commands",
 			mcpConfigPath:  "opencode.json",
 			mcpConfigKey:   "mcp",
 		},
@@ -48,6 +52,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			agentDir:       ".cursor/agents",
 			skillDir:       ".cursor/skills",
 			instructionDir: ".cursor/rules",
+			promptDir:      ".cursor/rules",
 			mcpConfigPath:  ".cursor/mcp.json",
 			mcpConfigKey:   "mcpServers",
 		},
@@ -57,6 +62,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			agentDir:       ".gemini/agents",
 			skillDir:       ".gemini/skills",
 			instructionDir: ".gemini/instructions",
+			promptDir:      ".gemini/commands",
 			mcpConfigPath:  ".gemini/settings.json",
 			mcpConfigKey:   "mcpServers",
 		},
@@ -66,6 +72,7 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			agentDir:       ".agents/agents",
 			skillDir:       ".agents/skills",
 			instructionDir: ".agents/instructions",
+			promptDir:      ".agents/prompts",
 			mcpConfigPath:  ".codex/config.toml",
 			mcpConfigKey:   "mcp_servers",
 		},
@@ -90,6 +97,9 @@ func TestGetReturnsCorrectConfig(t *testing.T) {
 			}
 			if cfg.InstructionDir != tt.instructionDir {
 				t.Errorf("InstructionDir: got %q, want %q", cfg.InstructionDir, tt.instructionDir)
+			}
+			if cfg.PromptDir != tt.promptDir {
+				t.Errorf("PromptDir: got %q, want %q", cfg.PromptDir, tt.promptDir)
 			}
 			if cfg.MCPConfigPath != tt.mcpConfigPath {
 				t.Errorf("MCPConfigPath: got %q, want %q", cfg.MCPConfigPath, tt.mcpConfigPath)
@@ -307,6 +317,44 @@ func TestNewPathMapperRemapsPaths(t *testing.T) {
 			input:     "instructions/security.instructions.md",
 			expected:  ".agents/instructions/security.instructions.md",
 		},
+
+		// --- Prompts ---
+		{
+			name:      "copilot remaps prompts to .github/prompts",
+			assistant: "copilot",
+			input:     "prompts/threat-assessment.prompt.md",
+			expected:  ".github/prompts/threat-assessment.prompt.md",
+		},
+		{
+			name:      "claude remaps prompts to .claude/commands",
+			assistant: "claude",
+			input:     "prompts/threat-assessment.prompt.md",
+			expected:  ".claude/commands/threat-assessment.prompt.md",
+		},
+		{
+			name:      "opencode remaps prompts to .opencode/commands",
+			assistant: "opencode",
+			input:     "prompts/threat-assessment.prompt.md",
+			expected:  ".opencode/commands/threat-assessment.prompt.md",
+		},
+		{
+			name:      "cursor remaps prompts to .cursor/rules",
+			assistant: "cursor",
+			input:     "prompts/threat-assessment.prompt.md",
+			expected:  ".cursor/rules/threat-assessment.prompt.md",
+		},
+		{
+			name:      "gemini remaps prompts to .gemini/commands",
+			assistant: "gemini",
+			input:     "prompts/threat-assessment.prompt.md",
+			expected:  ".gemini/commands/threat-assessment.prompt.md",
+		},
+		{
+			name:      "codex remaps prompts to .agents/prompts",
+			assistant: "codex",
+			input:     "prompts/threat-assessment.prompt.md",
+			expected:  ".agents/prompts/threat-assessment.prompt.md",
+		},
 	}
 
 	for _, tt := range tests {
@@ -476,6 +524,38 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			input:     ".agents/instructions/security.instructions.md",
 			expected:  "instructions/security.instructions.md",
 		},
+
+		// --- Prompts (reverse) ---
+		{
+			name:      "copilot reverses prompts",
+			assistant: "copilot",
+			input:     ".github/prompts/threat-assessment.prompt.md",
+			expected:  "prompts/threat-assessment.prompt.md",
+		},
+		{
+			name:      "claude reverses prompts from commands",
+			assistant: "claude",
+			input:     ".claude/commands/threat-assessment.md",
+			expected:  "prompts/threat-assessment.md",
+		},
+		{
+			name:      "opencode reverses prompts from commands",
+			assistant: "opencode",
+			input:     ".opencode/commands/threat-assessment.md",
+			expected:  "prompts/threat-assessment.md",
+		},
+		{
+			name:      "gemini reverses prompts from commands",
+			assistant: "gemini",
+			input:     ".gemini/commands/threat-assessment.toml",
+			expected:  "prompts/threat-assessment.toml",
+		},
+		{
+			name:      "codex reverses prompts",
+			assistant: "codex",
+			input:     ".agents/prompts/threat-assessment.md",
+			expected:  "prompts/threat-assessment.md",
+		},
 	}
 
 	for _, tt := range tests {
@@ -505,6 +585,8 @@ func TestPathMapperRoundTrip(t *testing.T) {
 		"agents/git-workflow.agent.md",
 		"instructions/security.instructions.md",
 		"instructions/python-standards.instructions.md",
+		"prompts/threat-assessment.prompt.md",
+		"prompts/create-skill.prompt.md",
 	}
 
 	for _, assistant := range List() {

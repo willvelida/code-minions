@@ -99,10 +99,16 @@ files are found in the correct assistant-specific location.`,
 				fmt.Println()
 			}
 
-			// Build instruction translator so uninstall finds renamed files
-			// (e.g. Cursor's .mdc instead of .instructions.md).
+			// Build instruction and prompt translators so uninstall finds
+			// renamed files (e.g. Cursor's .mdc, Gemini's .toml).
 			instrTranslator := installer.NewInstructionTranslator(forFlag)
-			fileTransformer := instrTranslator.TranslateContent
+			promptTranslator := installer.NewPromptTranslator(forFlag)
+			fileTransformer := func(content []byte, filename string) ([]byte, string, error) {
+				if strings.HasSuffix(filename, ".prompt.md") {
+					return promptTranslator.TranslateContent(content, filename)
+				}
+				return instrTranslator.TranslateContent(content, filename)
+			}
 
 			// --- Confirmation gate (skip for dry-run) ---
 			if !dryRun && !yesFlag {
