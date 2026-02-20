@@ -126,7 +126,10 @@ func translatePromptForClaude(content []byte) ([]byte, error) {
 			if strings.HasPrefix(trimmed, "description:") && currentInputName != "" {
 				desc := strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
 				desc = strings.Trim(desc, "\"'")
-				newLines = append(newLines, currentInputName+": "+desc)
+				// Quote the description to produce valid YAML even with special characters.
+				escapedDesc := strings.ReplaceAll(desc, `\`, `\\`)
+				escapedDesc = strings.ReplaceAll(escapedDesc, `"`, `\"`)
+				newLines = append(newLines, fmt.Sprintf(`%s: "%s"`, currentInputName, escapedDesc))
 				currentInputName = ""
 				continue
 			}
@@ -357,7 +360,7 @@ func translatePromptForCursor(content []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString("---\n")
 	if description != "" {
-		buf.WriteString(fmt.Sprintf("description: %s\n", description))
+		buf.WriteString(fmt.Sprintf("description: %q\n", description))
 	}
 	buf.WriteString("alwaysApply: false\n")
 	buf.WriteString("---\n")
@@ -418,7 +421,7 @@ func translatePromptForCodex(content []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	if description != "" {
 		buf.WriteString("---\n")
-		buf.WriteString(fmt.Sprintf("description: %s\n", description))
+		buf.WriteString(fmt.Sprintf("description: %q\n", description))
 		buf.WriteString("---\n")
 	}
 	buf.WriteString(bodyStr)

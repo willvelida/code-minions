@@ -150,11 +150,11 @@ func TestClaudePromptTranslator(t *testing.T) {
 		t.Error("should convert input array to named keys")
 	}
 
-	// Named keys should be present: "scope: Focus area..."
-	if !strings.Contains(result, "scope: Focus area for the assessment") {
+	// Named keys should be present with quoted descriptions
+	if !strings.Contains(result, `scope: "Focus area for the assessment"`) {
 		t.Error("should have named key 'scope'")
 	}
-	if !strings.Contains(result, "threat_level: Minimum severity to report") {
+	if !strings.Contains(result, `threat_level: "Minimum severity to report"`) {
 		t.Error("should have named key 'threat_level'")
 	}
 

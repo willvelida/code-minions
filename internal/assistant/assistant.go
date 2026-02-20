@@ -217,16 +217,37 @@ func (c *Config) NewReversePathMapper() func(string) string {
 		}
 
 		if len(candidates) > 1 {
-			// Disambiguate by file extension: .prompt.md → prompts,
-			// .instructions.md → instructions, etc.
-			extHints := map[string]string{
-				"prompts":      ".prompt.md",
-				"instructions": ".instructions.md",
+			// Disambiguate by file extension when multiple generic prefixes
+			// map to the same assistant directory (e.g. Cursor maps both
+			// instructions/ and prompts/ to .cursor/rules/).
+			//
+			// For Cursor, both instructions and prompts become .mdc files,
+			// and instruction files lose their ".instructions" infix
+			// (security.instructions.md → security.mdc). This means a bare
+			// .mdc file is ambiguous. We can only disambiguate when the
+			// canonical extension is still intact (.prompt.md, .instructions.md)
+			// or when a distinctive extension is present (.toml for Gemini).
+			//
+			// When no hint matches, the first candidate wins (instructions
+			// before prompts, matching the remaps ordering).
+			extHints := map[string][]string{
+				"instructions": {".instructions.md", ".instructions.mdc"},
+				"prompts":      {".prompt.md", ".toml"},
 			}
-			for _, r := range candidates {
-				if ext, ok := extHints[r.to]; ok && strings.HasSuffix(p, ext) {
-					rest := strings.TrimPrefix(p, r.from)
-					return path.Join(r.to, rest)
+			// Check instructions first (more specific patterns)
+			for _, priority := range []string{"instructions", "prompts"} {
+				for _, r := range candidates {
+					if r.to != priority {
+						continue
+					}
+					if exts, ok := extHints[r.to]; ok {
+						for _, ext := range exts {
+							if strings.HasSuffix(p, ext) {
+								rest := strings.TrimPrefix(p, r.from)
+								return path.Join(r.to, rest)
+							}
+						}
+					}
 				}
 			}
 			// No extension match — fall through to first candidate

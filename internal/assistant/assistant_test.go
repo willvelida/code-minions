@@ -556,6 +556,18 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			input:     ".agents/prompts/threat-assessment.md",
 			expected:  "prompts/threat-assessment.md",
 		},
+		{
+			name:      "cursor reverses prompts from rules",
+			assistant: "cursor",
+			input:     ".cursor/rules/threat-assessment.mdc",
+			expected:  "instructions/threat-assessment.mdc",
+		},
+		{
+			name:      "cursor reverses instructions from rules",
+			assistant: "cursor",
+			input:     ".cursor/rules/security-code.instructions.mdc",
+			expected:  "instructions/security-code.instructions.mdc",
+		},
 	}
 
 	for _, tt := range tests {
@@ -600,6 +612,11 @@ func TestPathMapperRoundTrip(t *testing.T) {
 			reverse := cfg.NewReversePathMapper()
 
 			for _, p := range genericPaths {
+				// Skip prompt paths for Cursor: both instructions and prompts
+				// map to .cursor/rules/ as .mdc, making round-trip ambiguous.
+				if assistant == "cursor" && strings.HasPrefix(p, "prompts/") {
+					continue
+				}
 				// generic → assistant → generic
 				mapped := forward(p)
 				roundTripped := reverse(mapped)
