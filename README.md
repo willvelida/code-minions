@@ -105,6 +105,12 @@ code-minions install --package developer-mentor --for cursor
 code-minions install --package developer-mentor --for gemini
 code-minions install --package developer-mentor --for opencode
 
+# Install from an external package source (Git URL)
+code-minions install --package my-skill --from github.com/org/packages
+
+# Install from a configured named source
+code-minions install --package my-skill --from my-team
+
 # List available packages, standards, and assistants
 code-minions list
 
@@ -139,6 +145,7 @@ code-minions install --package git-workflow --quiet
 |------|------|---------|-------------|
 | `--package` | string | all | Comma-separated list of packages to install |
 | `--for` | string | | Target coding assistant (`claude`, `codex`, `copilot`, `cursor`, `gemini`, `opencode`) |
+| `--from` | string | | Install from a specific source (configured name or Git URL) |
 | `--target` | string | `.` | Target directory for installation |
 | `--dry-run` | bool | false | Show what would be installed without writing files |
 | `--force` | bool | false | Overwrite existing files |
@@ -149,6 +156,42 @@ code-minions install --package git-workflow --quiet
 When installing packages, an `AGENTS.md` file is automatically created if one does not already exist. Existing `AGENTS.md` files are never overwritten.
 
 When installing with `--for claude`, a `CLAUDE.md` file is also generated at the project root. This file uses Claude Code's native `@path/to/file` import syntax to reference installed skills and agents, giving Claude Code direct visibility into your installed capabilities. Like `AGENTS.md`, existing `CLAUDE.md` files are never overwritten.
+
+#### Installing from external sources
+
+The `--from` flag lets you install packages from Git repositories outside the built-in registry. The source must follow the standard `code-minions` layout with a `packages/` directory at the root.
+
+```bash
+# Install from a Git URL
+code-minions install --package developer-mentor --from https://github.com/willvelida/MinionsHub.git
+
+# Install from a bare GitHub path (https:// and .git are optional)
+code-minions install --package developer-mentor --from github.com/willvelida/MinionsHub
+
+# Install for a specific assistant
+code-minions install --package developer-mentor --from github.com/willvelida/MinionsHub --for copilot
+
+# Install multiple packages
+code-minions install --package threat-modelling,git-workflow --from github.com/willvelida/MinionsHub
+
+# Preview what would be installed
+code-minions install --package developer-mentor --from github.com/willvelida/MinionsHub --dry-run
+```
+
+You can also configure named sources so you don't have to type the full URL every time:
+
+```bash
+# Add a named source
+code-minions source add my-team --url https://github.com/my-org/agent-packages.git
+
+# Install using the source name
+code-minions install --package my-skill --from my-team
+
+# List packages from all configured sources
+code-minions list
+```
+
+The [willvelida/MinionsHub](https://github.com/willvelida/MinionsHub) repository is a public example of a compatible package source.
 
 ### Uninstalling
 

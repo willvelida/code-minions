@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
+	"path/filepath"
 )
 
 // BuildRegistry constructs a Registry from the global source config
@@ -137,6 +139,16 @@ func BuildRegistryWithFromAndConfig(embeddedContent fs.FS, from string, cfg *Con
 		return NewRegistry(src), nil
 	}
 
+	// Try as a local directory path (e.g. a local clone of a package repo)
+	if dirExists(from) {
+		// Verify it has a packages/ directory
+		if !dirExists(filepath.Join(from, "packages")) {
+			return nil, fmt.Errorf("local directory %q does not contain a packages/ directory", from)
+		}
+		src := NewEmbeddedSourceWithName(os.DirFS(from), "local")
+		return NewRegistry(src), nil
+	}
+
 	// Neither a named source nor a URL
 	return nil, fmt.Errorf("source %q not found. Run 'code-minions source list' to see configured sources, or provide a Git URL", from)
 }
@@ -164,6 +176,14 @@ func ResolveFrom(from string, cfg *Config) (Source, error) {
 	// Git URL
 	if IsGitURL(from) {
 		return NewGitSourceFromURL(from)
+	}
+
+	// Local directory path
+	if dirExists(from) {
+		if !dirExists(filepath.Join(from, "packages")) {
+			return nil, fmt.Errorf("local directory %q does not contain a packages/ directory", from)
+		}
+		return NewEmbeddedSourceWithName(os.DirFS(from), "local"), nil
 	}
 
 	return nil, fmt.Errorf("source %q not found. Run 'code-minions source list' to see configured sources, or provide a Git URL", from)

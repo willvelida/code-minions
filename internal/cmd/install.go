@@ -24,16 +24,17 @@ func newInstallCommand(content fs.FS) *cobra.Command {
 		Use:   "install",
 		Short: "Install agents and skills into your repository",
 		Long: `Install copies agent definitions and skill files from the built-in
-package registry into your repository. Files are placed relative to the
-target directory, organised into agents/ and skills/ directories.
+package registry (or an external source) into your repository. Files are
+placed relative to the target directory, organised into agents/ and
+skills/ directories.
 
 When --for is specified, files are placed in the assistant-specific
 location (e.g. .github/agents/ for GitHub Copilot, .claude/agents/ for Claude).
 
-When --from is specified, the source is recorded in the installation
-manifest for tracking purposes. Note: package downloads from external
-sources are not yet implemented (see issue #136); the package content
-is still resolved from the built-in registry.
+When --from is specified, packages are fetched from the named source or
+Git URL. The source must contain a packages/ directory following the
+standard code-minions layout. Use 'code-minions source add' to configure
+named sources, or pass a Git URL directly.
 
 An AGENTS.md routing file is created at the root of the target to help
 AI assistants discover installed agents. If AGENTS.md already exists,
@@ -50,11 +51,14 @@ preview changes without writing any files.`,
   # Install a specific package
   code-minions install --package git-workflow
 
-  # Record a named source in the manifest (content still from built-in registry; see #136)
+  # Install a package from a named source
   code-minions install --package my-skill --from my-team
 
-  # Record a Git URL as source in the manifest (content still from built-in registry; see #136)
+  # Install a package from a Git URL
   code-minions install --package my-skill --from https://github.com/org/packages.git
+
+  # Install from a bare GitHub path
+  code-minions install --package my-skill --from github.com/org/packages
 
   # Preview what would be installed
   code-minions install --dry-run
@@ -100,7 +104,7 @@ preview changes without writing any files.`,
 						"Usage: code-minions install --persona <name> --for <assistant>\n\n"+
 						"Available assistants: %s", strings.Join(assistant.List(), ", "))
 				}
-				return runPersonaInstall(cmd, content, personaFlag, forFlag, target, force, dryRun)
+				return runPersonaInstall(cmd, content, personaFlag, forFlag, fromFlag, target, force, dryRun)
 			}
 
 			mode := getOutputMode(cmd)
@@ -119,6 +123,13 @@ preview changes without writing any files.`,
 					return err
 				}
 				pathMapper = cfg.NewPathMapper()
+			}
+
+			// --- Remote source install branch ---
+			// When --from is set with --package, use registry-based resolution
+			// to download and install from the external source.
+			if fromFlag != "" && packageFlag != "" {
+				return installFromSource(cmd, content, fromFlag, packageFlag, forFlag, target, force, dryRun, mode)
 			}
 
 			// Build the list of package directories to install
@@ -685,16 +696,24 @@ func listSubDirs(content fs.FS, dir string) ([]string, error) {
 func runPersonaInstall(
 	cmd *cobra.Command,
 	content fs.FS,
-	personaName, assistantName, target string,
+	personaName, assistantName, fromFlag, target string,
 	force, dryRun bool,
 ) error {
 	mode := getOutputMode(cmd)
 
 	// --- Step 1: Resolve the persona ---
-	// Create a registry with the embedded source, then use the
-	// PersonaResolver to look up the persona and all its packages.
-	src := registry.NewEmbeddedSource(content)
-	reg := registry.NewRegistry(src)
+	// Build a registry from --from (if set) or embedded source.
+	var reg *registry.Registry
+	if fromFlag != "" {
+		var err error
+		reg, err = registry.BuildRegistryWithFrom(content, fromFlag)
+		if err != nil {
+			return fmt.Errorf("failed to resolve source %q: %w", fromFlag, err)
+		}
+	} else {
+		src := registry.NewEmbeddedSource(content)
+		reg = registry.NewRegistry(src)
+	}
 	resolver := registry.NewPersonaResolver(reg)
 
 	resolved, err := resolver.Resolve(personaName)
@@ -866,4 +885,437 @@ func formatPersonaResult(
 	}
 
 	return nil
+}
+
+// installFromSource handles the `install --from <source> --package <name>`
+// path. When --from is set, packages are resolved through the registry
+// and downloaded via DownloadPackage, rather than read from the embedded FS.
+//
+// This mirrors the PersonaInstaller pattern: DownloadPackage returns an
+// fs.FS rooted at the package directory (agents/, skills/ at root), so
+// the Installer is used without StripPrefix.
+func installFromSource(
+	cmd *cobra.Command,
+	content fs.FS,
+	fromFlag, packageFlag, forFlag, target string,
+	force, dryRun bool,
+	mode OutputMode,
+) error {
+	// 1. Build registry scoped to --from source
+	reg, err := registry.BuildRegistryWithFrom(content, fromFlag)
+	if err != nil {
+		return fmt.Errorf("failed to resolve source %q: %w", fromFlag, err)
+	}
+
+	// 2. Parse comma-separated packages
+	packages := parsePackageNames(packageFlag)
+
+	// 3. Set up path mapper for --for
+	var pathMapper func(string) string
+	if forFlag != "" {
+		cfg, err := assistant.Get(forFlag)
+		if err != nil {
+			return err
+		}
+		pathMapper = cfg.NewPathMapper()
+	}
+
+	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
+		_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
+		fmt.Println()
+	}
+
+	// 4. Resolve and download each package from the source
+	type resolvedPkg struct {
+		name    string
+		version string
+		source  registry.Source
+		pkgFS   fs.FS
+	}
+	var resolved []resolvedPkg
+
+	for _, pkgName := range packages {
+		pkg, src, err := reg.ResolvePackage(pkgName)
+		if err != nil {
+			// List available packages to help the user
+			available, listErr := reg.ListPackages()
+			if listErr == nil && len(available) > 0 {
+				var names []string
+				for _, p := range available {
+					names = append(names, p.Name)
+				}
+				return fmt.Errorf("package %q not found in source %q\n\nAvailable packages:\n  %s",
+					pkgName, fromFlag, strings.Join(names, "\n  "))
+			}
+			return fmt.Errorf("package %q not found in source %q: %w", pkgName, fromFlag, err)
+		}
+
+		pkgFS, err := src.DownloadPackage(pkgName, pkg.Version)
+		if err != nil {
+			return fmt.Errorf("failed to download package %q: %w", pkgName, err)
+		}
+
+		resolved = append(resolved, resolvedPkg{
+			name:    pkgName,
+			version: pkg.Version,
+			source:  src,
+			pkgFS:   pkgFS,
+		})
+	}
+
+	// 5. Install each resolved package
+	combinedResult := &installer.Result{}
+	perPkgCopied := make(map[string][]string)
+	instrTranslator := installer.NewInstructionTranslator(forFlag)
+
+	for _, rp := range resolved {
+		// Discover top-level directories (agents/, skills/, instructions/, etc.)
+		dirs, err := discoverTopDirs(rp.pkgFS)
+		if err != nil {
+			combinedResult.Errors = append(combinedResult.Errors,
+				fmt.Sprintf("%s: failed to discover package contents: %v", rp.name, err))
+			continue
+		}
+
+		inst := &installer.Installer{
+			Content:    rp.pkgFS,
+			Target:     target,
+			Force:      force,
+			DryRun:     dryRun,
+			PathMapper: pathMapper,
+			// No StripPrefix — DownloadPackage returns package-rooted FS
+		}
+		inst.FileTransformer = instrTranslator.TranslateContent
+
+		result, err := inst.Install(dirs)
+		if err != nil {
+			return fmt.Errorf("installation of %q failed: %w", rp.name, err)
+		}
+		combinedResult.Copied = append(combinedResult.Copied, result.Copied...)
+		combinedResult.Skipped = append(combinedResult.Skipped, result.Skipped...)
+		combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
+		perPkgCopied[rp.name] = result.Copied
+	}
+
+	// 6. Create AGENTS.md if installing packages
+	if len(resolved) > 0 {
+		agentsMDPath := "AGENTS.md"
+		if pathMapper != nil {
+			agentsMDPath = pathMapper("agents/AGENTS.md")
+		}
+
+		handlerStdout := io.Writer(os.Stdout)
+		if mode == OutputJSON || mode == OutputQuiet {
+			handlerStdout = io.Discard
+		}
+		handler := &installer.AgentsMDHandler{
+			Target: target,
+			DryRun: dryRun,
+			Stdin:  os.Stdin,
+			Stdout: handlerStdout,
+		}
+
+		action, err := handler.OnInstall(agentsMDPath, []byte(installer.DefaultAgentsMDContent))
+		if err != nil {
+			combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
+		} else if action == "created" {
+			combinedResult.Copied = append(combinedResult.Copied, agentsMDPath)
+		} else {
+			combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
+		}
+	}
+
+	// 7. Create CLAUDE.md when installing for Claude
+	if strings.EqualFold(forFlag, "claude") && len(resolved) > 0 {
+		cfg, cfgErr := assistant.Get(forFlag)
+		if cfgErr == nil && cfg.InstructionsPath != "" {
+			instrStdout := io.Writer(os.Stdout)
+			if mode == OutputJSON || mode == OutputQuiet {
+				instrStdout = io.Discard
+			}
+			instrHandler := &installer.InstructionsFileHandler{
+				Target:   target,
+				DryRun:   dryRun,
+				FileName: cfg.InstructionsPath,
+				Stdin:    os.Stdin,
+				Stdout:   instrStdout,
+			}
+			var pkgNames []string
+			for _, rp := range resolved {
+				pkgNames = append(pkgNames, rp.name)
+			}
+			instrContent := installer.BuildClaudeMDForPackages(pkgNames, cfg)
+			instrAction, instrErr := instrHandler.OnInstall([]byte(instrContent))
+			if instrErr != nil {
+				combinedResult.Errors = append(combinedResult.Errors,
+					fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
+			} else if instrAction == "created" {
+				combinedResult.Copied = append(combinedResult.Copied, cfg.InstructionsPath)
+			} else {
+				combinedResult.Skipped = append(combinedResult.Skipped, cfg.InstructionsPath)
+			}
+		}
+	}
+
+	// 8. MCP server processing — use the package-rooted FS with "." as pkgDir
+	mcpResults := make(map[string]*mcp.InstallResult)
+	if forFlag != "" {
+		translator, err := mcp.NewTranslator(forFlag)
+		if err != nil {
+			combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP: %v", err))
+		} else {
+			for _, rp := range resolved {
+				// For remote packages, the FS is already package-rooted,
+				// so we use "." as the package directory.
+				mcpResult, err := mcp.Install(rp.pkgFS, ".", target, translator, force, dryRun)
+				if err != nil {
+					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("MCP (%s): %v", rp.name, err))
+					continue
+				}
+				if mcpResult != nil {
+					mcpResults[rp.name] = mcpResult
+				}
+			}
+		}
+	}
+
+	// 9. Record installation in manifest (skip for dry-run)
+	if !dryRun && (len(combinedResult.Copied) > 0 || len(mcpResults) > 0) {
+		// Determine the source name for manifest recording
+		sourceName := fromFlag
+		if registry.IsGitURL(fromFlag) {
+			sourceName = registry.ShortNameFromURL(fromFlag)
+		}
+
+		installManifest, err := installer.LoadManifest(target)
+		if err != nil {
+			combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
+		} else {
+			for _, rp := range resolved {
+				pkgFiles := perPkgCopied[rp.name]
+				installer.RecordInstall(installManifest, rp.name, rp.version, sourceName, forFlag, pkgFiles)
+
+				if mcpResult, ok := mcpResults[rp.name]; ok && len(mcpResult.Merge.Added) > 0 {
+					addedServers := make([]string, len(mcpResult.Merge.Added))
+					copy(addedServers, mcpResult.Merge.Added)
+					sort.Strings(addedServers)
+					if entry := installer.FindInstalled(installManifest, rp.name); entry != nil {
+						entry.MCPServers = addedServers
+					}
+				}
+			}
+			if err := installer.SaveManifest(target, installManifest); err != nil {
+				combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+			}
+		}
+	}
+
+	// 10. Update project manifest (code-minions.yml)
+	if !dryRun && packageFlag != "" {
+		manifestPath := manifest.DefaultPath(target)
+		m, err := manifest.Load(manifestPath)
+		if err != nil {
+			combinedResult.Errors = append(combinedResult.Errors,
+				fmt.Sprintf("%s load: %v", manifest.FileName, err))
+		} else {
+			if m.Name == "" {
+				absTarget, absErr := filepath.Abs(target)
+				if absErr == nil {
+					m.Name = filepath.Base(absTarget)
+				}
+			}
+			if forFlag != "" && m.Assistant == "" {
+				m.Assistant = forFlag
+			}
+			for _, rp := range resolved {
+				m.AddPackage(rp.name)
+			}
+			if saveErr := manifest.Save(manifestPath, m); saveErr != nil {
+				combinedResult.Errors = append(combinedResult.Errors,
+					fmt.Sprintf("%s: %v", manifest.FileName, saveErr))
+			} else {
+				verbosePrintf(cmd, mode, "updated %s\n", manifest.FileName)
+			}
+		}
+	}
+
+	// 11. Output results
+	return formatInstallResult(cmd, mode, combinedResult, mcpResults, dryRun)
+}
+
+// formatInstallResult handles JSON, quiet, and normal output modes for
+// the package install result. This is shared between the embedded and
+// remote install paths.
+func formatInstallResult(
+	cmd *cobra.Command,
+	mode OutputMode,
+	combinedResult *installer.Result,
+	mcpResults map[string]*mcp.InstallResult,
+	dryRun bool,
+) error {
+	// JSON output
+	if mode == OutputJSON {
+		copied := combinedResult.Copied
+		if copied == nil {
+			copied = []string{}
+		}
+		skipped := combinedResult.Skipped
+		if skipped == nil {
+			skipped = []string{}
+		}
+		errs := combinedResult.Errors
+		if errs == nil {
+			errs = []string{}
+		}
+
+		type mcpJSONEntry struct {
+			Package    string   `json:"package"`
+			ConfigPath string   `json:"config_path"`
+			Added      []string `json:"added"`
+			Skipped    []string `json:"skipped"`
+			Conflicts  []string `json:"conflicts"`
+			Warnings   []string `json:"warnings"`
+		}
+		var mcpEntries []mcpJSONEntry
+		mcpPkgNames := sortedKeys(mcpResults)
+		for _, pkgName := range mcpPkgNames {
+			mr := mcpResults[pkgName]
+			entry := mcpJSONEntry{
+				Package:    pkgName,
+				ConfigPath: mr.ConfigPath,
+				Added:      nonNil(mr.Merge.Added),
+				Skipped:    nonNil(mr.Merge.Skipped),
+				Conflicts:  nonNil(mr.Merge.Conflict),
+				Warnings:   nonNil(mr.Merge.Warnings),
+			}
+			mcpEntries = append(mcpEntries, entry)
+		}
+		if mcpEntries == nil {
+			mcpEntries = []mcpJSONEntry{}
+		}
+
+		result := struct {
+			Copied  []string       `json:"copied"`
+			Skipped []string       `json:"skipped"`
+			Errors  []string       `json:"errors"`
+			MCP     []mcpJSONEntry `json:"mcp"`
+			Summary struct {
+				Copied  int `json:"copied"`
+				Skipped int `json:"skipped"`
+				Errors  int `json:"errors"`
+			} `json:"summary"`
+		}{
+			Copied:  copied,
+			Skipped: skipped,
+			Errors:  errs,
+			MCP:     mcpEntries,
+		}
+		result.Summary.Copied = len(combinedResult.Copied)
+		result.Summary.Skipped = len(combinedResult.Skipped)
+		result.Summary.Errors = len(combinedResult.Errors)
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
+			return err
+		}
+		if len(combinedResult.Errors) > 0 {
+			return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
+		}
+		return nil
+	}
+
+	// Quiet mode
+	if mode == OutputQuiet {
+		for _, e := range combinedResult.Errors {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  error: %s\n", e)
+		}
+		if len(combinedResult.Errors) > 0 {
+			return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
+		}
+		return nil
+	}
+
+	// Normal / verbose output
+	green := color.New(color.FgGreen)
+	yellow := color.New(color.FgYellow)
+	red := color.New(color.FgRed)
+	bold := color.New(color.Bold)
+
+	for _, f := range combinedResult.Copied {
+		if dryRun {
+			_, _ = yellow.Printf("  would copy: %s\n", f)
+		} else {
+			_, _ = green.Printf("  copied: %s\n", f)
+		}
+	}
+	for _, f := range combinedResult.Skipped {
+		_, _ = yellow.Printf("  skipped (exists): %s\n", f)
+	}
+	for _, e := range combinedResult.Errors {
+		_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+	}
+
+	// MCP server results
+	if len(mcpResults) > 0 {
+		cyan := color.New(color.FgCyan)
+		fmt.Println()
+		_, _ = bold.Println("MCP servers:")
+		mcpPkgNames := sortedKeys(mcpResults)
+		for _, pkgName := range mcpPkgNames {
+			mr := mcpResults[pkgName]
+			for _, s := range mr.Merge.Added {
+				if dryRun {
+					_, _ = yellow.Printf("  would add to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
+				} else {
+					_, _ = cyan.Printf("  added to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
+				}
+			}
+			for _, s := range mr.Merge.Skipped {
+				_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
+			}
+			for _, s := range mr.Merge.Conflict {
+				_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
+			}
+			for _, w := range mr.Merge.Warnings {
+				_, _ = yellow.Printf("  warning: %s\n", w)
+			}
+		}
+	}
+
+	// Summary
+	fmt.Println()
+	_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
+		len(combinedResult.Copied), len(combinedResult.Skipped), len(combinedResult.Errors))
+
+	if len(combinedResult.Errors) > 0 {
+		return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
+	}
+
+	return nil
+}
+
+// parsePackageNames splits a comma-separated package flag into trimmed names.
+func parsePackageNames(flag string) []string {
+	var names []string
+	for _, name := range strings.Split(flag, ",") {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// discoverTopDirs returns the top-level directory names in a package FS.
+// For a typical package this returns ["agents", "skills"].
+func discoverTopDirs(pkgFS fs.FS) ([]string, error) {
+	entries, err := fs.ReadDir(pkgFS, ".")
+	if err != nil {
+		return nil, err
+	}
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e.Name())
+		}
+	}
+	return dirs, nil
 }
