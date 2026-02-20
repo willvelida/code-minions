@@ -157,11 +157,11 @@ preview changes without writing any files.`,
 					StripPrefix: pkgDir,
 					PathMapper:  pathMapper,
 				}
-				// Set file transformer for assistants that need instruction
-				// file translation (e.g. Cursor converts .instructions.md → .mdc)
-				if instrTranslator != nil {
-					inst.FileTransformer = instrTranslator.TranslateContent
-				}
+				// Set file transformer for instruction file translation
+				// (e.g. Cursor converts .instructions.md → .mdc).
+				// NewInstructionTranslator always returns a valid translator
+				// (PassthroughInstructionTranslator for non-Cursor assistants).
+				inst.FileTransformer = instrTranslator.TranslateContent
 				result, err := inst.Install([]string{pkgDir})
 				if err != nil {
 					return fmt.Errorf("installation failed: %w", err)

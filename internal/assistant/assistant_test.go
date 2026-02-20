@@ -459,6 +459,18 @@ func TestNewReversePathMapperRemapsPaths(t *testing.T) {
 			expected:  "instructions/security.mdc",
 		},
 		{
+			name:      "opencode reverses instructions",
+			assistant: "opencode",
+			input:     ".opencode/instructions/security.instructions.md",
+			expected:  "instructions/security.instructions.md",
+		},
+		{
+			name:      "gemini reverses instructions",
+			assistant: "gemini",
+			input:     ".gemini/instructions/security.instructions.md",
+			expected:  "instructions/security.instructions.md",
+		},
+		{
 			name:      "codex reverses instructions",
 			assistant: "codex",
 			input:     ".agents/instructions/security.instructions.md",
