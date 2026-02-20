@@ -30,6 +30,7 @@ Available components:
 	cmd.AddCommand(newTransferCommand(content))
 	cmd.AddCommand(newInitCommand(content))
 	cmd.AddCommand(newMCPCommand())
+	cmd.AddCommand(newTeamCommand(content))
 	cmd.AddCommand(newSourceCommand())
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newCompletionCommand())

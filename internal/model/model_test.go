@@ -184,6 +184,84 @@ config:
 	if team.Instructions != "" {
 		t.Error("Instructions should be empty when absent")
 	}
+	// Personas without inline packages should have empty Packages slice
+	if len(team.Personas[0].Packages) != 0 {
+		t.Errorf("Personas[0].Packages should be empty, got %d", len(team.Personas[0].Packages))
+	}
+}
+
+func TestTeamYAMLWithInlinePackages(t *testing.T) {
+	input := `name: platform-engineering
+description: Standard setup for the platform team
+personas:
+    - name: senior-dev
+      packages:
+        - name: git-workflow
+        - name: developer-mentor
+        - name: raise-pull-requests
+    - name: security-reviewer
+      packages:
+        - name: git-workflow
+        - name: threat-modelling
+config:
+    default_assistant: copilot
+    enforce_packages: true
+`
+
+	var team Team
+	if err := yaml.Unmarshal([]byte(input), &team); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if team.Name != "platform-engineering" {
+		t.Errorf("Name: got %q", team.Name)
+	}
+	if len(team.Personas) != 2 {
+		t.Fatalf("Personas: got %d, want 2", len(team.Personas))
+	}
+
+	// First persona has 3 inline packages
+	p0 := team.Personas[0]
+	if p0.Name != "senior-dev" {
+		t.Errorf("Personas[0].Name: got %q", p0.Name)
+	}
+	if len(p0.Packages) != 3 {
+		t.Fatalf("Personas[0].Packages: got %d, want 3", len(p0.Packages))
+	}
+	if p0.Packages[0].Name != "git-workflow" {
+		t.Errorf("Personas[0].Packages[0].Name: got %q", p0.Packages[0].Name)
+	}
+	if p0.Packages[1].Name != "developer-mentor" {
+		t.Errorf("Personas[0].Packages[1].Name: got %q", p0.Packages[1].Name)
+	}
+	if p0.Packages[2].Name != "raise-pull-requests" {
+		t.Errorf("Personas[0].Packages[2].Name: got %q", p0.Packages[2].Name)
+	}
+
+	// Second persona has 2 inline packages
+	p1 := team.Personas[1]
+	if p1.Name != "security-reviewer" {
+		t.Errorf("Personas[1].Name: got %q", p1.Name)
+	}
+	if len(p1.Packages) != 2 {
+		t.Fatalf("Personas[1].Packages: got %d, want 2", len(p1.Packages))
+	}
+
+	// Round trip: marshal and unmarshal should preserve packages
+	out, err := yaml.Marshal(&team)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+	var roundTripped Team
+	if err := yaml.Unmarshal(out, &roundTripped); err != nil {
+		t.Fatalf("failed to unmarshal round-tripped YAML: %v", err)
+	}
+	if len(roundTripped.Personas[0].Packages) != 3 {
+		t.Errorf("round-trip Personas[0].Packages: got %d, want 3", len(roundTripped.Personas[0].Packages))
+	}
+	if len(roundTripped.Personas[1].Packages) != 2 {
+		t.Errorf("round-trip Personas[1].Packages: got %d, want 2", len(roundTripped.Personas[1].Packages))
+	}
 }
 
 func TestTeamYAMLWithMCPAndInstructions(t *testing.T) {
@@ -356,6 +434,22 @@ func TestValidateTeam(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "invalid characters",
+		},
+		{
+			name: "valid team with inline packages",
+			team: Team{
+				Name:        "my-team",
+				Description: "A team",
+				Personas: []PersonaRef{
+					{
+						Name: "dev",
+						Packages: []PackageRef{
+							{Name: "git-workflow"},
+							{Name: "developer-mentor"},
+						},
+					},
+				},
+			},
 		},
 	}
 
