@@ -548,7 +548,7 @@ func TestFormatPersonaSummary(t *testing.T) {
 	if !strings.Contains(got, "dev (3 packages)") {
 		t.Errorf("expected 'dev (3 packages)' in %q", got)
 	}
-	if !strings.Contains(got, "reviewer (1 packages)") {
-		t.Errorf("expected 'reviewer (1 packages)' in %q", got)
+	if !strings.Contains(got, "reviewer (1 package)") {
+		t.Errorf("expected 'reviewer (1 package)' in %q", got)
 	}
 }
