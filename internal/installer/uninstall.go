@@ -53,7 +53,9 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 				dir := filepath.Dir(outputPath)
 				base := filepath.Base(outputPath)
 				_, newName, ferr := i.FileTransformer(nil, base)
-				if ferr == nil && newName != base {
+				if ferr != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("failed to transform %s: %v", outputPath, ferr))
+				} else if newName != base {
 					outputPath = filepath.Join(dir, newName)
 				}
 			}

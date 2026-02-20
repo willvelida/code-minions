@@ -50,6 +50,12 @@ func (t *PassthroughInstructionTranslator) TranslateContent(content []byte, file
 type CursorInstructionTranslator struct{}
 
 func (t *CursorInstructionTranslator) TranslateContent(content []byte, filename string) ([]byte, string, error) {
+	// Only transform .instructions.md files; pass everything else through
+	// unchanged so that agent/skill files aren't accidentally renamed.
+	if !strings.HasSuffix(filename, ".instructions.md") {
+		return content, filename, nil
+	}
+
 	newName := toCursorFilename(filename)
 
 	// When content is nil (filename-only transform during uninstall),
@@ -68,16 +74,11 @@ func (t *CursorInstructionTranslator) TranslateContent(content []byte, filename 
 
 // toCursorFilename converts a generic instruction filename to a Cursor .mdc filename.
 // "security.instructions.md" → "security.mdc"
-// "foo.md" → "foo.mdc" (fallback)
+//
+// Callers must ensure the name ends in ".instructions.md" before calling;
+// non-instruction files are guarded upstream in TranslateContent.
 func toCursorFilename(name string) string {
-	if strings.HasSuffix(name, ".instructions.md") {
-		return strings.TrimSuffix(name, ".instructions.md") + ".mdc"
-	}
-	// Fallback: replace the last extension
-	if idx := strings.LastIndex(name, "."); idx > 0 {
-		return name[:idx] + ".mdc"
-	}
-	return name + ".mdc"
+	return strings.TrimSuffix(name, ".instructions.md") + ".mdc"
 }
 
 // translateFrontmatter converts generic instruction frontmatter to Cursor format.
@@ -155,6 +156,9 @@ func translateFrontmatter(content []byte) ([]byte, error) {
 func splitFrontmatter(content []byte) (string, []byte, bool) {
 	s := string(content)
 
+	// Normalise line endings so downstream splitting works uniformly.
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+
 	// Must start with ---
 	if !strings.HasPrefix(strings.TrimSpace(s), "---") {
 		return "", content, false
@@ -163,7 +167,6 @@ func splitFrontmatter(content []byte) (string, []byte, bool) {
 	// Find the closing ---
 	trimmed := strings.TrimSpace(s)
 	rest := trimmed[3:] // skip opening ---
-	rest = strings.TrimPrefix(rest, "\r\n")
 	rest = strings.TrimPrefix(rest, "\n")
 
 	closingIdx := strings.Index(rest, "\n---")
@@ -174,7 +177,6 @@ func splitFrontmatter(content []byte) (string, []byte, bool) {
 	frontmatter := rest[:closingIdx]
 	body := rest[closingIdx+4:] // skip \n---
 	// Trim leading newline from body
-	body = strings.TrimPrefix(body, "\r\n")
 	body = strings.TrimPrefix(body, "\n")
 
 	return frontmatter, []byte(body), true

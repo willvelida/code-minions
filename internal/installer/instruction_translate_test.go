@@ -99,8 +99,6 @@ func TestCursorFilenameConversion(t *testing.T) {
 	}{
 		{"security.instructions.md", "security.mdc"},
 		{"python-standards.instructions.md", "python-standards.mdc"},
-		{"readme.md", "readme.mdc"},
-		{"noext", "noext.mdc"},
 	}
 
 	for _, tt := range tests {
@@ -108,6 +106,35 @@ func TestCursorFilenameConversion(t *testing.T) {
 			got := toCursorFilename(tt.input)
 			if got != tt.expected {
 				t.Errorf("toCursorFilename(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCursorTranslatorPassesThroughNonInstructionFiles(t *testing.T) {
+	translator := &CursorInstructionTranslator{}
+
+	tests := []struct {
+		name     string
+		filename string
+	}{
+		{"agent file", "threat-modelling.agent.md"},
+		{"plain markdown", "readme.md"},
+		{"no extension", "Makefile"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := []byte("# Content")
+			out, name, err := translator.TranslateContent(content, tt.filename)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if name != tt.filename {
+				t.Errorf("filename should be unchanged: got %q, want %q", name, tt.filename)
+			}
+			if string(out) != string(content) {
+				t.Errorf("content should be unchanged: got %q, want %q", string(out), string(content))
 			}
 		})
 	}
@@ -137,6 +164,13 @@ func TestSplitFrontmatter(t *testing.T) {
 		{
 			name:           "multiple frontmatter fields",
 			input:          "---\ndescription: Test\napplyTo: '**/*.go'\n---\n# Go Standards",
+			hasFrontmatter: true,
+			frontmatter:    "description: Test\napplyTo: '**/*.go'",
+			body:           "# Go Standards",
+		},
+		{
+			name:           "CRLF line endings",
+			input:          "---\r\ndescription: Test\r\napplyTo: '**/*.go'\r\n---\r\n# Go Standards",
 			hasFrontmatter: true,
 			frontmatter:    "description: Test\napplyTo: '**/*.go'",
 			body:           "# Go Standards",
