@@ -153,7 +153,7 @@ func selectTemplate(stdin io.Reader, stdout io.Writer, templates []Template) (*T
 	}
 
 	// Find index of the default template ("standard")
-	defaultIdx := 1 // fallback to second item
+	defaultIdx := 0 // fallback to first item
 	for i, t := range templates {
 		if t.Name == defaultTemplateName {
 			defaultIdx = i
