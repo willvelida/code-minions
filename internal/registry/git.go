@@ -297,8 +297,10 @@ func dirExists(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// IsGitURL returns true if the string looks like a Git URL
-// (contains "/" or starts with common URL prefixes).
+// IsGitURL returns true if the string looks like a Git URL.
+// It matches explicit URL schemes (https://, http://, git@, ssh://)
+// and bare domain/path forms like "github.com/org/repo" (must contain
+// both a "." and a "/").
 func IsGitURL(s string) bool {
 	if strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://") {
 		return true

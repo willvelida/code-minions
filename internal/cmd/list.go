@@ -111,13 +111,18 @@ install, or to check which assistants are supported by the --for flag.`,
 			}
 
 			var personas []personaEntry
-			// Collect personas from all registry sources
+			seenPersonas := make(map[string]bool)
+			// Collect personas from all registry sources (first source wins)
 			for _, src := range reg.Sources() {
 				personaModels, pErr := src.ListPersonas()
 				if pErr != nil {
 					continue
 				}
 				for _, p := range personaModels {
+					if seenPersonas[p.Name] {
+						continue
+					}
+					seenPersonas[p.Name] = true
 					entry := personaEntry{
 						Name:        p.Name,
 						Description: p.Description,

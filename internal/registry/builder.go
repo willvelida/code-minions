@@ -46,7 +46,11 @@ func BuildRegistryFromConfigWithWarnings(embeddedContent fs.FS, cfg *Config, w i
 		var err error
 		cfg, err = LoadConfig()
 		if err != nil {
-			// Config load failure is not fatal — fall back to embedded only
+			// Config load failure is not fatal — fall back to embedded only,
+			// but warn the user so they can investigate.
+			if w != nil {
+				_, _ = fmt.Fprintf(w, "Warning: failed to load source config: %v; using embedded sources only\n", err)
+			}
 			return NewRegistry(NewEmbeddedSource(embeddedContent)), nil
 		}
 	}

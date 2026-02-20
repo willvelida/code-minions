@@ -50,10 +50,10 @@ preview changes without writing any files.`,
   # Install a specific package
   code-minions install --package git-workflow
 
-  # Install a package from an external source
+  # Record a named source in the manifest (content still from built-in registry; see #136)
   code-minions install --package my-skill --from my-team
 
-  # Install from a Git URL
+  # Record a Git URL as source in the manifest (content still from built-in registry; see #136)
   code-minions install --package my-skill --from https://github.com/org/packages.git
 
   # Preview what would be installed

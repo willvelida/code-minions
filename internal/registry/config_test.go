@@ -330,16 +330,10 @@ func TestConfigRemoveMiddleSource(t *testing.T) {
 	}
 }
 
-// TestLoadConfig_PropagatesConfigPathError verifies that LoadConfig
-// returns an error when ConfigPath fails, rather than silently
-// returning an empty config.
-func TestLoadConfig_PropagatesConfigPathError(t *testing.T) {
-	// Set an invalid config root to force ConfigPath to succeed but
-	// return a path under our control. Instead, unset all env vars
-	// that os.UserConfigDir uses and clear configRootOverride.
-	// Actually, the simplest test: SetConfigRoot to a valid dir and
-	// verify LoadConfig works; then test LoadConfigFrom with invalid
-	// YAML to verify error propagation.
+// TestLoadConfig_EmptyConfigWithTempRoot verifies that LoadConfig
+// returns an empty config when a valid config root is set but no
+// config file exists yet.
+func TestLoadConfig_EmptyConfigWithTempRoot(t *testing.T) {
 	root := t.TempDir()
 	SetConfigRoot(root)
 	t.Cleanup(func() { SetConfigRoot("") })
