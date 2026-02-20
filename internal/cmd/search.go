@@ -13,12 +13,15 @@ import (
 )
 
 func newSearchCommand(content fs.FS) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "search <query>",
 		Short: "Search for packages by name or description",
 		Long: `Search performs a case-insensitive text search across all package
 names and descriptions. Results show the package name, version, and
 a matching description excerpt.
+
+Use --from to search packages from a specific source (a configured
+source name or a Git URL).
 
 Use 'code-minions show <package>' to see full details for a result.`,
 		Example: `  # Search for packages related to git
@@ -28,13 +31,34 @@ Use 'code-minions show <package>' to see full details for a result.`,
   code-minions search documentation
 
   # Search with JSON output
-  code-minions search agent --json`,
+  code-minions search agent --json
+
+  # Search a specific source
+  code-minions search mentor --from my-team`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			query := args[0]
+			fromFlag, _ := cmd.Flags().GetString("from")
 
-			src := registry.NewEmbeddedSource(content)
-			results, err := src.Search(query)
+			// Build source(s) based on --from flag
+			var reg *registry.Registry
+			if fromFlag != "" {
+				var err error
+				reg, err = registry.BuildRegistryWithFrom(content, fromFlag)
+				if err != nil {
+					return fmt.Errorf("failed to build registry: %w", err)
+				}
+			} else {
+				// Auto-load all configured sources alongside embedded.
+				// Failing sources are warned-and-skipped.
+				var err error
+				reg, err = registry.BuildRegistryWithWarnings(content, cmd.ErrOrStderr())
+				if err != nil {
+					return fmt.Errorf("failed to build registry: %w", err)
+				}
+			}
+
+			results, err := reg.Search(query)
 			if err != nil {
 				return fmt.Errorf("search failed: %w", err)
 			}
@@ -91,6 +115,10 @@ Use 'code-minions show <package>' to see full details for a result.`,
 			return nil
 		},
 	}
+
+	cmd.Flags().String("from", "", "Search packages from a specific source (name or Git URL)")
+
+	return cmd
 }
 
 // searchResultOutput is the JSON-serialisable search result.

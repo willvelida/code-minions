@@ -30,6 +30,11 @@ target directory, organised into agents/ and skills/ directories.
 When --for is specified, files are placed in the assistant-specific
 location (e.g. .github/agents/ for GitHub Copilot, .claude/agents/ for Claude).
 
+When --from is specified, the source is recorded in the installation
+manifest for tracking purposes. Note: package downloads from external
+sources are not yet implemented (see issue #136); the package content
+is still resolved from the built-in registry.
+
 An AGENTS.md routing file is created at the root of the target to help
 AI assistants discover installed agents. If AGENTS.md already exists,
 it is left unchanged.
@@ -44,6 +49,12 @@ preview changes without writing any files.`,
 
   # Install a specific package
   code-minions install --package git-workflow
+
+  # Record a named source in the manifest (content still from built-in registry; see #136)
+  code-minions install --package my-skill --from my-team
+
+  # Record a Git URL as source in the manifest (content still from built-in registry; see #136)
+  code-minions install --package my-skill --from https://github.com/org/packages.git
 
   # Preview what would be installed
   code-minions install --dry-run
@@ -63,6 +74,13 @@ preview changes without writing any files.`,
 			packageFlag, _ := cmd.Flags().GetString("package")
 			forFlag, _ := cmd.Flags().GetString("for")
 			personaFlag, _ := cmd.Flags().GetString("persona")
+			fromFlag, _ := cmd.Flags().GetString("from")
+
+			// --from requires --package (we don't install all packages from a remote source)
+			if fromFlag != "" && packageFlag == "" && personaFlag == "" {
+				return fmt.Errorf("--from requires --package to specify which package to install\n\n" +
+					"Usage: code-minions install --package <name> --from <source>")
+			}
 
 			// --- Persona install branch ---
 			// When --persona is set, we take a completely different path:
@@ -235,7 +253,35 @@ preview changes without writing any files.`,
 
 			// Record installation in manifest (skip for dry-run)
 			if !dryRun && (len(combinedResult.Copied) > 0 || len(mcpResults) > 0) {
-				src := registry.NewEmbeddedSource(content)
+				// Determine the source name for manifest recording
+				sourceName := "embedded"
+				if fromFlag != "" {
+					// For Git URLs, derive a short name rather than
+					// recording the full URL in the manifest.
+					if registry.IsGitURL(fromFlag) {
+						sourceName = registry.ShortNameFromURL(fromFlag)
+					} else {
+						sourceName = fromFlag
+					}
+				}
+
+				// Build source for version resolution
+				var resolveSource registry.Source
+				if fromFlag != "" {
+					src, resolveErr := registry.ResolveFrom(fromFlag, nil)
+					if resolveErr == nil {
+						resolveSource = src
+					} else {
+						_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
+							"Warning: could not resolve source %q for version lookup, falling back to embedded: %v\n",
+							fromFlag, resolveErr)
+						sourceName = "embedded"
+					}
+				}
+				if resolveSource == nil {
+					resolveSource = registry.NewEmbeddedSource(content)
+				}
+
 				manifest, err := installer.LoadManifest(target)
 				if err != nil {
 					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest load: %v", err))
@@ -243,7 +289,7 @@ preview changes without writing any files.`,
 					for _, pkgDir := range packageDirs {
 						pkgName := strings.TrimPrefix(pkgDir, "packages/")
 						var version string
-						if pkg, err := src.GetPackage(pkgName); err == nil {
+						if pkg, resolveErr := resolveSource.GetPackage(pkgName); resolveErr == nil {
 							version = pkg.Version
 						}
 						// Collect files that belong to this package
@@ -263,7 +309,7 @@ preview changes without writing any files.`,
 								pkgFiles = append(pkgFiles, f)
 							}
 						}
-						installer.RecordInstall(manifest, pkgName, version, "embedded", forFlag, pkgFiles)
+						installer.RecordInstall(manifest, pkgName, version, sourceName, forFlag, pkgFiles)
 
 						// Attach only actually-added MCP server names to the manifest entry.
 						// RecordInstall creates a fresh entry (without MCPServers), so we
@@ -464,6 +510,7 @@ preview changes without writing any files.`,
 	cmd.Flags().String("package", "", "Comma-separated list of packages to install (omit to use manifest packages if present, otherwise all)")
 	cmd.Flags().String("persona", "", "Install a persona (a named bundle of packages)")
 	cmd.Flags().String("for", "", "Target coding assistant ("+assistant.FlagUsage()+")")
+	cmd.Flags().String("from", "", "Install from a specific source (configured name or Git URL)")
 	cmd.Flags().Bool("dry-run", false, "Show what would be installed without writing files")
 	cmd.Flags().Bool("force", false, "Overwrite existing files")
 	cmd.Flags().Bool("update-assistant", false, "Update the manifest's assistant field when --for differs")

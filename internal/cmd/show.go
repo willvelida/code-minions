@@ -13,31 +13,57 @@ import (
 )
 
 func newShowCommand(content fs.FS) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "show <package>",
 		Short: "Show detailed information about a package",
 		Long: `Display detailed metadata for a specific package, including its full
 description, version, author, license, compatibility, contents, and
 dependencies.
 
+Use --from to show a package from a specific source (a configured
+source name or a Git URL).
+
 Use 'code-minions list' to see all available package names.`,
 		Example: `  # Show details for the git-workflow package
   code-minions show git-workflow
 
   # Show details as JSON
-  code-minions show git-workflow --json`,
+  code-minions show git-workflow --json
+
+  # Show a package from a specific source
+  code-minions show my-skill --from my-team`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
+			fromFlag, _ := cmd.Flags().GetString("from")
 
-			src := registry.NewEmbeddedSource(content)
-			pkg, err := src.GetPackage(name)
-			if err != nil {
-				if !errors.Is(err, registry.ErrNotFound) {
-					return fmt.Errorf("failed to read package %q: %w", name, err)
+			// Build source(s) based on --from flag
+			var reg *registry.Registry
+			if fromFlag != "" {
+				var regErr error
+				reg, regErr = registry.BuildRegistryWithFrom(content, fromFlag)
+				if regErr != nil {
+					return fmt.Errorf("failed to build registry: %w", regErr)
 				}
-				// List available packages in the error message
-				available, listErr := src.ListPackages()
+			} else {
+				// Auto-load all configured sources alongside embedded.
+				// Failing sources are warned-and-skipped.
+				var regErr error
+				reg, regErr = registry.BuildRegistryWithWarnings(content, cmd.ErrOrStderr())
+				if regErr != nil {
+					return fmt.Errorf("failed to build registry: %w", regErr)
+				}
+			}
+
+			pkg, src, err := reg.ResolvePackage(name)
+			if err != nil {
+				// Distinguish "not found" from real source errors.
+				// Only show available packages for not-found;
+				// propagate source errors directly.
+				if !errors.Is(err, registry.ErrNotFound) {
+					return err
+				}
+				available, listErr := reg.ListPackages()
 				if listErr != nil {
 					return fmt.Errorf("package %q not found (and failed to list packages: %w)", name, listErr)
 				}
@@ -48,6 +74,9 @@ Use 'code-minions list' to see all available package names.`,
 				return fmt.Errorf("package %q not found\n\nAvailable packages:\n  %s",
 					name, strings.Join(names, "\n  "))
 			}
+
+			// Stamp the source so verbose/JSON output reflects it
+			pkg.Source = src.Name()
 
 			mode := getOutputMode(cmd)
 
@@ -124,7 +153,7 @@ Use 'code-minions list' to see all available package names.`,
 			}
 
 			// Verbose: show source info
-			verbosePrintf(cmd, mode, "\nsource: embedded\n")
+			verbosePrintf(cmd, mode, "\nsource: %s\n", pkg.Source)
 			if pkg.Version != "" {
 				verbosePrintf(cmd, mode, "manifest: packages/%s/package.yaml\n", name)
 			} else {
@@ -135,4 +164,8 @@ Use 'code-minions list' to see all available package names.`,
 			return nil
 		},
 	}
+
+	cmd.Flags().String("from", "", "Show package from a specific source (name or Git URL)")
+
+	return cmd
 }
