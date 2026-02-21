@@ -30,6 +30,7 @@ assistant configurations their team members install.`,
 	}
 
 	cmd.AddCommand(newTeamInitCommand(content))
+	cmd.AddCommand(newTeamInstallCommand(content))
 
 	return cmd
 }
