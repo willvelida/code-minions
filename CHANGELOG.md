@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased](https://github.com/willvelida/code-minions/compare/v0.3.1...HEAD)
+## [0.4.1](https://github.com/willvelida/code-minions/compare/v0.4.0...v0.4.1) — 2026-02-21
+
+### Features
+
+- add team install command ([#147](https://github.com/willvelida/code-minions/issues/147))
+
+
+## [0.4.0](https://github.com/willvelida/code-minions/compare/v0.3.1...v0.4.0) — 2026-02-20
 
 ### Features
 
@@ -118,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - add GoDoc comments to exported types and functions ([#45](https://github.com/willvelida/code-minions/issues/45))
 - add transfer command to README and CHANGELOG ([#63](https://github.com/willvelida/code-minions/issues/63))
 - fix Claude example to show quoted description value
+- update changelog for v0.4.0
 
 ### Styling
 
