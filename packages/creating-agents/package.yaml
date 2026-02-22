@@ -6,6 +6,10 @@ description: >-
   examples, and explicit boundaries.
 author: willvelida
 license: MIT
+tags:
+  - agent
+  - ai
+  - configuration
 
 contents:
   agents:

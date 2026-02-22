@@ -6,6 +6,10 @@ description: >-
   environments.
 author: willvelida
 license: MIT
+tags:
+  - devcontainer
+  - docker
+  - environment
 
 contents:
   agents:

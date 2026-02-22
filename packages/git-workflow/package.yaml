@@ -6,6 +6,10 @@ description: >-
   and hotfixes.
 author: willvelida
 license: MIT
+tags:
+  - git
+  - workflow
+  - automation
 
 contents:
   agents:

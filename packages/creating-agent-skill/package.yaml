@@ -5,6 +5,10 @@ description: >-
   specification and best practices.
 author: willvelida
 license: MIT
+tags:
+  - agent
+  - skill
+  - ai
 
 contents:
   agents:

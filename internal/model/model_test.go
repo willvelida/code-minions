@@ -567,6 +567,8 @@ func TestSearchResultJSON(t *testing.T) {
 		Description: "Git workflow",
 		Version:     "0.1.0",
 		Source:      "embedded",
+		Tags:        []string{"git", "workflow"},
+		Installed:   true,
 	}
 
 	data, err := json.Marshal(result)
@@ -587,5 +589,73 @@ func TestSearchResultJSON(t *testing.T) {
 	}
 	if got.Source != "embedded" {
 		t.Errorf("Source: got %q", got.Source)
+	}
+	if len(got.Tags) != 2 {
+		t.Fatalf("Tags: got %d, want 2", len(got.Tags))
+	}
+	if got.Tags[0] != "git" || got.Tags[1] != "workflow" {
+		t.Errorf("Tags: got %v", got.Tags)
+	}
+	if !got.Installed {
+		t.Error("Installed: got false, want true")
+	}
+}
+
+func TestPackageTagsYAMLRoundTrip(t *testing.T) {
+	input := `name: test-pkg
+version: 1.0.0
+description: A test package
+tags:
+    - security
+    - architecture
+author: test
+`
+
+	var pkg Package
+	if err := yaml.Unmarshal([]byte(input), &pkg); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if len(pkg.Tags) != 2 {
+		t.Fatalf("Tags: got %d, want 2", len(pkg.Tags))
+	}
+	if pkg.Tags[0] != "security" {
+		t.Errorf("Tags[0]: got %q, want %q", pkg.Tags[0], "security")
+	}
+	if pkg.Tags[1] != "architecture" {
+		t.Errorf("Tags[1]: got %q, want %q", pkg.Tags[1], "architecture")
+	}
+
+	// Round trip
+	out, err := yaml.Marshal(&pkg)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+	if !strings.Contains(string(out), "- security") {
+		t.Errorf("marshalled output should contain tags, got:\n%s", out)
+	}
+}
+
+func TestPackageTagsOmittedWhenEmpty(t *testing.T) {
+	input := `name: no-tags
+version: 1.0.0
+description: No tags
+`
+
+	var pkg Package
+	if err := yaml.Unmarshal([]byte(input), &pkg); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if len(pkg.Tags) != 0 {
+		t.Errorf("Tags should be empty, got %d", len(pkg.Tags))
+	}
+
+	out, err := yaml.Marshal(&pkg)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+	if strings.Contains(string(out), "tags:") {
+		t.Errorf("marshalled output should not contain tags key, got:\n%s", out)
 	}
 }

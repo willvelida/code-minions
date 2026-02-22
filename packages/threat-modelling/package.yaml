@@ -6,6 +6,10 @@ description: >-
   threats, and mitigation recommendations.
 author: willvelida
 license: MIT
+tags:
+  - security
+  - architecture
+  - threat
 
 contents:
   agents:

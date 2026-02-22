@@ -5,6 +5,10 @@ description: >-
   problem-solving with a level-adaptive mentoring approach.
 author: willvelida
 license: MIT
+tags:
+  - mentoring
+  - learning
+  - teaching
 
 contents:
   agents:
