@@ -230,12 +230,12 @@ func runSearchInfo(cmd *cobra.Command, reg *registry.Registry, name string, mode
 		_, _ = dim.Fprint(w, "  Compatibility: ")
 		_, _ = fmt.Fprintln(w, strings.Join(pkg.Compatibility, ", "))
 	}
-	_, _ = dim.Fprint(w, "  Source:         ")
+	_, _ = dim.Fprint(w, "  Source:        ")
 	_, _ = fmt.Fprintln(w, pkg.Source)
 
 	// Installed status
 	installed := isPackageInstalled(pkg.Name)
-	_, _ = dim.Fprint(w, "  Installed:      ")
+	_, _ = dim.Fprint(w, "  Installed:     ")
 	if installed {
 		_, _ = green.Fprintln(w, "yes")
 	} else {
