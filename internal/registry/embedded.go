@@ -183,8 +183,8 @@ func (s *EmbeddedSource) GetTeam(name string) (*model.Team, error) {
 	return nil, fmt.Errorf("team %q: %w", name, ErrNotFound)
 }
 
-// Search performs a case-insensitive text search across package names
-// and descriptions.
+// Search performs a case-insensitive text search across package names,
+// descriptions, and tags.
 func (s *EmbeddedSource) Search(query string) ([]model.SearchResult, error) {
 	pkgs, err := s.ListPackages()
 	if err != nil {
@@ -193,13 +193,16 @@ func (s *EmbeddedSource) Search(query string) ([]model.SearchResult, error) {
 
 	var results []model.SearchResult
 	for _, pkg := range pkgs {
-		if matchesQuery(query, pkg.Name, pkg.Description) {
+		fields := []string{pkg.Name, pkg.Description}
+		fields = append(fields, pkg.Tags...)
+		if matchesQuery(query, fields...) {
 			results = append(results, model.SearchResult{
 				Kind:        "package",
 				Name:        pkg.Name,
 				Description: pkg.Description,
 				Version:     pkg.Version,
 				Source:      s.Name(),
+				Tags:        pkg.Tags,
 			})
 		}
 	}

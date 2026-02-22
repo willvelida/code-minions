@@ -135,15 +135,31 @@ code-minions install --package my-skill --from github.com/org/packages
 # Install from a configured named source
 code-minions install --package my-skill --from my-team
 
+# Search for packages by keyword
+code-minions search git
+
+# Filter packages by tag
+code-minions search --tag security
+
+# Combine a search query with a tag filter
+code-minions search agent --tag ai
+
+# Show detailed info for a specific package
+code-minions search --info threat-modelling
+
+# Search a specific source
+code-minions search mentor --from my-team
+
 # List available packages, standards, and assistants
 code-minions list
 
 # Print version
 code-minions version
 
-# Output as JSON (works with list, install, uninstall, update, version)
+# Output as JSON (works with list, install, uninstall, update, search, version)
 code-minions list --json
 code-minions install --package git-workflow --json
+code-minions search agent --json
 
 # Verbose output for debugging
 code-minions install --package git-workflow --verbose
@@ -286,6 +302,43 @@ code-minions list
 
 The [willvelida/MinionsHub](https://github.com/willvelida/MinionsHub) repository is a public example of a compatible package source.
 
+### Searching
+
+Search for packages by name, description, or tag:
+
+```bash
+# Text search across package names, descriptions, and tags
+code-minions search git
+
+# Filter results to packages with a specific tag
+code-minions search --tag security
+
+# Combine a text query with a tag filter
+code-minions search agent --tag ai
+
+# Show detailed package metadata (contents, dependencies, install status)
+code-minions search --info threat-modelling
+
+# Search packages from an external source
+code-minions search mentor --from my-team
+
+# Machine-readable output
+code-minions search agent --json
+```
+
+Results display the package name, version, description, tags, and a green `✓` if the package is already installed locally.
+
+### Search flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--tag` | string | | Filter results to packages that have this tag (case-insensitive) |
+| `--info` | string | | Show detailed metadata for a specific package |
+| `--from` | string | | Search packages from a specific source (name or Git URL) |
+| `--json` | bool | false | Output results as JSON |
+| `--verbose` / `-v` | bool | false | Show detailed output |
+| `--quiet` / `-q` | bool | false | Suppress all output except errors |
+
 ### Uninstalling
 
 ```bash
@@ -389,7 +442,7 @@ MCP server configurations are automatically translated between the source and ta
 
 ### JSON Output
 
-The `version`, `list`, `install`, `uninstall`, `update`, and `transfer` commands support a `--json` flag for machine-readable output:
+The `version`, `list`, `install`, `uninstall`, `update`, `search`, and `transfer` commands support a `--json` flag for machine-readable output:
 
 ```bash
 # List packages as JSON
@@ -399,6 +452,10 @@ code-minions list --json
 # Install and capture results
 code-minions install --package git-workflow --json
 # {"copied": [...], "skipped": [...], "errors": [], "summary": {"copied": 2, ...}}
+
+# Search and capture results
+code-minions search agent --json
+# {"query": "agent", "results": [{"name": ..., "tags": [...], "installed": false}], "count": 2}
 
 # Transfer and capture results
 code-minions transfer --from copilot --to claude --json

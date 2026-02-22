@@ -18,6 +18,10 @@ version: 0.1.0
 description: Git workflow automation
 author: testauthor
 license: MIT
+tags:
+  - git
+  - workflow
+  - automation
 compatibility:
   - copilot
   - claude
@@ -44,11 +48,46 @@ contents:
 		"packages/git-workflow/skills/git-workflow/standards/branch.md": &fstest.MapFile{
 			Data: []byte("# Branch"),
 		},
+		"packages/developer-mentor/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: developer-mentor
+version: 0.1.0
+description: Mentoring
+author: testauthor
+tags:
+  - mentoring
+  - learning
+`),
+		},
 		"packages/developer-mentor/agents/developer-mentor.agent.md": &fstest.MapFile{
 			Data: []byte("# Mentor Agent"),
 		},
 		"packages/developer-mentor/skills/developer-mentor/SKILL.md": &fstest.MapFile{
 			Data: []byte("---\nname: developer-mentor\ndescription: 'Mentoring'\n---\n# Mentor"),
+		},
+		"packages/threat-modelling/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: threat-modelling
+version: 0.1.0
+description: Threat modelling for your codebase
+author: testauthor
+tags:
+  - security
+  - architecture
+  - threat
+compatibility:
+  - copilot
+  - claude
+contents:
+  agents:
+    - agents/threat-modelling.agent.md
+  skills:
+    - skills/threat-modelling/SKILL.md
+`),
+		},
+		"packages/threat-modelling/agents/threat-modelling.agent.md": &fstest.MapFile{
+			Data: []byte("# Threat Agent"),
+		},
+		"packages/threat-modelling/skills/threat-modelling/SKILL.md": &fstest.MapFile{
+			Data: []byte("# Threat Skill"),
 		},
 	}
 }
@@ -271,5 +310,303 @@ func TestListJSONNotTruncated(t *testing.T) {
 	}
 	if strings.HasSuffix(result.Packages[0].Description, "...") {
 		t.Error("JSON description should not end with '...'")
+	}
+}
+
+// ---------- search --tag tests ----------
+
+func TestSearchTagFlag(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"--tag", "security"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "threat-modelling") {
+		t.Errorf("--tag security should find threat-modelling, got:\n%s", output)
+	}
+	if strings.Contains(output, "git-workflow") {
+		t.Errorf("--tag security should NOT find git-workflow, got:\n%s", output)
+	}
+}
+
+func TestSearchTagFlagWithQuery(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"threat", "--tag", "security"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "threat-modelling") {
+		t.Errorf("search 'threat' --tag security should find threat-modelling, got:\n%s", output)
+	}
+}
+
+func TestSearchTagFlagCaseInsensitive(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"--tag", "Security"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "threat-modelling") {
+		t.Errorf("--tag Security (uppercase) should find threat-modelling, got:\n%s", output)
+	}
+}
+
+func TestSearchTagFlagNoMatch(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"--tag", "nonexistent-tag"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "No results found") {
+		t.Errorf("--tag nonexistent-tag should show no results, got:\n%s", output)
+	}
+}
+
+func TestSearchOutputShowsTags(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"git"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "[git, workflow, automation]") {
+		t.Errorf("output should show tags in square brackets, got:\n%s", output)
+	}
+}
+
+func TestSearchMatchesTags(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	// "security" doesn't appear in threat-modelling's name but is a tag
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"security"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "threat-modelling") {
+		t.Errorf("search for 'security' should find threat-modelling via tag match, got:\n%s", output)
+	}
+}
+
+func TestSearchNoQueryNoTagErrors(t *testing.T) {
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when no query and no --tag")
+	}
+	if !strings.Contains(err.Error(), "provide a search query") {
+		t.Errorf("error should mention 'provide a search query', got: %v", err)
+	}
+}
+
+// ---------- search --info tests ----------
+
+func TestSearchInfoFlag(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"--info", "git-workflow"})
+	cmd.SetOut(&buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	expected := []string{
+		"git-workflow",
+		"0.1.0",
+		"Git workflow automation",
+		"testauthor",
+		"MIT",
+		"git, workflow, automation",
+		"Source:",
+	}
+	for _, want := range expected {
+		if !strings.Contains(output, want) {
+			t.Errorf("--info output should contain %q, got:\n%s", want, output)
+		}
+	}
+}
+
+func TestSearchInfoFlagJSON(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	var buf bytes.Buffer
+	root := newJSONTestRootCmd(testContentFSWithManifest())
+	root.SetOut(&buf)
+	root.SetArgs([]string{"search", "--info", "git-workflow", "--json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+
+	if result["name"] != "git-workflow" {
+		t.Errorf("expected name=git-workflow, got %v", result["name"])
+	}
+	tags, ok := result["tags"].([]interface{})
+	if !ok {
+		t.Fatalf("expected tags to be an array, got %T", result["tags"])
+	}
+	if len(tags) != 3 {
+		t.Errorf("expected 3 tags, got %d", len(tags))
+	}
+}
+
+func TestSearchInfoFlagNotFound(t *testing.T) {
+	cmd := newSearchCommand(testContentFSWithManifest())
+	cmd.SetArgs([]string{"--info", "nonexistent"})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for nonexistent package")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+}
+
+// ---------- search JSON with tags ----------
+
+func TestSearchJSONIncludesTags(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	// Override isPackageInstalled to return false during tests.
+	orig := isPackageInstalled
+	isPackageInstalled = func(string) bool { return false }
+	t.Cleanup(func() { isPackageInstalled = orig })
+
+	var buf bytes.Buffer
+	root := newJSONTestRootCmd(testContentFSWithManifest())
+	root.SetOut(&buf)
+	root.SetArgs([]string{"search", "git", "--json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Results []struct {
+			Name      string   `json:"name"`
+			Tags      []string `json:"tags"`
+			Installed bool     `json:"installed"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+
+	if len(result.Results) == 0 {
+		t.Fatal("expected at least one result")
+	}
+	if len(result.Results[0].Tags) != 3 {
+		t.Errorf("expected 3 tags on git-workflow, got %d", len(result.Results[0].Tags))
+	}
+	if result.Results[0].Installed {
+		t.Error("expected installed=false in test environment")
+	}
+}
+
+// ---------- search --tag with JSON ----------
+
+func TestSearchTagFlagJSON(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	// Override isPackageInstalled for test isolation
+	orig := isPackageInstalled
+	isPackageInstalled = func(string) bool { return false }
+	t.Cleanup(func() { isPackageInstalled = orig })
+
+	var buf bytes.Buffer
+	root := newJSONTestRootCmd(testContentFSWithManifest())
+	root.SetOut(&buf)
+	root.SetArgs([]string{"search", "--tag", "security", "--json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Tag     string `json:"tag"`
+		Results []struct {
+			Name string `json:"name"`
+		} `json:"results"`
+		Count int `json:"count"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, buf.String())
+	}
+
+	if result.Tag != "security" {
+		t.Errorf("expected tag=security, got %v", result.Tag)
+	}
+	if result.Count != 1 {
+		t.Errorf("expected 1 result, got %d", result.Count)
+	}
+	if len(result.Results) > 0 && result.Results[0].Name != "threat-modelling" {
+		t.Errorf("expected threat-modelling, got %v", result.Results[0].Name)
 	}
 }

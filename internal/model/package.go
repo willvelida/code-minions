@@ -6,6 +6,7 @@ type Package struct {
 	Name          string          `yaml:"name" json:"name"`
 	Version       string          `yaml:"version" json:"version"`
 	Description   string          `yaml:"description" json:"description"`
+	Tags          []string        `yaml:"tags,omitempty" json:"tags,omitempty"`
 	Author        string          `yaml:"author,omitempty" json:"author,omitempty"`
 	License       string          `yaml:"license,omitempty" json:"license,omitempty"`
 	Contents      PackageContents `yaml:"contents,omitempty" json:"contents"`

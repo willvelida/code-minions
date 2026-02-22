@@ -117,6 +117,10 @@ Use 'code-minions list' to see all available package names.`,
 				_, _ = dim.Fprint(w, "  Compatibility: ")
 				_, _ = fmt.Fprintln(w, strings.Join(pkg.Compatibility, ", "))
 			}
+			if len(pkg.Tags) > 0 {
+				_, _ = dim.Fprint(w, "  Tags:          ")
+				_, _ = fmt.Fprintln(w, strings.Join(pkg.Tags, ", "))
+			}
 
 			// Contents
 			showContents := func(label string, items []string) {

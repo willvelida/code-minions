@@ -230,6 +230,75 @@ func TestEmbeddedSourceSearchNoMatch(t *testing.T) {
 	}
 }
 
+func TestEmbeddedSourceSearchMatchesTags(t *testing.T) {
+	fs := fstest.MapFS{
+		"packages/threat-modelling/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: threat-modelling
+version: 0.1.0
+description: Threat modelling for your codebase
+tags:
+  - security
+  - architecture
+`),
+		},
+		"packages/threat-modelling/agents/threat-modelling.agent.md": &fstest.MapFile{
+			Data: []byte("# Threat Agent"),
+		},
+	}
+
+	src := NewEmbeddedSource(fs)
+
+	// "security" does not appear in name or description, only in tags
+	results, err := src.Search("security")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Name != "threat-modelling" {
+		t.Errorf("Name: got %q", results[0].Name)
+	}
+	if len(results[0].Tags) != 2 {
+		t.Errorf("Tags: expected 2, got %d", len(results[0].Tags))
+	}
+}
+
+func TestEmbeddedSourceSearchReturnsTagsOnResult(t *testing.T) {
+	fs := fstest.MapFS{
+		"packages/my-pkg/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: my-pkg
+version: 1.0.0
+description: A package
+tags:
+  - alpha
+  - beta
+`),
+		},
+		"packages/my-pkg/agents/my-pkg.agent.md": &fstest.MapFile{
+			Data: []byte("# Agent"),
+		},
+	}
+
+	src := NewEmbeddedSource(fs)
+
+	results, err := src.Search("my-pkg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if len(results[0].Tags) != 2 {
+		t.Errorf("expected 2 tags, got %d", len(results[0].Tags))
+	}
+	if results[0].Tags[0] != "alpha" {
+		t.Errorf("Tags[0]: got %q, want %q", results[0].Tags[0], "alpha")
+	}
+}
+
 func TestEmbeddedSourcePersonasAndTeamsEmpty(t *testing.T) {
 	src := NewEmbeddedSource(testEmbeddedFS())
 

@@ -5,6 +5,10 @@ description: >-
   clear context, and follow team conventions.
 author: willvelida
 license: MIT
+tags:
+  - git
+  - pull-request
+  - review
 
 contents:
   agents:

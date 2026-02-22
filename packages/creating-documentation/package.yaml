@@ -6,6 +6,10 @@ description: >-
   discoverability.
 author: willvelida
 license: MIT
+tags:
+  - documentation
+  - markdown
+  - writing
 
 contents:
   agents:
