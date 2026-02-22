@@ -8,6 +8,7 @@ import (
 	"testing/fstest"
 
 	"github.com/fatih/color"
+	"github.com/willvelida/code-minions/internal/model"
 )
 
 func testContentFSWithManifest() fstest.MapFS {
@@ -533,10 +534,12 @@ func TestSearchJSONIncludesTags(t *testing.T) {
 	color.NoColor = true
 	t.Cleanup(func() { color.NoColor = false })
 
-	// Override isPackageInstalled to return false during tests.
-	orig := isPackageInstalled
-	isPackageInstalled = func(string) bool { return false }
-	t.Cleanup(func() { isPackageInstalled = orig })
+	// Override loadManifest to return an empty manifest during tests.
+	origLoad := loadManifest
+	loadManifest = func(string) (*model.InstallManifest, error) {
+		return &model.InstallManifest{Packages: []model.InstalledPackage{}}, nil
+	}
+	t.Cleanup(func() { loadManifest = origLoad })
 
 	var buf bytes.Buffer
 	root := newJSONTestRootCmd(testContentFSWithManifest())
@@ -575,10 +578,12 @@ func TestSearchTagFlagJSON(t *testing.T) {
 	color.NoColor = true
 	t.Cleanup(func() { color.NoColor = false })
 
-	// Override isPackageInstalled for test isolation
-	orig := isPackageInstalled
-	isPackageInstalled = func(string) bool { return false }
-	t.Cleanup(func() { isPackageInstalled = orig })
+	// Override loadManifest for test isolation
+	origLoad := loadManifest
+	loadManifest = func(string) (*model.InstallManifest, error) {
+		return &model.InstallManifest{Packages: []model.InstalledPackage{}}, nil
+	}
+	t.Cleanup(func() { loadManifest = origLoad })
 
 	var buf bytes.Buffer
 	root := newJSONTestRootCmd(testContentFSWithManifest())

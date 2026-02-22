@@ -5,12 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/willvelida/code-minions/internal/installer"
 	"github.com/willvelida/code-minions/internal/model"
 	"github.com/willvelida/code-minions/internal/registry"
 )
@@ -236,7 +235,7 @@ func runSearchInfo(cmd *cobra.Command, reg *registry.Registry, name string, mode
 
 	// Installed status
 	installed := isPackageInstalled(pkg.Name)
-	_, _ = dim.Fprint(w, "  Installed:     ")
+	_, _ = dim.Fprint(w, "  Installed:      ")
 	if installed {
 		_, _ = green.Fprintln(w, "yes")
 	} else {
@@ -300,32 +299,34 @@ func filterByTag(results []model.SearchResult, tag string) []model.SearchResult 
 }
 
 // checkInstalled marks each result with whether its package appears to be
-// installed in the current working directory.
+// installed in the current working directory by consulting the install manifest.
 func checkInstalled(results []model.SearchResult) []model.SearchResult {
+	manifest, err := loadManifest(".")
+	if err != nil {
+		return results
+	}
 	for i, r := range results {
 		if r.Kind == "package" {
-			results[i].Installed = isPackageInstalled(r.Name)
+			results[i].Installed = findInstalled(manifest, r.Name) != nil
 		}
 	}
 	return results
 }
 
-// isPackageInstalled returns true if evidence of the package exists on disk.
-// It checks for conventional output paths: skills/<name>/SKILL.md and
-// agents/<name>.agent.md.
+// isPackageInstalled returns true if the named package is recorded in the
+// install manifest (.code-minions/installed.json). This works regardless of
+// which coding assistant layout was used during installation.
 var isPackageInstalled = func(name string) bool {
-	skillPath := filepath.Join("skills", name, "SKILL.md")
-	agentPath := filepath.Join("agents", name+".agent.md")
-	if fileExists(skillPath) || fileExists(agentPath) {
-		return true
+	manifest, err := loadManifest(".")
+	if err != nil {
+		return false
 	}
-	return false
+	return findInstalled(manifest, name) != nil
 }
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
+// loadManifest and findInstalled are thin wrappers so tests can replace them.
+var loadManifest = installer.LoadManifest
+var findInstalled = installer.FindInstalled
 
 // searchResultOutput is the JSON-serialisable search result.
 type searchResultOutput struct {
