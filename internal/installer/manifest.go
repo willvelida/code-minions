@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/willvelida/code-minions/internal/model"
@@ -144,6 +145,23 @@ func RecordUninstall(manifest *model.InstallManifest, name string) bool {
 		}
 	}
 	return false
+}
+
+// BuildDependencyOf returns the sorted list of package names that depend
+// on the given package, derived from the dependency graph. This is the
+// reverse lookup: given a graph of "parent → children", find all parents
+// that list pkgName as a child.
+func BuildDependencyOf(graph map[string][]string, pkgName string) []string {
+	var dependencyOf []string
+	for parentName, deps := range graph {
+		for _, dep := range deps {
+			if dep == pkgName {
+				dependencyOf = append(dependencyOf, parentName)
+			}
+		}
+	}
+	sort.Strings(dependencyOf)
+	return dependencyOf
 }
 
 // OrphanDependencies returns the names of transitive dependencies that

@@ -380,14 +380,7 @@ preview changes without writing any files.`,
 						isDirect := directPkgs[pkgName]
 						var dependencyOf []string
 						if depTree != nil {
-							for parentName, deps := range depTree.Graph {
-								for _, dep := range deps {
-									if dep == pkgName {
-										dependencyOf = append(dependencyOf, parentName)
-									}
-								}
-							}
-							sort.Strings(dependencyOf)
+							dependencyOf = installer.BuildDependencyOf(depTree.Graph, pkgName)
 						}
 
 						installer.RecordInstall(manifest, pkgName, version, sourceName, forFlag, pkgFiles,
@@ -826,6 +819,7 @@ func runPersonaInstall(
 		Target:        target,
 		Force:         force,
 		DryRun:        dryRun,
+		DepTree:       depTree,
 	}
 
 	result, err := pi.Install()
@@ -1208,14 +1202,7 @@ func installFromSource(
 				// Build dependency metadata from the resolved tree
 				var dependencyOf []string
 				if tree != nil {
-					for parentName, deps := range tree.Graph {
-						for _, dep := range deps {
-							if dep == rp.name {
-								dependencyOf = append(dependencyOf, parentName)
-							}
-						}
-					}
-					sort.Strings(dependencyOf)
+					dependencyOf = installer.BuildDependencyOf(tree.Graph, rp.name)
 				}
 
 				installer.RecordInstall(installManifest, rp.name, rp.version, sourceName, forFlag, pkgFiles,

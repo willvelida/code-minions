@@ -199,7 +199,7 @@ install, or to check which assistants are supported by the --for flag.`,
 				if detail && p.Contents != nil {
 					contentsSummary(w, green, dim, p.Contents)
 				}
-				if treeFlag && len(p.Dependencies) > 0 {
+				if (treeFlag || detail) && len(p.Dependencies) > 0 {
 					for i, dep := range p.Dependencies {
 						prefix := "├── "
 						if i == len(p.Dependencies)-1 {

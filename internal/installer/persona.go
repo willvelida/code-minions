@@ -45,6 +45,12 @@ type PersonaInstaller struct {
 
 	// DryRun previews changes without writing files when true.
 	DryRun bool
+
+	// DepTree is the resolved dependency tree from the DependencyResolver.
+	// When set, recordManifest uses it to populate Direct and DependencyOf
+	// fields on each InstalledPackage. When nil (backward compatible),
+	// all packages are recorded as direct installs.
+	DepTree *registry.ResolvedTree
 }
 
 // PersonaResult tracks what happened during a persona installation.
@@ -293,7 +299,15 @@ func (pi *PersonaInstaller) recordManifest(result *PersonaResult) error {
 			return fmt.Errorf("record manifest: resolved package not found for %q", pkgName)
 		}
 
-		RecordInstall(manifest, pkgName, version, "embedded", pi.AssistantName, pkgResult.Copied)
+		// Build dependency metadata from the resolved tree.
+		var opts RecordInstallOpts
+		if pi.DepTree != nil {
+			opts.Direct = pi.DepTree.Direct[pkgName]
+			opts.DependencyOf = BuildDependencyOf(pi.DepTree.Graph, pkgName)
+		} else {
+			opts.Direct = true // backward compatible default
+		}
+		RecordInstall(manifest, pkgName, version, "embedded", pi.AssistantName, pkgResult.Copied, opts)
 
 		// Step 4b-ii: Stamp MCP server names onto the package entry.
 		// This is how we track which servers each package "owns" —
