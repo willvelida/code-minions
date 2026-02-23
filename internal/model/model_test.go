@@ -560,6 +560,104 @@ func TestInstallManifestJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestInstalledPackageDependencyFieldsRoundTrip(t *testing.T) {
+	// Verify the new Direct and DependencyOf fields round-trip through JSON.
+	manifest := InstallManifest{
+		Version:     1,
+		InstalledAt: "2026-02-23T12:00:00Z",
+		Packages: []InstalledPackage{
+			{
+				Name:        "git-workflow",
+				Version:     "0.1.0",
+				Source:      "embedded",
+				InstalledAt: "2026-02-23T12:00:00Z",
+				Direct:      true,
+				Files:       []string{".github/agents/git-workflow.agent.md"},
+			},
+			{
+				Name:         "shared-utils",
+				Version:      "1.0.0",
+				Source:       "my-hub",
+				InstalledAt:  "2026-02-23T12:00:00Z",
+				Direct:       false,
+				DependencyOf: []string{"git-workflow", "raise-pull-requests"},
+				Files:        []string{"skills/shared-utils/SKILL.md"},
+			},
+		},
+	}
+
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+
+	var got InstallManifest
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	if len(got.Packages) != 2 {
+		t.Fatalf("expected 2 packages, got %d", len(got.Packages))
+	}
+
+	// Direct package
+	direct := got.Packages[0]
+	if !direct.Direct {
+		t.Error("git-workflow should have Direct=true")
+	}
+	if len(direct.DependencyOf) != 0 {
+		t.Errorf("git-workflow should have no DependencyOf, got %v", direct.DependencyOf)
+	}
+
+	// Transitive dependency
+	transitive := got.Packages[1]
+	if transitive.Direct {
+		t.Error("shared-utils should have Direct=false")
+	}
+	if len(transitive.DependencyOf) != 2 {
+		t.Fatalf("shared-utils DependencyOf: got %v, want 2 entries", transitive.DependencyOf)
+	}
+	if transitive.DependencyOf[0] != "git-workflow" || transitive.DependencyOf[1] != "raise-pull-requests" {
+		t.Errorf("shared-utils DependencyOf: got %v", transitive.DependencyOf)
+	}
+}
+
+func TestInstalledPackageDependencyFieldsBackwardCompat(t *testing.T) {
+	// JSON from before Direct/DependencyOf were added (no fields present).
+	// Direct should default to false, DependencyOf to nil/empty.
+	oldJSON := `{
+		"version": 1,
+		"installed_at": "2026-02-23T12:00:00Z",
+		"assistant": "copilot",
+		"packages": [{
+			"name": "git-workflow",
+			"version": "0.1.0",
+			"source": "embedded",
+			"installed_at": "2026-02-23T12:00:00Z",
+			"files": [".github/agents/git-workflow.agent.md"]
+		}],
+		"personas": [],
+		"teams": []
+	}`
+
+	var got InstallManifest
+	if err := json.Unmarshal([]byte(oldJSON), &got); err != nil {
+		t.Fatalf("failed to unmarshal old JSON: %v", err)
+	}
+
+	if len(got.Packages) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(got.Packages))
+	}
+
+	pkg := got.Packages[0]
+	if pkg.Direct {
+		t.Error("Direct should default to false for old manifests")
+	}
+	if len(pkg.DependencyOf) != 0 {
+		t.Errorf("DependencyOf should be empty for old manifests, got %v", pkg.DependencyOf)
+	}
+}
+
 func TestSearchResultJSON(t *testing.T) {
 	result := SearchResult{
 		Kind:        "package",

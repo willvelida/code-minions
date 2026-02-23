@@ -1,0 +1,5 @@
+name: cycle-a
+version: 1.0.0
+description: Test package that creates a cycle with cycle-b
+dependencies:
+  - name: cycle-b

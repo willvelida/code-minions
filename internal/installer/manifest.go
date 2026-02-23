@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/willvelida/code-minions/internal/model"
@@ -82,7 +83,21 @@ func SaveManifest(target string, manifest *model.InstallManifest) error {
 }
 
 // RecordInstall adds or updates a package entry in the manifest.
-func RecordInstall(manifest *model.InstallManifest, name, version, source, assistant string, files []string) {
+// RecordInstallOpts provides optional dependency metadata for RecordInstall.
+// When not provided, Direct defaults to true and DependencyOf is empty.
+type RecordInstallOpts struct {
+	// Direct is true when the package was explicitly requested by the user.
+	// Defaults to true when RecordInstallOpts is not passed.
+	Direct bool
+
+	// DependencyOf lists the packages that depend on this one.
+	DependencyOf []string
+}
+
+// RecordInstall adds or updates a package entry in the manifest.
+// When called without opts, the package is recorded as a direct install.
+// Pass RecordInstallOpts to mark a package as a transitive dependency.
+func RecordInstall(manifest *model.InstallManifest, name, version, source, assistant string, files []string, opts ...RecordInstallOpts) {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	// Update manifest-level fields
@@ -91,6 +106,14 @@ func RecordInstall(manifest *model.InstallManifest, name, version, source, assis
 	}
 	if assistant != "" {
 		manifest.Assistant = assistant
+	}
+
+	// Determine dependency metadata from opts (default: direct install)
+	direct := true
+	var dependencyOf []string
+	if len(opts) > 0 {
+		direct = opts[0].Direct
+		dependencyOf = opts[0].DependencyOf
 	}
 
 	// Remove existing entry for this package (will be re-added)
@@ -102,11 +125,13 @@ func RecordInstall(manifest *model.InstallManifest, name, version, source, assis
 	}
 
 	manifest.Packages = append(manifest.Packages, model.InstalledPackage{
-		Name:        name,
-		Version:     version,
-		Source:      source,
-		InstalledAt: now,
-		Files:       files,
+		Name:         name,
+		Version:      version,
+		Source:       source,
+		InstalledAt:  now,
+		Files:        files,
+		Direct:       direct,
+		DependencyOf: dependencyOf,
 	})
 }
 
@@ -120,6 +145,80 @@ func RecordUninstall(manifest *model.InstallManifest, name string) bool {
 		}
 	}
 	return false
+}
+
+// BuildDependencyOf returns the sorted list of package names that depend
+// on the given package, derived from the dependency graph. This is the
+// reverse lookup: given a graph of "parent → children", find all parents
+// that list pkgName as a child.
+func BuildDependencyOf(graph map[string][]string, pkgName string) []string {
+	var dependencyOf []string
+	for parentName, deps := range graph {
+		for _, dep := range deps {
+			if dep == pkgName {
+				dependencyOf = append(dependencyOf, parentName)
+			}
+		}
+	}
+	sort.Strings(dependencyOf)
+	return dependencyOf
+}
+
+// OrphanDependencies returns the names of transitive dependencies that
+// would become orphans if the given packages were removed. A dependency
+// is an orphan when every entry in its DependencyOf list is contained
+// in the removal set. This enables cascade-on-uninstall (Decision D8).
+//
+// The function is iterative: if removing pkg-a orphans pkg-b, and
+// removing pkg-b orphans pkg-c, all three will be returned.
+func OrphanDependencies(manifest *model.InstallManifest, removing []string) []string {
+	removeSet := make(map[string]bool, len(removing))
+	for _, n := range removing {
+		removeSet[n] = true
+	}
+
+	// Iterate until no new orphans are discovered.
+	changed := true
+	for changed {
+		changed = false
+		for _, pkg := range manifest.Packages {
+			if removeSet[pkg.Name] {
+				continue // already slated for removal
+			}
+			if pkg.Direct {
+				continue // direct installs are never auto-cascaded
+			}
+			if len(pkg.DependencyOf) == 0 {
+				continue // no dependency metadata
+			}
+			// Check if every parent is in the removal set.
+			allParentsRemoved := true
+			for _, parent := range pkg.DependencyOf {
+				if !removeSet[parent] {
+					allParentsRemoved = false
+					break
+				}
+			}
+			if allParentsRemoved {
+				removeSet[pkg.Name] = true
+				changed = true
+			}
+		}
+	}
+
+	// Collect the orphans (packages in removeSet that were NOT in the
+	// original removing list).
+	originalSet := make(map[string]bool, len(removing))
+	for _, n := range removing {
+		originalSet[n] = true
+	}
+	var orphans []string
+	for name := range removeSet {
+		if !originalSet[name] {
+			orphans = append(orphans, name)
+		}
+	}
+	return orphans
 }
 
 // FindInstalled returns the installed package entry, or nil if not found.

@@ -1,0 +1,4 @@
+name: shared
+version: 1.5.0
+description: Test shared package — version 1.5.0 (fails conflict-a's >=2.0.0)
+dependencies: []

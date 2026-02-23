@@ -592,3 +592,89 @@ func TestExclusiveMCPServersNotFound(t *testing.T) {
 		t.Errorf("ExclusiveMCPServers = %v, want nil", exclusive)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// OrphanDependencies tests
+// ---------------------------------------------------------------------------
+
+// TestOrphanDependenciesSimple verifies that a transitive dep whose only
+// parent is being removed is returned as an orphan.
+func TestOrphanDependenciesSimple(t *testing.T) {
+	manifest := &model.InstallManifest{
+		Packages: []model.InstalledPackage{
+			{Name: "pkg-a", Direct: true},
+			{Name: "pkg-b", Direct: false, DependencyOf: []string{"pkg-a"}},
+		},
+	}
+	orphans := OrphanDependencies(manifest, []string{"pkg-a"})
+	if len(orphans) != 1 || orphans[0] != "pkg-b" {
+		t.Errorf("OrphanDependencies = %v, want [pkg-b]", orphans)
+	}
+}
+
+// TestOrphanDependenciesShared verifies that a transitive dep shared by
+// another package is NOT returned as an orphan.
+func TestOrphanDependenciesShared(t *testing.T) {
+	manifest := &model.InstallManifest{
+		Packages: []model.InstalledPackage{
+			{Name: "pkg-a", Direct: true},
+			{Name: "pkg-c", Direct: true},
+			{Name: "pkg-b", Direct: false, DependencyOf: []string{"pkg-a", "pkg-c"}},
+		},
+	}
+	orphans := OrphanDependencies(manifest, []string{"pkg-a"})
+	if len(orphans) != 0 {
+		t.Errorf("OrphanDependencies = %v, want empty (pkg-b still needed by pkg-c)", orphans)
+	}
+}
+
+// TestOrphanDependenciesCascade verifies that cascaded orphans are found:
+// removing pkg-a orphans pkg-b, which then orphans pkg-c.
+func TestOrphanDependenciesCascade(t *testing.T) {
+	manifest := &model.InstallManifest{
+		Packages: []model.InstalledPackage{
+			{Name: "pkg-a", Direct: true},
+			{Name: "pkg-b", Direct: false, DependencyOf: []string{"pkg-a"}},
+			{Name: "pkg-c", Direct: false, DependencyOf: []string{"pkg-b"}},
+		},
+	}
+	orphans := OrphanDependencies(manifest, []string{"pkg-a"})
+	orphanSet := make(map[string]bool)
+	for _, o := range orphans {
+		orphanSet[o] = true
+	}
+	if !orphanSet["pkg-b"] || !orphanSet["pkg-c"] {
+		t.Errorf("OrphanDependencies = %v, want [pkg-b, pkg-c]", orphans)
+	}
+}
+
+// TestOrphanDependenciesDirectNeverCascaded verifies that a direct
+// install is never auto-cascaded, even if its DependencyOf list
+// would otherwise make it an orphan.
+func TestOrphanDependenciesDirectNeverCascaded(t *testing.T) {
+	manifest := &model.InstallManifest{
+		Packages: []model.InstalledPackage{
+			{Name: "pkg-a", Direct: true},
+			{Name: "pkg-b", Direct: true, DependencyOf: []string{"pkg-a"}},
+		},
+	}
+	orphans := OrphanDependencies(manifest, []string{"pkg-a"})
+	if len(orphans) != 0 {
+		t.Errorf("OrphanDependencies = %v, want empty (pkg-b is direct)", orphans)
+	}
+}
+
+// TestOrphanDependenciesNoManifestDeps verifies that a package without
+// DependencyOf metadata is not treated as an orphan.
+func TestOrphanDependenciesNoManifestDeps(t *testing.T) {
+	manifest := &model.InstallManifest{
+		Packages: []model.InstalledPackage{
+			{Name: "pkg-a", Direct: true},
+			{Name: "pkg-b", Direct: false}, // no DependencyOf
+		},
+	}
+	orphans := OrphanDependencies(manifest, []string{"pkg-a"})
+	if len(orphans) != 0 {
+		t.Errorf("OrphanDependencies = %v, want empty (no DependencyOf metadata)", orphans)
+	}
+}
