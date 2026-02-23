@@ -1,0 +1,6 @@
+name: conflict-b
+version: 1.0.0
+description: Test package that requires shared <2.0.0 (incompatible with conflict-a)
+dependencies:
+  - name: shared
+    version: "<2.0.0"

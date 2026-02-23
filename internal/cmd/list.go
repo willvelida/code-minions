@@ -43,15 +43,21 @@ install, or to check which assistants are supported by the --for flag.`,
   code-minions list --from https://github.com/org/packages.git`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			detail, _ := cmd.Flags().GetBool("detail")
+			treeFlag, _ := cmd.Flags().GetBool("tree")
 			fromFlag, _ := cmd.Flags().GetString("from")
 
 			// Collect package data via the registry
+			type depEntry struct {
+				Name    string `json:"name"`
+				Version string `json:"version,omitempty"`
+			}
 			type packageEntry struct {
-				Name        string                 `json:"name"`
-				Version     string                 `json:"version,omitempty"`
-				Description string                 `json:"description,omitempty"`
-				Source      string                 `json:"source,omitempty"`
-				Contents    *model.PackageContents `json:"contents,omitempty"`
+				Name         string                 `json:"name"`
+				Version      string                 `json:"version,omitempty"`
+				Description  string                 `json:"description,omitempty"`
+				Source       string                 `json:"source,omitempty"`
+				Contents     *model.PackageContents `json:"contents,omitempty"`
+				Dependencies []depEntry             `json:"dependencies,omitempty"`
 			}
 			type assistantEntry struct {
 				Name        string `json:"name"`
@@ -92,6 +98,14 @@ install, or to check which assistants are supported by the --for flag.`,
 				if detail {
 					c := p.Contents
 					entry.Contents = &c
+				}
+				if treeFlag || detail {
+					for _, dep := range p.Dependencies {
+						entry.Dependencies = append(entry.Dependencies, depEntry{
+							Name:    dep.Name,
+							Version: dep.Version,
+						})
+					}
 				}
 				pkgs = append(pkgs, entry)
 			}
@@ -185,6 +199,21 @@ install, or to check which assistants are supported by the --for flag.`,
 				if detail && p.Contents != nil {
 					contentsSummary(w, green, dim, p.Contents)
 				}
+				if treeFlag && len(p.Dependencies) > 0 {
+					for i, dep := range p.Dependencies {
+						prefix := "├── "
+						if i == len(p.Dependencies)-1 {
+							prefix = "└── "
+						}
+						depVersion := dep.Name
+						if dep.Version != "" {
+							depVersion += " (" + dep.Version + ")"
+						}
+						_, _ = green.Fprintf(w, "  %s%s\n", prefix, depVersion)
+					}
+				} else if treeFlag {
+					_, _ = dim.Fprintln(w, "    (no dependencies)")
+				}
 			}
 
 			_, _ = bold.Fprintln(w, "\nAssistants (use with --for)")
@@ -218,6 +247,7 @@ install, or to check which assistants are supported by the --for flag.`,
 	}
 
 	cmd.Flags().Bool("detail", false, "Show package contents (agents, skills, actions, standards)")
+	cmd.Flags().Bool("tree", false, "Show dependency tree for each package")
 	cmd.Flags().String("from", "", "List packages from a specific source (name or Git URL)")
 
 	return cmd

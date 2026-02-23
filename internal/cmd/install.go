@@ -138,6 +138,60 @@ preview changes without writing any files.`,
 				return err
 			}
 
+			// --- Resolve transitive dependencies for embedded packages ---
+			// Build a registry so we can resolve dependencies through the
+			// same DependencyResolver used by other install paths.
+			embeddedSrc := registry.NewEmbeddedSource(content)
+			embeddedReg := registry.NewRegistry(embeddedSrc)
+
+			// Track which packages are direct (explicitly requested) vs transitive
+			directPkgs := make(map[string]bool)
+			for _, dir := range packageDirs {
+				directPkgs[strings.TrimPrefix(dir, "packages/")] = true
+			}
+
+			// Resolve the initial packages to get their dependency info
+			var embeddedRoots []registry.ResolvedPackage
+			for _, dir := range packageDirs {
+				pkgName := strings.TrimPrefix(dir, "packages/")
+				pkg, src, resolveErr := embeddedReg.ResolvePackage(pkgName)
+				if resolveErr == nil {
+					embeddedRoots = append(embeddedRoots, registry.ResolvedPackage{
+						Package: *pkg,
+						Source:  src,
+					})
+				}
+			}
+
+			// Run dependency resolution to discover transitive deps
+			var depTree *registry.ResolvedTree
+			if len(embeddedRoots) > 0 {
+				depResolver := registry.NewDependencyResolver(embeddedReg)
+				depTree, err = depResolver.Resolve(embeddedRoots)
+				if err != nil {
+					return fmt.Errorf("dependency resolution failed: %w", err)
+				}
+
+				// Add any transitive dependencies to the package dirs
+				for _, rp := range depTree.Order {
+					dir := "packages/" + rp.Package.Name
+					if !directPkgs[rp.Package.Name] {
+						packageDirs = append(packageDirs, dir)
+					}
+				}
+
+				// De-duplicate packageDirs (transitive deps may overlap with roots)
+				seen := make(map[string]bool)
+				unique := packageDirs[:0]
+				for _, d := range packageDirs {
+					if !seen[d] {
+						seen[d] = true
+						unique = append(unique, d)
+					}
+				}
+				packageDirs = unique
+			}
+
 			// Log manifest-derived package list
 			if packageFlag == "" {
 				manifestPath := manifest.DefaultPath(target)
@@ -321,7 +375,26 @@ preview changes without writing any files.`,
 						// Use per-package install results instead of re-filtering
 						// the combined list, so each package only claims its own files.
 						pkgFiles := perPkgCopied[pkgName]
-						installer.RecordInstall(manifest, pkgName, version, sourceName, forFlag, pkgFiles)
+
+						// Build dependency metadata from the resolved tree
+						isDirect := directPkgs[pkgName]
+						var dependencyOf []string
+						if depTree != nil {
+							for parentName, deps := range depTree.Graph {
+								for _, dep := range deps {
+									if dep == pkgName {
+										dependencyOf = append(dependencyOf, parentName)
+									}
+								}
+							}
+							sort.Strings(dependencyOf)
+						}
+
+						installer.RecordInstall(manifest, pkgName, version, sourceName, forFlag, pkgFiles,
+							installer.RecordInstallOpts{
+								Direct:       isDirect,
+								DependencyOf: dependencyOf,
+							})
 
 						// Attach only actually-added MCP server names to the manifest entry.
 						// RecordInstall creates a fresh entry (without MCPServers), so we
@@ -727,6 +800,19 @@ func runPersonaInstall(
 		return fmt.Errorf("failed to resolve persona %q: %w", personaName, err)
 	}
 
+	// --- Step 1b: Resolve transitive dependencies ---
+	// Compose PersonaResolver + DependencyResolver (Decision D6).
+	// The persona's packages become roots for dependency resolution.
+	depResolver := registry.NewDependencyResolver(reg)
+	depTree, err := depResolver.Resolve(resolved.Packages)
+	if err != nil {
+		return fmt.Errorf("dependency resolution for persona %q failed: %w", personaName, err)
+	}
+
+	// Update the resolved packages with the full dependency tree
+	// (topological order ensures dependencies install before dependents).
+	resolved.Packages = depTree.Order
+
 	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be written")
 		_, _ = fmt.Fprintln(cmd.OutOrStdout())
@@ -937,9 +1023,14 @@ func installFromSource(
 		version string
 		source  registry.Source
 		pkgFS   fs.FS
+		direct  bool
 	}
 	var resolved []resolvedPkg
 
+	// Build the initial set of user-requested packages as ResolvedPackage
+	// so we can pass them through the DependencyResolver.
+	var roots []registry.ResolvedPackage
+	requestedNames := make(map[string]bool)
 	for _, pkgName := range packages {
 		pkg, src, err := reg.ResolvePackage(pkgName)
 		if err != nil {
@@ -956,16 +1047,30 @@ func installFromSource(
 			return fmt.Errorf("package %q not found in source %q: %w", pkgName, fromFlag, err)
 		}
 
-		pkgFS, err := src.DownloadPackage(pkgName, pkg.Version)
+		roots = append(roots, registry.ResolvedPackage{Package: *pkg, Source: src})
+		requestedNames[pkgName] = true
+	}
+
+	// 4b. Resolve transitive dependencies
+	depResolver := registry.NewDependencyResolver(reg)
+	tree, err := depResolver.Resolve(roots)
+	if err != nil {
+		return fmt.Errorf("dependency resolution failed: %w", err)
+	}
+
+	// 4c. Download all packages (direct + transitive) in topological order
+	for _, rp := range tree.Order {
+		pkgFS, err := rp.Source.DownloadPackage(rp.Package.Name, rp.Package.Version)
 		if err != nil {
-			return fmt.Errorf("failed to download package %q: %w", pkgName, err)
+			return fmt.Errorf("failed to download package %q: %w", rp.Package.Name, err)
 		}
 
 		resolved = append(resolved, resolvedPkg{
-			name:    pkgName,
-			version: pkg.Version,
-			source:  src,
+			name:    rp.Package.Name,
+			version: rp.Package.Version,
+			source:  rp.Source,
 			pkgFS:   pkgFS,
+			direct:  tree.Direct[rp.Package.Name],
 		})
 	}
 
@@ -1099,7 +1204,25 @@ func installFromSource(
 		} else {
 			for _, rp := range resolved {
 				pkgFiles := perPkgCopied[rp.name]
-				installer.RecordInstall(installManifest, rp.name, rp.version, sourceName, forFlag, pkgFiles)
+
+				// Build dependency metadata from the resolved tree
+				var dependencyOf []string
+				if tree != nil {
+					for parentName, deps := range tree.Graph {
+						for _, dep := range deps {
+							if dep == rp.name {
+								dependencyOf = append(dependencyOf, parentName)
+							}
+						}
+					}
+					sort.Strings(dependencyOf)
+				}
+
+				installer.RecordInstall(installManifest, rp.name, rp.version, sourceName, forFlag, pkgFiles,
+					installer.RecordInstallOpts{
+						Direct:       rp.direct,
+						DependencyOf: dependencyOf,
+					})
 
 				if mcpResult, ok := mcpResults[rp.name]; ok && len(mcpResult.Merge.Added) > 0 {
 					addedServers := make([]string, len(mcpResult.Merge.Added))

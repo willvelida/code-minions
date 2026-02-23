@@ -1,0 +1,4 @@
+name: pkg-c
+version: 0.3.0
+description: Test package C — no dependencies
+dependencies: []

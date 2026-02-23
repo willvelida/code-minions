@@ -21,6 +21,18 @@ type InstalledPackage struct {
 	ReferencedBy []string `json:"referenced_by,omitempty"`
 	Files        []string `json:"files"`
 	MCPServers   []string `json:"mcp_servers,omitempty"`
+
+	// Direct is true when the package was explicitly requested by the
+	// user (via --package flag or code-minions.yml). False when the
+	// package was pulled in as a transitive dependency.
+	Direct bool `json:"direct"`
+
+	// DependencyOf lists the names of packages that depend on this one.
+	// This enables safe uninstall checks ("cannot remove X: still needed
+	// by Y") and the `why` command. A package can be both Direct and
+	// a DependencyOf another package (user explicitly installs something
+	// that is also transitively required).
+	DependencyOf []string `json:"dependency_of,omitempty"`
 }
 
 // InstalledPersona records a single installed persona.

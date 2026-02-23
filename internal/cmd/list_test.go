@@ -152,3 +152,93 @@ func TestListCommandShowsDescriptions(t *testing.T) {
 		}
 	}
 }
+
+// TestListCommandTreeFlag verifies that --tree shows dependency information.
+func TestListCommandTreeFlag(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	fs := fstest.MapFS{
+		"packages/pkg-a/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: pkg-a
+version: 1.0.0
+description: Package A
+dependencies:
+  - name: pkg-b
+    version: ">=1.0.0"
+`),
+		},
+		"packages/pkg-b/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: pkg-b
+version: 1.2.0
+description: Package B
+`),
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := newListCommand(fs)
+	cmd.SetArgs([]string{"--tree"})
+	cmd.SetOut(&buf)
+	old := color.Output
+	color.Output = &buf
+	t.Cleanup(func() { color.Output = old })
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	// pkg-a should show its dependency on pkg-b
+	if !strings.Contains(output, "pkg-b") {
+		t.Errorf("tree output should show dependency pkg-b, got:\n%s", output)
+	}
+
+	// pkg-b should show "(no dependencies)"
+	if !strings.Contains(output, "no dependencies") {
+		t.Errorf("tree output should show 'no dependencies' for pkg-b, got:\n%s", output)
+	}
+}
+
+// TestListCommandTreeFlagJSON verifies that --tree with JSON output includes dependencies.
+// Uses newJSONTestRootCmd so the persistent --json flag is available.
+func TestListCommandTreeFlagJSON(t *testing.T) {
+	color.NoColor = true
+	t.Cleanup(func() { color.NoColor = false })
+
+	fs := fstest.MapFS{
+		"packages/pkg-a/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: pkg-a
+version: 1.0.0
+dependencies:
+  - name: pkg-b
+    version: ">=1.0.0"
+`),
+		},
+		"packages/pkg-b/package.yaml": &fstest.MapFile{
+			Data: []byte(`name: pkg-b
+version: 1.2.0
+`),
+		},
+	}
+
+	var buf bytes.Buffer
+	root := newJSONTestRootCmd(fs)
+	root.SetArgs([]string{"list", "--tree", "--json"})
+	root.SetOut(&buf)
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+
+	// JSON should include dependencies array
+	if !strings.Contains(output, `"dependencies"`) {
+		t.Errorf("JSON tree output should include 'dependencies' field, got:\n%s", output)
+	}
+	if !strings.Contains(output, `"pkg-b"`) {
+		t.Errorf("JSON tree output should include dependency name 'pkg-b', got:\n%s", output)
+	}
+}

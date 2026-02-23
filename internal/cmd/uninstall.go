@@ -94,8 +94,37 @@ files are found in the correct assistant-specific location.`,
 				return err
 			}
 
+			// --- Dependency cascade ---
+			// When removing a specific package, check if any transitive
+			// dependencies would become orphans and cascade the removal.
+			// Decision D8: cascade by default, warn only.
+			var cascadedDeps []string
+			if packageFlag != "" {
+				manifest, err := installer.LoadManifest(target)
+				if err == nil {
+					// Build removal list (package names, not dirs)
+					var removing []string
+					for _, d := range packageDirs {
+						removing = append(removing, strings.TrimPrefix(d, "packages/"))
+					}
+					cascadedDeps = installer.OrphanDependencies(manifest, removing)
+					for _, dep := range cascadedDeps {
+						packageDirs = append(packageDirs, "packages/"+dep)
+					}
+				}
+			}
+
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
 				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
+				fmt.Println()
+			}
+
+			// Show cascade warning when orphan deps are being removed
+			if len(cascadedDeps) > 0 && (mode == OutputNormal || mode == OutputVerbose) {
+				yellow := color.New(color.FgYellow)
+				for _, dep := range cascadedDeps {
+					_, _ = yellow.Printf("  cascade: removing orphan dependency %q\n", dep)
+				}
 				fmt.Println()
 			}
 

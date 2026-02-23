@@ -1,0 +1,7 @@
+name: pkg-a
+version: 1.0.0
+description: Test package A — depends on pkg-b and pkg-c
+dependencies:
+  - name: pkg-b
+    version: ">=1.0.0"
+  - name: pkg-c
