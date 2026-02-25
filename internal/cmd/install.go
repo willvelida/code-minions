@@ -205,8 +205,7 @@ preview changes without writing any files.`,
 			}
 
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
-				fmt.Println()
+				printDryRunBanner(cmd.OutOrStdout())
 			}
 
 			// Install each package (with prefix stripping)
@@ -240,6 +239,7 @@ preview changes without writing any files.`,
 				combinedResult.Copied = append(combinedResult.Copied, result.Copied...)
 				combinedResult.Skipped = append(combinedResult.Skipped, result.Skipped...)
 				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
+				mergeActions(&combinedResult.Actions, result.Actions)
 				pkgName := strings.TrimPrefix(pkgDir, "packages/")
 				perPkgCopied[pkgName] = result.Copied
 			}
@@ -267,8 +267,10 @@ preview changes without writing any files.`,
 					combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
 				} else if action == "created" {
 					combinedResult.Copied = append(combinedResult.Copied, agentsMDPath)
+					combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: agentsMDPath, Kind: installer.ActionCreate})
 				} else {
 					combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
+					combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: agentsMDPath, Kind: installer.ActionUnchanged, Annotation: "already exists"})
 				}
 			}
 
@@ -302,8 +304,10 @@ preview changes without writing any files.`,
 							fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
 					} else if instrAction == "created" {
 						combinedResult.Copied = append(combinedResult.Copied, cfg.InstructionsPath)
+						combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: cfg.InstructionsPath, Kind: installer.ActionCreate})
 					} else {
 						combinedResult.Skipped = append(combinedResult.Skipped, cfg.InstructionsPath)
+						combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: cfg.InstructionsPath, Kind: installer.ActionUnchanged, Annotation: "already exists"})
 					}
 				}
 			}
@@ -529,52 +533,48 @@ preview changes without writing any files.`,
 			verbosePrintf(cmd, mode, "packages: %v\n", packageDirs)
 
 			// Print results
-			for _, f := range combinedResult.Copied {
-				if dryRun {
-					_, _ = yellow.Printf("  would copy: %s\n", f)
-				} else {
+			if dryRun && len(combinedResult.Actions) > 0 {
+				printDryRunInstallActions(cmd.OutOrStdout(), combinedResult.Actions)
+			} else {
+				for _, f := range combinedResult.Copied {
 					_, _ = green.Printf("  copied: %s\n", f)
 				}
-			}
-			for _, f := range combinedResult.Skipped {
-				_, _ = yellow.Printf("  skipped (exists): %s\n", f)
-				verbosePrintf(cmd, mode, "    → use --force to overwrite\n")
-			}
-			for _, e := range combinedResult.Errors {
-				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-			}
+				for _, f := range combinedResult.Skipped {
+					_, _ = yellow.Printf("  skipped (exists): %s\n", f)
+					verbosePrintf(cmd, mode, "    → use --force to overwrite\n")
+				}
+				for _, e := range combinedResult.Errors {
+					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+				}
 
-			// MCP server results
-			if len(mcpResults) > 0 {
-				cyan := color.New(color.FgCyan)
-				fmt.Println()
-				_, _ = bold.Println("MCP servers:")
-				mcpPkgNames := sortedKeys(mcpResults)
-				for _, pkgName := range mcpPkgNames {
-					mr := mcpResults[pkgName]
-					for _, s := range mr.Merge.Added {
-						if dryRun {
-							_, _ = yellow.Printf("  would add to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
-						} else {
+				// MCP server results
+				if len(mcpResults) > 0 {
+					cyan := color.New(color.FgCyan)
+					fmt.Println()
+					_, _ = bold.Println("MCP servers:")
+					mcpPkgNames := sortedKeys(mcpResults)
+					for _, pkgName := range mcpPkgNames {
+						mr := mcpResults[pkgName]
+						for _, s := range mr.Merge.Added {
 							_, _ = cyan.Printf("  added to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
 						}
-					}
-					for _, s := range mr.Merge.Skipped {
-						_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
-					}
-					for _, s := range mr.Merge.Conflict {
-						_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
-					}
-					for _, w := range mr.Merge.Warnings {
-						_, _ = yellow.Printf("  warning: %s\n", w)
+						for _, s := range mr.Merge.Skipped {
+							_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
+						}
+						for _, s := range mr.Merge.Conflict {
+							_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
+						}
+						for _, w := range mr.Merge.Warnings {
+							_, _ = yellow.Printf("  warning: %s\n", w)
+						}
 					}
 				}
-			}
 
-			// Summary
-			fmt.Println()
-			_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
-				len(combinedResult.Copied), len(combinedResult.Skipped), len(combinedResult.Errors))
+				// Summary
+				fmt.Println()
+				_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
+					len(combinedResult.Copied), len(combinedResult.Skipped), len(combinedResult.Errors))
+			}
 
 			if len(combinedResult.Errors) > 0 {
 				return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))
@@ -1007,8 +1007,7 @@ func installFromSource(
 	}
 
 	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-		_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
-		fmt.Println()
+		printDryRunBanner(cmd.OutOrStdout())
 	}
 
 	// 4. Resolve and download each package from the source
@@ -1099,6 +1098,7 @@ func installFromSource(
 		combinedResult.Copied = append(combinedResult.Copied, result.Copied...)
 		combinedResult.Skipped = append(combinedResult.Skipped, result.Skipped...)
 		combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
+		mergeActions(&combinedResult.Actions, result.Actions)
 		perPkgCopied[rp.name] = result.Copied
 	}
 
@@ -1125,8 +1125,10 @@ func installFromSource(
 			combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("AGENTS.md: %v", err))
 		} else if action == "created" {
 			combinedResult.Copied = append(combinedResult.Copied, agentsMDPath)
+			combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: agentsMDPath, Kind: installer.ActionCreate})
 		} else {
 			combinedResult.Skipped = append(combinedResult.Skipped, agentsMDPath)
+			combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: agentsMDPath, Kind: installer.ActionUnchanged, Annotation: "already exists"})
 		}
 	}
 
@@ -1156,8 +1158,10 @@ func installFromSource(
 					fmt.Sprintf("%s: %v", cfg.InstructionsPath, instrErr))
 			} else if instrAction == "created" {
 				combinedResult.Copied = append(combinedResult.Copied, cfg.InstructionsPath)
+				combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: cfg.InstructionsPath, Kind: installer.ActionCreate})
 			} else {
 				combinedResult.Skipped = append(combinedResult.Skipped, cfg.InstructionsPath)
+				combinedResult.Actions = append(combinedResult.Actions, installer.FileAction{Path: cfg.InstructionsPath, Kind: installer.ActionUnchanged, Annotation: "already exists"})
 			}
 		}
 	}
@@ -1311,19 +1315,23 @@ func formatInstallResult(
 		}
 
 		result := struct {
-			Copied  []string       `json:"copied"`
-			Skipped []string       `json:"skipped"`
-			Errors  []string       `json:"errors"`
-			MCP     []mcpJSONEntry `json:"mcp"`
+			DryRun  bool               `json:"dry_run"`
+			Copied  []string           `json:"copied"`
+			Skipped []string           `json:"skipped"`
+			Errors  []string           `json:"errors"`
+			Actions []dryRunJSONAction `json:"actions"`
+			MCP     []mcpJSONEntry     `json:"mcp"`
 			Summary struct {
 				Copied  int `json:"copied"`
 				Skipped int `json:"skipped"`
 				Errors  int `json:"errors"`
 			} `json:"summary"`
 		}{
+			DryRun:  dryRun,
 			Copied:  copied,
 			Skipped: skipped,
 			Errors:  errs,
+			Actions: actionsToJSON(combinedResult.Actions),
 			MCP:     mcpEntries,
 		}
 		result.Summary.Copied = len(combinedResult.Copied)
@@ -1350,56 +1358,52 @@ func formatInstallResult(
 	}
 
 	// Normal / verbose output
-	green := color.New(color.FgGreen)
-	yellow := color.New(color.FgYellow)
-	red := color.New(color.FgRed)
-	bold := color.New(color.Bold)
+	if dryRun && len(combinedResult.Actions) > 0 {
+		printDryRunInstallActions(cmd.OutOrStdout(), combinedResult.Actions)
+	} else {
+		green := color.New(color.FgGreen)
+		yellow := color.New(color.FgYellow)
+		red := color.New(color.FgRed)
+		bold := color.New(color.Bold)
 
-	for _, f := range combinedResult.Copied {
-		if dryRun {
-			_, _ = yellow.Printf("  would copy: %s\n", f)
-		} else {
+		for _, f := range combinedResult.Copied {
 			_, _ = green.Printf("  copied: %s\n", f)
 		}
-	}
-	for _, f := range combinedResult.Skipped {
-		_, _ = yellow.Printf("  skipped (exists): %s\n", f)
-	}
-	for _, e := range combinedResult.Errors {
-		_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-	}
+		for _, f := range combinedResult.Skipped {
+			_, _ = yellow.Printf("  skipped (exists): %s\n", f)
+		}
+		for _, e := range combinedResult.Errors {
+			_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+		}
 
-	// MCP server results
-	if len(mcpResults) > 0 {
-		cyan := color.New(color.FgCyan)
-		fmt.Println()
-		_, _ = bold.Println("MCP servers:")
-		mcpPkgNames := sortedKeys(mcpResults)
-		for _, pkgName := range mcpPkgNames {
-			mr := mcpResults[pkgName]
-			for _, s := range mr.Merge.Added {
-				if dryRun {
-					_, _ = yellow.Printf("  would add to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
-				} else {
+		// MCP server results
+		if len(mcpResults) > 0 {
+			cyan := color.New(color.FgCyan)
+			fmt.Println()
+			_, _ = bold.Println("MCP servers:")
+			mcpPkgNames := sortedKeys(mcpResults)
+			for _, pkgName := range mcpPkgNames {
+				mr := mcpResults[pkgName]
+				for _, s := range mr.Merge.Added {
 					_, _ = cyan.Printf("  added to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
 				}
-			}
-			for _, s := range mr.Merge.Skipped {
-				_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
-			}
-			for _, s := range mr.Merge.Conflict {
-				_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
-			}
-			for _, w := range mr.Merge.Warnings {
-				_, _ = yellow.Printf("  warning: %s\n", w)
+				for _, s := range mr.Merge.Skipped {
+					_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
+				}
+				for _, s := range mr.Merge.Conflict {
+					_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
+				}
+				for _, w := range mr.Merge.Warnings {
+					_, _ = yellow.Printf("  warning: %s\n", w)
+				}
 			}
 		}
-	}
 
-	// Summary
-	fmt.Println()
-	_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
-		len(combinedResult.Copied), len(combinedResult.Skipped), len(combinedResult.Errors))
+		// Summary
+		fmt.Println()
+		_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
+			len(combinedResult.Copied), len(combinedResult.Skipped), len(combinedResult.Errors))
+	}
 
 	if len(combinedResult.Errors) > 0 {
 		return fmt.Errorf("installation completed with %d errors", len(combinedResult.Errors))

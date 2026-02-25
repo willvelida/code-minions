@@ -99,8 +99,7 @@ AGENTS.md is not modified during updates.`,
 			}
 
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
-				fmt.Println()
+				printDryRunBanner(cmd.OutOrStdout())
 			}
 
 			// Update each package (with prefix stripping, force always true)
@@ -161,15 +160,19 @@ AGENTS.md is not modified during updates.`,
 					errs = []string{}
 				}
 				result := struct {
-					Updated []string `json:"updated"`
-					Errors  []string `json:"errors"`
+					DryRun  bool               `json:"dry_run"`
+					Updated []string           `json:"updated"`
+					Errors  []string           `json:"errors"`
+					Actions []dryRunJSONAction `json:"actions"`
 					Summary struct {
 						Updated int `json:"updated"`
 						Errors  int `json:"errors"`
 					} `json:"summary"`
 				}{
+					DryRun:  dryRun,
 					Updated: updated,
 					Errors:  errs,
+					Actions: actionsToJSON(combinedResult.Actions),
 				}
 				result.Summary.Updated = len(combinedResult.Copied)
 				result.Summary.Errors = len(combinedResult.Errors)
@@ -194,7 +197,6 @@ AGENTS.md is not modified during updates.`,
 			}
 
 			green := color.New(color.FgGreen)
-			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)
 			bold := color.New(color.Bold)
 
@@ -205,24 +207,19 @@ AGENTS.md is not modified during updates.`,
 				verbosePrintf(cmd, mode, "packages (auto-detected): %v\n", packageDirs)
 			}
 
-			// Print results — say "updated" instead of "copied"
-			for _, f := range combinedResult.Copied {
-				if dryRun {
-					_, _ = yellow.Printf("  would update: %s\n", f)
-				} else {
+			if dryRun && len(combinedResult.Actions) > 0 {
+				printDryRunUpdateActions(cmd.OutOrStdout(), combinedResult.Actions)
+			} else {
+				// Print results — say "updated" instead of "copied"
+				for _, f := range combinedResult.Copied {
 					_, _ = green.Printf("  updated: %s\n", f)
 				}
-			}
-			for _, e := range combinedResult.Errors {
-				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-			}
+				for _, e := range combinedResult.Errors {
+					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+				}
 
-			// Summary
-			fmt.Println()
-			if dryRun {
-				_, _ = bold.Printf("%d would be updated, %d errors\n",
-					len(combinedResult.Copied), len(combinedResult.Errors))
-			} else {
+				// Summary
+				fmt.Println()
 				_, _ = bold.Printf("%d updated, %d errors\n",
 					len(combinedResult.Copied), len(combinedResult.Errors))
 			}
@@ -268,6 +265,7 @@ func runUpdate(content fs.FS, target, stripPrefix string, dryRun bool, pathMappe
 	combined.Copied = append(combined.Copied, result.Copied...)
 	combined.Skipped = append(combined.Skipped, result.Skipped...)
 	combined.Errors = append(combined.Errors, result.Errors...)
+	mergeActions(&combined.Actions, result.Actions)
 	return nil
 }
 

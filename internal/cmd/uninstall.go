@@ -115,8 +115,7 @@ files are found in the correct assistant-specific location.`,
 			}
 
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be removed")
-				fmt.Println()
+				printDryRunBanner(cmd.OutOrStdout())
 			}
 
 			// Show cascade warning when orphan deps are being removed
@@ -226,6 +225,7 @@ files are found in the correct assistant-specific location.`,
 				combinedResult.NotFound = append(combinedResult.NotFound, result.NotFound...)
 				combinedResult.Errors = append(combinedResult.Errors, result.Errors...)
 				combinedResult.DirsCleaned = append(combinedResult.DirsCleaned, result.DirsCleaned...)
+				mergeActions(&combinedResult.Actions, result.Actions)
 			}
 
 			// --- MCP server removal ---
@@ -371,20 +371,24 @@ files are found in the correct assistant-specific location.`,
 					dirsCleaned = []string{}
 				}
 				result := struct {
-					Removed     []string `json:"removed"`
-					NotFound    []string `json:"not_found"`
-					Errors      []string `json:"errors"`
-					DirsCleaned []string `json:"dirs_cleaned"`
+					DryRun      bool               `json:"dry_run"`
+					Removed     []string           `json:"removed"`
+					NotFound    []string           `json:"not_found"`
+					Errors      []string           `json:"errors"`
+					DirsCleaned []string           `json:"dirs_cleaned"`
+					Actions     []dryRunJSONAction `json:"actions"`
 					Summary     struct {
 						Removed  int `json:"removed"`
 						NotFound int `json:"not_found"`
 						Errors   int `json:"errors"`
 					} `json:"summary"`
 				}{
+					DryRun:      dryRun,
 					Removed:     removed,
 					NotFound:    notFound,
 					Errors:      errs,
 					DirsCleaned: dirsCleaned,
+					Actions:     actionsToJSON(combinedResult.Actions),
 				}
 				result.Summary.Removed = len(combinedResult.Removed)
 				result.Summary.NotFound = len(combinedResult.NotFound)
@@ -449,7 +453,6 @@ files are found in the correct assistant-specific location.`,
 			}
 
 			green := color.New(color.FgGreen)
-			yellow := color.New(color.FgYellow)
 			red := color.New(color.FgRed)
 			dim := color.New(color.Faint)
 			bold := color.New(color.Bold)
@@ -457,39 +460,35 @@ files are found in the correct assistant-specific location.`,
 			// Verbose: show package list
 			verbosePrintf(cmd, mode, "packages: %v\n", packageDirs)
 
-			for _, f := range combinedResult.Removed {
-				if dryRun {
-					_, _ = yellow.Printf("  would remove: %s\n", f)
-				} else {
+			if dryRun && len(combinedResult.Actions) > 0 {
+				printDryRunUninstallActions(cmd.OutOrStdout(), combinedResult.Actions)
+			} else {
+				for _, f := range combinedResult.Removed {
 					_, _ = green.Printf("  removed: %s\n", f)
 				}
-			}
-			for _, f := range combinedResult.NotFound {
-				_, _ = dim.Printf("  not found: %s\n", f)
-				verbosePrintf(cmd, mode, "    → file does not exist in target\n")
-			}
-			for _, d := range combinedResult.DirsCleaned {
-				_, _ = dim.Printf("  cleaned dir: %s\n", d)
-			}
-			for _, e := range combinedResult.Errors {
-				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-			}
+				for _, f := range combinedResult.NotFound {
+					_, _ = dim.Printf("  not found: %s\n", f)
+					verbosePrintf(cmd, mode, "    → file does not exist in target\n")
+				}
+				for _, d := range combinedResult.DirsCleaned {
+					_, _ = dim.Printf("  cleaned dir: %s\n", d)
+				}
+				for _, e := range combinedResult.Errors {
+					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+				}
 
-			// MCP server removal results
-			if len(mcpUninstallResults) > 0 {
-				cyan := color.New(color.FgCyan)
-				fmt.Println()
-				_, _ = bold.Println("MCP servers:")
-				for _, mr := range mcpUninstallResults {
-					for _, s := range mr.Removed {
-						if dryRun {
-							_, _ = yellow.Printf("  would remove from %s: %s\n", mr.ConfigPath, s)
-						} else {
+				// MCP server removal results
+				if len(mcpUninstallResults) > 0 {
+					cyan := color.New(color.FgCyan)
+					fmt.Println()
+					_, _ = bold.Println("MCP servers:")
+					for _, mr := range mcpUninstallResults {
+						for _, s := range mr.Removed {
 							_, _ = cyan.Printf("  removed from %s: %s\n", mr.ConfigPath, s)
 						}
-					}
-					for _, s := range mr.NotFound {
-						_, _ = dim.Printf("  not found in %s: %s\n", mr.ConfigPath, s)
+						for _, s := range mr.NotFound {
+							_, _ = dim.Printf("  not found in %s: %s\n", mr.ConfigPath, s)
+						}
 					}
 				}
 			}
@@ -633,8 +632,7 @@ func runPersonaUninstall(
 	}
 
 	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be removed")
-		_, _ = fmt.Fprintln(cmd.OutOrStdout())
+		printDryRunBanner(cmd.OutOrStdout())
 	}
 
 	// --- Step 4: Remove exclusive package files ---
