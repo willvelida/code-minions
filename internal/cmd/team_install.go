@@ -223,8 +223,7 @@ func runTeamInstall(cmd *cobra.Command, content fs.FS, opts teamInstallOptions) 
 	resolver := registry.NewPersonaResolver(reg)
 
 	if opts.dryRun && (opts.mode == OutputNormal || opts.mode == OutputVerbose) {
-		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be written")
-		_, _ = fmt.Fprintln(cmd.OutOrStdout())
+		printDryRunBanner(cmd.OutOrStdout())
 	}
 
 	// --- Step 6: Install each persona ---

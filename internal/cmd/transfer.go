@@ -72,8 +72,7 @@ layout because it contains assistant-specific paths.`,
 			mode := getOutputMode(cmd)
 
 			if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-				_, _ = color.New(color.FgYellow, color.Bold).Println("Dry run - no files will be written")
-				fmt.Println()
+				printDryRunBanner(cmd.OutOrStdout())
 			}
 
 			// Step 1: Transfer agent/skill files

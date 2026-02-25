@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -31,6 +32,7 @@ type Result struct {
 	Copied  []string
 	Skipped []string
 	Errors  []string
+	Actions []FileAction // Populated only during dry-run with categorised operations
 }
 
 // Install walks the embedded filesystem directories and copies their contents
@@ -126,6 +128,56 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 			}
 
 			// Handle files
+			if i.DryRun {
+				action := FileAction{Path: outputPath}
+				_, statErr := os.Stat(targetPath)
+				if os.IsNotExist(statErr) {
+					// File does not exist — would be created
+					action.Kind = ActionCreate
+					result.Copied = append(result.Copied, outputPath)
+				} else if statErr == nil {
+					// File exists — compare content to categorise
+					sourceData, readErr := fs.ReadFile(i.Content, path)
+					if readErr != nil {
+						result.Errors = append(result.Errors, fmt.Sprintf("failed to read %s: %v", path, readErr))
+						return nil
+					}
+					// Apply content transformation to source data for accurate comparison
+					if i.FileTransformer != nil && fileTransformApplied {
+						origName := d.Name()
+						transformedData, _, transformErr := i.FileTransformer(sourceData, origName)
+						if transformErr != nil {
+							result.Errors = append(result.Errors, fmt.Sprintf("failed to transform %s: %v", path, transformErr))
+							return nil
+						}
+						sourceData = transformedData
+					}
+					targetData, readErr := os.ReadFile(targetPath)
+					if readErr != nil {
+						result.Errors = append(result.Errors, fmt.Sprintf("failed to read %s: %v", targetPath, readErr))
+						return nil
+					}
+					if bytes.Equal(sourceData, targetData) {
+						action.Kind = ActionUnchanged
+						result.Skipped = append(result.Skipped, outputPath)
+					} else if i.Force {
+						action.Kind = ActionModify
+						result.Copied = append(result.Copied, outputPath)
+					} else {
+						// File differs but --force not set — would be skipped
+						action.Kind = ActionSkipped
+						action.Annotation = "exists (use --force to overwrite)"
+						result.Skipped = append(result.Skipped, outputPath)
+					}
+				} else {
+					result.Errors = append(result.Errors, fmt.Sprintf("failed to stat %s: %v", targetPath, statErr))
+					return nil
+				}
+				result.Actions = append(result.Actions, action)
+				return nil
+			}
+
+			// Non-dry-run: skip existing files unless --force
 			if !i.Force {
 				if _, err := os.Stat(targetPath); err == nil {
 					result.Skipped = append(result.Skipped, outputPath)
@@ -134,11 +186,6 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 					result.Errors = append(result.Errors, fmt.Sprintf("failed to stat %s: %v", targetPath, err))
 					return nil
 				}
-			}
-
-			if i.DryRun {
-				result.Copied = append(result.Copied, outputPath)
-				return nil
 			}
 
 			// Read from embedded FS and write to target

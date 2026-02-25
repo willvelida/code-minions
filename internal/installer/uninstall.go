@@ -15,6 +15,7 @@ type UninstallResult struct {
 	NotFound    []string
 	Errors      []string
 	DirsCleaned []string
+	Actions     []FileAction // Populated only during dry-run with categorised operations
 }
 
 // Uninstall removes previously installed files from the target directory.
@@ -95,6 +96,12 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 
 			if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 				result.NotFound = append(result.NotFound, outputPath)
+				if i.DryRun {
+					result.Actions = append(result.Actions, FileAction{
+						Path: outputPath,
+						Kind: ActionNotFound,
+					})
+				}
 				return nil
 			} else if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("failed to stat %s: %v", targetPath, err))
@@ -103,6 +110,10 @@ func (i *Installer) Uninstall(dirs []string) (*UninstallResult, error) {
 
 			if i.DryRun {
 				result.Removed = append(result.Removed, outputPath)
+				result.Actions = append(result.Actions, FileAction{
+					Path: outputPath,
+					Kind: ActionRemove,
+				})
 				return nil
 			}
 
