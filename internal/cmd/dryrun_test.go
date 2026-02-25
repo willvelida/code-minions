@@ -14,6 +14,7 @@ func TestPrintDryRunInstallActions(t *testing.T) {
 		{Path: "skills/my-skill/SKILL.md", Kind: installer.ActionCreate},
 		{Path: "agents/AGENTS.md", Kind: installer.ActionModify, Annotation: "add reference to my-skill"},
 		{Path: ".github/copilot-instructions.md", Kind: installer.ActionUnchanged, Annotation: "already up to date"},
+		{Path: "skills/old-skill/SKILL.md", Kind: installer.ActionSkipped, Annotation: "exists (use --force to overwrite)"},
 	}
 
 	var buf bytes.Buffer
@@ -30,6 +31,9 @@ func TestPrintDryRunInstallActions(t *testing.T) {
 	if !strings.Contains(out, "Would not change:") {
 		t.Error("missing 'Would not change:' header")
 	}
+	if !strings.Contains(out, "Would skip (use --force to overwrite):") {
+		t.Error("missing 'Would skip' header")
+	}
 
 	// Check prefixes
 	if !strings.Contains(out, "+ agents/my-agent.agent.md") {
@@ -41,9 +45,12 @@ func TestPrintDryRunInstallActions(t *testing.T) {
 	if !strings.Contains(out, "= .github/copilot-instructions.md (already up to date)") {
 		t.Error("missing '= .github/copilot-instructions.md' with annotation")
 	}
+	if !strings.Contains(out, "! skills/old-skill/SKILL.md (exists (use --force to overwrite))") {
+		t.Error("missing '! skills/old-skill/SKILL.md' with annotation")
+	}
 
 	// Check summary
-	if !strings.Contains(out, "Summary: 2 to create, 1 to modify, 1 unchanged") {
+	if !strings.Contains(out, "Summary: 2 to create, 1 to modify, 1 skipped, 1 unchanged") {
 		t.Errorf("unexpected summary in output:\n%s", out)
 	}
 }

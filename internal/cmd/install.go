@@ -486,20 +486,26 @@ preview changes without writing any files.`,
 				}
 
 				result := struct {
-					Copied  []string       `json:"copied"`
-					Skipped []string       `json:"skipped"`
-					Errors  []string       `json:"errors"`
-					MCP     []mcpJSONEntry `json:"mcp"`
+					DryRun  bool               `json:"dry_run"`
+					Copied  []string           `json:"copied"`
+					Skipped []string           `json:"skipped"`
+					Errors  []string           `json:"errors"`
+					MCP     []mcpJSONEntry     `json:"mcp"`
+					Actions []dryRunJSONAction `json:"actions,omitempty"`
 					Summary struct {
 						Copied  int `json:"copied"`
 						Skipped int `json:"skipped"`
 						Errors  int `json:"errors"`
 					} `json:"summary"`
 				}{
+					DryRun:  dryRun,
 					Copied:  copied,
 					Skipped: skipped,
 					Errors:  errs,
 					MCP:     mcpEntries,
+				}
+				if dryRun {
+					result.Actions = actionsToJSON(combinedResult.Actions)
 				}
 				result.Summary.Copied = len(combinedResult.Copied)
 				result.Summary.Skipped = len(combinedResult.Skipped)
@@ -535,7 +541,7 @@ preview changes without writing any files.`,
 			// Print results
 			if dryRun && len(combinedResult.Actions) > 0 {
 				printDryRunInstallActions(cmd.OutOrStdout(), combinedResult.Actions)
-			} else {
+			} else if !dryRun {
 				for _, f := range combinedResult.Copied {
 					_, _ = green.Printf("  copied: %s\n", f)
 				}
@@ -543,33 +549,41 @@ preview changes without writing any files.`,
 					_, _ = yellow.Printf("  skipped (exists): %s\n", f)
 					verbosePrintf(cmd, mode, "    → use --force to overwrite\n")
 				}
-				for _, e := range combinedResult.Errors {
-					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-				}
+			}
 
-				// MCP server results
-				if len(mcpResults) > 0 {
-					cyan := color.New(color.FgCyan)
-					fmt.Println()
+			// Always print errors
+			for _, e := range combinedResult.Errors {
+				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+			}
+
+			// MCP server results
+			if len(mcpResults) > 0 {
+				cyan := color.New(color.FgCyan)
+				fmt.Println()
+				if dryRun {
+					_, _ = bold.Println("MCP servers (would add):")
+				} else {
 					_, _ = bold.Println("MCP servers:")
-					mcpPkgNames := sortedKeys(mcpResults)
-					for _, pkgName := range mcpPkgNames {
-						mr := mcpResults[pkgName]
-						for _, s := range mr.Merge.Added {
-							_, _ = cyan.Printf("  added to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
-						}
-						for _, s := range mr.Merge.Skipped {
-							_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
-						}
-						for _, s := range mr.Merge.Conflict {
-							_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
-						}
-						for _, w := range mr.Merge.Warnings {
-							_, _ = yellow.Printf("  warning: %s\n", w)
-						}
+				}
+				mcpPkgNames := sortedKeys(mcpResults)
+				for _, pkgName := range mcpPkgNames {
+					mr := mcpResults[pkgName]
+					for _, s := range mr.Merge.Added {
+						_, _ = cyan.Printf("  added to %s: %s (package: %s)\n", mr.ConfigPath, s, pkgName)
+					}
+					for _, s := range mr.Merge.Skipped {
+						_, _ = yellow.Printf("  skipped (identical): %s in %s\n", s, mr.ConfigPath)
+					}
+					for _, s := range mr.Merge.Conflict {
+						_, _ = yellow.Printf("  conflict: %s in %s (use --force to overwrite)\n", s, mr.ConfigPath)
+					}
+					for _, w := range mr.Merge.Warnings {
+						_, _ = yellow.Printf("  warning: %s\n", w)
 					}
 				}
+			}
 
+			if !dryRun {
 				// Summary
 				fmt.Println()
 				_, _ = bold.Printf("%d copied, %d skipped, %d errors\n",
@@ -807,8 +821,7 @@ func runPersonaInstall(
 	resolved.Packages = depTree.Order
 
 	if dryRun && (mode == OutputNormal || mode == OutputVerbose) {
-		_, _ = color.New(color.FgYellow, color.Bold).Fprintln(cmd.OutOrStdout(), "Dry run - no files will be written")
-		_, _ = fmt.Fprintln(cmd.OutOrStdout())
+		printDryRunBanner(cmd.OutOrStdout())
 	}
 
 	// --- Step 2: Install via PersonaInstaller ---

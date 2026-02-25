@@ -44,26 +44,29 @@ func printDryRunInstallActions(w io.Writer, actions []installer.FileAction) {
 	groups := []dryRunActionGroup{
 		{"Would create:", installer.ActionCreate, color.New(color.FgGreen)},
 		{"Would modify:", installer.ActionModify, color.New(color.FgYellow)},
+		{"Would skip (use --force to overwrite):", installer.ActionSkipped, color.New(color.FgYellow)},
 		{"Would not change:", installer.ActionUnchanged, color.New(color.Faint)},
 	}
 	printGroupedActions(w, actions, groups)
 
 	// Summary
-	create, modify, unchanged := 0, 0, 0
+	create, modify, skipped, unchanged := 0, 0, 0, 0
 	for _, a := range actions {
 		switch a.Kind {
 		case installer.ActionCreate:
 			create++
 		case installer.ActionModify:
 			modify++
+		case installer.ActionSkipped:
+			skipped++
 		case installer.ActionUnchanged:
 			unchanged++
 		}
 	}
 	bold := color.New(color.Bold)
 	_, _ = fmt.Fprintln(w)
-	_, _ = bold.Fprintf(w, "Summary: %d to create, %d to modify, %d unchanged\n",
-		create, modify, unchanged)
+	_, _ = bold.Fprintf(w, "Summary: %d to create, %d to modify, %d skipped, %d unchanged\n",
+		create, modify, skipped, unchanged)
 }
 
 // printDryRunUninstallActions prints grouped dry-run output for uninstall.
@@ -95,6 +98,7 @@ func printDryRunUpdateActions(w io.Writer, actions []installer.FileAction) {
 	groups := []dryRunActionGroup{
 		{"Would update:", installer.ActionModify, color.New(color.FgYellow)},
 		{"Would create:", installer.ActionCreate, color.New(color.FgGreen)},
+		{"Would skip (use --force to overwrite):", installer.ActionSkipped, color.New(color.FgYellow)},
 		{"Already up to date:", installer.ActionUnchanged, color.New(color.Faint)},
 	}
 	printGroupedActions(w, actions, groups)

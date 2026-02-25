@@ -146,9 +146,11 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 					if i.FileTransformer != nil && fileTransformApplied {
 						origName := d.Name()
 						transformedData, _, transformErr := i.FileTransformer(sourceData, origName)
-						if transformErr == nil {
-							sourceData = transformedData
+						if transformErr != nil {
+							result.Errors = append(result.Errors, fmt.Sprintf("failed to transform %s: %v", path, transformErr))
+							return nil
 						}
+						sourceData = transformedData
 					}
 					targetData, readErr := os.ReadFile(targetPath)
 					if readErr != nil {
@@ -163,7 +165,8 @@ func (i *Installer) Install(dirs []string) (*Result, error) {
 						result.Copied = append(result.Copied, outputPath)
 					} else {
 						// File differs but --force not set — would be skipped
-						action.Kind = ActionUnchanged
+						action.Kind = ActionSkipped
+						action.Annotation = "exists (use --force to overwrite)"
 						result.Skipped = append(result.Skipped, outputPath)
 					}
 				} else {

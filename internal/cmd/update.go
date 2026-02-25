@@ -209,15 +209,19 @@ AGENTS.md is not modified during updates.`,
 
 			if dryRun && len(combinedResult.Actions) > 0 {
 				printDryRunUpdateActions(cmd.OutOrStdout(), combinedResult.Actions)
-			} else {
+			} else if !dryRun {
 				// Print results — say "updated" instead of "copied"
 				for _, f := range combinedResult.Copied {
 					_, _ = green.Printf("  updated: %s\n", f)
 				}
-				for _, e := range combinedResult.Errors {
-					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-				}
+			}
 
+			// Always print errors
+			for _, e := range combinedResult.Errors {
+				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+			}
+
+			if !dryRun {
 				// Summary
 				fmt.Println()
 				_, _ = bold.Printf("%d updated, %d errors\n",

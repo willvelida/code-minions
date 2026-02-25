@@ -462,7 +462,7 @@ files are found in the correct assistant-specific location.`,
 
 			if dryRun && len(combinedResult.Actions) > 0 {
 				printDryRunUninstallActions(cmd.OutOrStdout(), combinedResult.Actions)
-			} else {
+			} else if !dryRun {
 				for _, f := range combinedResult.Removed {
 					_, _ = green.Printf("  removed: %s\n", f)
 				}
@@ -473,22 +473,28 @@ files are found in the correct assistant-specific location.`,
 				for _, d := range combinedResult.DirsCleaned {
 					_, _ = dim.Printf("  cleaned dir: %s\n", d)
 				}
-				for _, e := range combinedResult.Errors {
-					_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
-				}
+			}
 
-				// MCP server removal results
-				if len(mcpUninstallResults) > 0 {
-					cyan := color.New(color.FgCyan)
-					fmt.Println()
+			// Always print errors
+			for _, e := range combinedResult.Errors {
+				_, _ = red.Fprintf(os.Stderr, "  error: %s\n", e)
+			}
+
+			// MCP server removal results
+			if len(mcpUninstallResults) > 0 {
+				cyan := color.New(color.FgCyan)
+				fmt.Println()
+				if dryRun {
+					_, _ = bold.Println("MCP servers (would remove):")
+				} else {
 					_, _ = bold.Println("MCP servers:")
-					for _, mr := range mcpUninstallResults {
-						for _, s := range mr.Removed {
-							_, _ = cyan.Printf("  removed from %s: %s\n", mr.ConfigPath, s)
-						}
-						for _, s := range mr.NotFound {
-							_, _ = dim.Printf("  not found in %s: %s\n", mr.ConfigPath, s)
-						}
+				}
+				for _, mr := range mcpUninstallResults {
+					for _, s := range mr.Removed {
+						_, _ = cyan.Printf("  removed from %s: %s\n", mr.ConfigPath, s)
+					}
+					for _, s := range mr.NotFound {
+						_, _ = dim.Printf("  not found in %s: %s\n", mr.ConfigPath, s)
 					}
 				}
 			}

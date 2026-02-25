@@ -9,6 +9,7 @@ const (
 	ActionCreate    ActionKind = iota // File does not exist — would be created
 	ActionModify                      // File exists with different content — would be overwritten
 	ActionUnchanged                   // File exists with identical content — no-op
+	ActionSkipped                     // File exists with different content but --force not set — would be skipped
 	ActionRemove                      // File exists — would be deleted (uninstall)
 	ActionNotFound                    // File does not exist — nothing to delete (uninstall)
 )
@@ -22,6 +23,8 @@ func (k ActionKind) String() string {
 		return "modify"
 	case ActionUnchanged:
 		return "unchanged"
+	case ActionSkipped:
+		return "skipped"
 	case ActionRemove:
 		return "remove"
 	case ActionNotFound:
@@ -40,6 +43,8 @@ func (k ActionKind) Prefix() string {
 		return "~"
 	case ActionUnchanged:
 		return "="
+	case ActionSkipped:
+		return "!"
 	case ActionRemove:
 		return "-"
 	case ActionNotFound:

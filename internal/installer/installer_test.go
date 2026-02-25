@@ -176,6 +176,193 @@ func TestInstallDryRunDoesNotWrite(t *testing.T) {
 	}
 }
 
+func TestInstallDryRunClassifiesCreate(t *testing.T) {
+	target := t.TempDir()
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+		DryRun:  true,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Actions) != 2 {
+		t.Fatalf("expected 2 actions, got %d", len(result.Actions))
+	}
+	for _, a := range result.Actions {
+		if a.Kind != ActionCreate {
+			t.Errorf("expected ActionCreate for %s, got %s", a.Path, a.Kind)
+		}
+	}
+}
+
+func TestInstallDryRunClassifiesUnchanged(t *testing.T) {
+	target := t.TempDir()
+
+	// Pre-create a file with identical content
+	agentsDir := filepath.Join(target, "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("failed to create agents dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "AGENTS.md"), []byte("# Agents"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+		DryRun:  true,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var unchanged, created int
+	for _, a := range result.Actions {
+		switch a.Kind {
+		case ActionUnchanged:
+			unchanged++
+		case ActionCreate:
+			created++
+		}
+	}
+	if unchanged != 1 {
+		t.Errorf("expected 1 unchanged action, got %d", unchanged)
+	}
+	if created != 1 {
+		t.Errorf("expected 1 create action, got %d", created)
+	}
+}
+
+func TestInstallDryRunClassifiesSkipped(t *testing.T) {
+	target := t.TempDir()
+
+	// Pre-create a file with DIFFERENT content, no --force
+	agentsDir := filepath.Join(target, "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("failed to create agents dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "AGENTS.md"), []byte("different content"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+		Force:   false,
+		DryRun:  true,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var skipped int
+	for _, a := range result.Actions {
+		if a.Kind == ActionSkipped {
+			skipped++
+			if a.Annotation == "" {
+				t.Error("expected annotation on skipped action")
+			}
+		}
+	}
+	if skipped != 1 {
+		t.Errorf("expected 1 skipped action, got %d", skipped)
+	}
+}
+
+func TestInstallDryRunClassifiesModifyWithForce(t *testing.T) {
+	target := t.TempDir()
+
+	// Pre-create a file with DIFFERENT content, with --force
+	agentsDir := filepath.Join(target, "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("failed to create agents dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "AGENTS.md"), []byte("different content"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+		Force:   true,
+		DryRun:  true,
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var modified int
+	for _, a := range result.Actions {
+		if a.Kind == ActionModify {
+			modified++
+		}
+	}
+	if modified != 1 {
+		t.Errorf("expected 1 modify action, got %d", modified)
+	}
+}
+
+func TestInstallDryRunTransformError(t *testing.T) {
+	target := t.TempDir()
+
+	// Pre-create a file so the transform path is exercised during comparison
+	agentsDir := filepath.Join(target, "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("failed to create agents dir: %v", err)
+	}
+	// The transformer renames AGENTS.md → AGENTS.mdc, so pre-create that
+	if err := os.WriteFile(filepath.Join(agentsDir, "AGENTS.mdc"), []byte("existing"), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	inst := &Installer{
+		Content: testFS(),
+		Target:  target,
+		DryRun:  true,
+		FileTransformer: func(content []byte, filename string) ([]byte, string, error) {
+			if filename == "AGENTS.md" {
+				if content == nil {
+					// Filename-only transform phase
+					return nil, "AGENTS.mdc", nil
+				}
+				// Content transform phase — simulate error
+				return nil, "", errors.New("transform failed")
+			}
+			return content, filename, nil
+		},
+	}
+
+	result, err := inst.Install([]string{"agents"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Errors) == 0 {
+		t.Error("expected transform error to be recorded")
+	}
+
+	foundError := false
+	for _, e := range result.Errors {
+		if strings.Contains(e, "transform") {
+			foundError = true
+		}
+	}
+	if !foundError {
+		t.Errorf("expected a transform error, got: %v", result.Errors)
+	}
+}
+
 func TestInstallInvalidDirReturnsError(t *testing.T) {
 	target := t.TempDir()
 
