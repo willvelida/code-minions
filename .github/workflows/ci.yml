@@ -15,9 +15,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -30,9 +30,9 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -45,7 +45,7 @@ jobs:
           config: .testcoverage.yml
 
       - name: Upload coverage to Codecov
-        if: always()
+        if: always() && github.actor != 'dependabot[bot]'
         uses: codecov/codecov-action@v5
         with:
           files: coverage.out
@@ -56,11 +56,11 @@ jobs:
   goreleaser-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -84,14 +84,14 @@ jobs:
       contents: read       # Required: the action needs to read the repo
       pull-requests: read   # Required when using only-new-issues on PRs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.9
           only-new-issues: true
@@ -99,7 +99,7 @@ jobs:
   lint-scripts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Lint install.sh with ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
