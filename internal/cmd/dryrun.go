@@ -12,7 +12,7 @@ import (
 // filesystem operation during dry-run.
 type dryRunJSONAction struct {
 	Path       string `json:"path"`
-	Action     string `json:"action"` // "create", "modify", "unchanged", "remove", "not found"
+	Action     string `json:"action"` // "create", "modify", "skipped", "unchanged", "remove", "not found"
 	Annotation string `json:"annotation,omitempty"`
 }
 
@@ -36,7 +36,7 @@ func actionsToJSON(actions []installer.FileAction) []dryRunJSONAction {
 type dryRunActionGroup struct {
 	header string
 	kind   installer.ActionKind
-	colour *color.Color
+	color  *color.Color
 }
 
 // printDryRunInstallActions prints grouped dry-run output for install/update.
@@ -138,7 +138,7 @@ func printGroupedActions(w io.Writer, actions []installer.FileAction, groups []d
 			if a.Annotation != "" {
 				annotation = " (" + a.Annotation + ")"
 			}
-			_, _ = g.colour.Fprintf(w, "  %s %s%s\n", a.Kind.Prefix(), a.Path, annotation)
+			_, _ = g.color.Fprintf(w, "  %s %s%s\n", a.Kind.Prefix(), a.Path, annotation)
 		}
 		_, _ = fmt.Fprintln(w)
 	}

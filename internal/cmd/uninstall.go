@@ -490,8 +490,12 @@ files are found in the correct assistant-specific location.`,
 					_, _ = bold.Println("MCP servers:")
 				}
 				for _, mr := range mcpUninstallResults {
+					verb := "removed from"
+					if dryRun {
+						verb = "would remove from"
+					}
 					for _, s := range mr.Removed {
-						_, _ = cyan.Printf("  removed from %s: %s\n", mr.ConfigPath, s)
+						_, _ = cyan.Printf("  %s %s: %s\n", verb, mr.ConfigPath, s)
 					}
 					for _, s := range mr.NotFound {
 						_, _ = dim.Printf("  not found in %s: %s\n", mr.ConfigPath, s)

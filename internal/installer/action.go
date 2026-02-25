@@ -34,7 +34,7 @@ func (k ActionKind) String() string {
 	}
 }
 
-// Prefix returns a single-character symbol for display: +, ~, =, -, ?
+// Prefix returns a single-character symbol for display: +, ~, =, !, -, ?
 func (k ActionKind) Prefix() string {
 	switch k {
 	case ActionCreate:
