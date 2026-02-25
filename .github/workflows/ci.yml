@@ -45,7 +45,9 @@ jobs:
           config: .testcoverage.yml
 
       - name: Upload coverage to Codecov
-        if: always() && github.actor != 'dependabot[bot]'
+        if: >
+          always() &&
+          (github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]')
         uses: codecov/codecov-action@v5
         with:
           files: coverage.out
