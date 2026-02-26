@@ -376,7 +376,7 @@ func TestGitSourceHeadSHAPopulatedAfterEnsure(t *testing.T) {
 		t.Errorf("HeadSHA length: got %d, want 40", len(sha))
 	}
 	for _, c := range sha {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 			t.Errorf("HeadSHA contains non-hex character: %c", c)
 			break
 		}

@@ -397,6 +397,9 @@ func TestFromResolvedTreeUnknownSourceType(t *testing.T) {
 	src := &mockSource{
 		name: "future-src",
 		typ:  "oci",
+		content: fstest.MapFS{
+			"SKILL.md": &fstest.MapFile{Data: []byte("# OCI Package")},
+		},
 	}
 
 	tree := &registry.ResolvedTree{
@@ -418,6 +421,12 @@ func TestFromResolvedTreeUnknownSourceType(t *testing.T) {
 	}
 	if pkg.Version != "v3.0.0" {
 		t.Errorf("Version = %q, want %q", pkg.Version, "v3.0.0")
+	}
+	if pkg.Source != "future-src" {
+		t.Errorf("Source = %q, want %q", pkg.Source, "future-src")
+	}
+	if !strings.HasPrefix(pkg.Integrity, "sha256:") {
+		t.Errorf("Integrity = %q, want sha256: prefix", pkg.Integrity)
 	}
 }
 

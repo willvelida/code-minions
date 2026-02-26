@@ -186,9 +186,9 @@ AGENTS.md is not modified during updates.`,
 						lfPath := lockfile.DefaultPath(target)
 						existingLF, _ := lockfile.Load(lfPath)
 						if existingLF != nil && packageFlag != "" {
+							// For selective updates, only merge updated packages and
+							// preserve the existing global metadata (GeneratedAt, CLIVersion).
 							existingLF.Merge(newLF.Packages)
-							existingLF.GeneratedAt = newLF.GeneratedAt
-							existingLF.CLIVersion = newLF.CLIVersion
 							saveLockfile(cmd, target, existingLF, dryRun, mode)
 						} else {
 							saveLockfile(cmd, target, newLF, dryRun, mode)

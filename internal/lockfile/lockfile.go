@@ -129,6 +129,15 @@ func Load(path string) (*LockFile, error) {
 		lf.Packages = make(map[string]LockedPackage)
 	}
 
+	// Reject lockfiles from future schema versions that this CLI
+	// cannot safely interpret. Users should upgrade their CLI.
+	if lf.LockfileVersion > CurrentVersion {
+		return nil, fmt.Errorf(
+			"lockfile version %d is newer than supported version %d — please upgrade code-minions",
+			lf.LockfileVersion, CurrentVersion,
+		)
+	}
+
 	return &lf, nil
 }
 

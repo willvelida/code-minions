@@ -98,11 +98,21 @@ func (s *GitSource) Name() string { return s.name }
 func (s *GitSource) Type() string { return "git" }
 
 // URL returns the source URL.
-func (s *GitSource) URL() string { return s.url }
+// Safe for concurrent use.
+func (s *GitSource) URL() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.url
+}
 
 // HeadSHA returns the commit SHA of the cloned/pulled repository.
 // Returns "" if Ensure() has not been called yet.
-func (s *GitSource) HeadSHA() string { return s.headSHA }
+// Safe for concurrent use.
+func (s *GitSource) HeadSHA() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.headSHA
+}
 
 // Ensure clones the repo if not cached, or pulls if already cached.
 // After this call, s.embedded is ready for use.
@@ -137,7 +147,12 @@ func (s *GitSource) Ensure() error {
 	}
 
 	// Capture the commit SHA for lockfile pinning.
-	if sha, err := gitRevParseHEAD(s.cacheDir); err == nil {
+	sha, err := gitRevParseHEAD(s.cacheDir)
+	if err != nil {
+		// Log but don't fail — the lockfile will record an empty SHA,
+		// which is less useful but not fatal.
+		fmt.Fprintf(os.Stderr, "warning: failed to read HEAD SHA for %q: %v\n", s.name, err)
+	} else {
 		s.headSHA = sha
 	}
 

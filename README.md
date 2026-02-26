@@ -627,6 +627,27 @@ Explain **{{args}}** using a level-adaptive mentoring approach.
 """
 ```
 
+## Lockfile
+
+When you run `code-minions install` or `code-minions update`, a `code-minions.lock` file is generated alongside your `code-minions.yml` manifest. The lockfile records the exact resolved version of every dependency so that two developers (or a developer and CI) get identical installs.
+
+**How it works:**
+
+- `code-minions.yml` = desired state ("I want these packages")
+- `code-minions.lock` = resolved state ("these exact versions were installed")
+
+**Key behaviors:**
+
+| Scenario | Behavior |
+|---|---|
+| First install | Lockfile is created automatically |
+| Subsequent install | If lockfile is fresh (matches manifest), uses locked versions |
+| Manifest changed | Staleness warning; use `--force` to regenerate |
+| Selective update (`--package X`) | Only X is re-resolved; other entries are preserved |
+| `--dry-run` | Lockfile is not written; a message is printed instead |
+
+**Commit your lockfile to version control.** This ensures every team member and CI environment installs the same package versions. If merge conflicts arise in the lockfile, run `code-minions install --force` to regenerate it.
+
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing expectations, and PR guidelines.

@@ -1,6 +1,7 @@
 package lockfile
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -183,6 +184,42 @@ func TestLoadReturnsErrorForInvalidYAML(t *testing.T) {
 	_, err := Load(path)
 	if err == nil {
 		t.Error("expected error for invalid YAML")
+	}
+}
+
+func TestLoadRejectsNewerLockfileVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+
+	data := []byte("lockfile_version: 999\ngenerated_at: '2026-01-01T00:00:00Z'\ncli_version: v99.0.0\npackages: {}\n")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("failed to write test lockfile: %v", err)
+	}
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for future lockfile version")
+	}
+	if !strings.Contains(err.Error(), "newer than supported") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadAcceptsCurrentLockfileVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+
+	data := []byte(fmt.Sprintf("lockfile_version: %d\ngenerated_at: '2026-01-01T00:00:00Z'\ncli_version: v1.0.0\npackages: {}\n", CurrentVersion))
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("failed to write test lockfile: %v", err)
+	}
+
+	lf, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if lf.LockfileVersion != CurrentVersion {
+		t.Errorf("version: got %d, want %d", lf.LockfileVersion, CurrentVersion)
 	}
 }
 

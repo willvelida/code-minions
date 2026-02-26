@@ -78,9 +78,23 @@ func FromResolvedTree(tree *registry.ResolvedTree, cliVersion string) (*LockFile
 			entry.Integrity = integrity
 
 		default:
-			// Unknown source type — record what we can.
+			// Unknown/other remote source types (e.g. OCI, HTTP registry).
+			// Record type, version, source name, and compute integrity hash
+			// so that new remote source kinds still benefit from lockfile
+			// validation without additional changes here.
 			entry.Type = rp.Source.Type()
 			entry.Version = rp.Package.Version
+			entry.Source = rp.Source.Name()
+
+			content, err := rp.Source.DownloadPackage(name, rp.Package.Version)
+			if err != nil {
+				return nil, fmt.Errorf("failed to download %q for integrity hash: %w", name, err)
+			}
+			integrity, err := ComputePackageIntegrity(content)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compute integrity for %q: %w", name, err)
+			}
+			entry.Integrity = integrity
 		}
 
 		// Populate DependencyOf for transitive deps.
