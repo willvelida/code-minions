@@ -278,8 +278,12 @@ func gitClone(url, dest string) error {
 // gitRevParseHEAD returns the full commit SHA of HEAD in the given repo.
 func gitRevParseHEAD(dir string) (string, error) {
 	cmd := exec.Command("git", "-C", dir, "rev-parse", "HEAD")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
+		outStr := strings.TrimSpace(string(out))
+		if outStr != "" {
+			return "", fmt.Errorf("git rev-parse HEAD: %s: %w", outStr, err)
+		}
 		return "", fmt.Errorf("git rev-parse HEAD: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil

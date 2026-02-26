@@ -140,8 +140,9 @@ preview changes without writing any files.`,
 			}
 
 			// --- Lockfile staleness check ---
-			// Load the existing lockfile and check if it's in sync with
-			// the manifest. If stale, we'll regenerate after resolution.
+			// Only valid for manifest-driven installs; when --package is
+			// used, packageDirs is a filtered selection and no longer
+			// represents the full manifest package list.
 			lfPath := lockfile.DefaultPath(target)
 			existingLF, lfLoadErr := lockfile.Load(lfPath)
 			if lfLoadErr != nil {
@@ -152,7 +153,7 @@ preview changes without writing any files.`,
 				// only a newer CLI version understands.
 				cmd.PrintErrf("Warning: failed to load lockfile %s: %v (lockfile will not be updated)\n", lfPath, lfLoadErr)
 			}
-			if existingLF != nil && !force {
+			if existingLF != nil && !force && packageFlag == "" {
 				var manifestPkgNames []string
 				for _, dir := range packageDirs {
 					manifestPkgNames = append(manifestPkgNames, strings.TrimPrefix(dir, "packages/"))
