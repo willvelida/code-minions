@@ -344,6 +344,80 @@ func TestGitSourceEnsurePullAfterClone(t *testing.T) {
 	}
 }
 
+func TestGitSourceHeadSHAEmptyBeforeEnsure(t *testing.T) {
+	src := NewGitSourceWithDir("test", "https://example.com/repo.git", t.TempDir())
+
+	if sha := src.HeadSHA(); sha != "" {
+		t.Errorf("HeadSHA before Ensure: got %q, want empty", sha)
+	}
+}
+
+func TestGitSourceHeadSHAPopulatedAfterEnsure(t *testing.T) {
+	repoDir := setupTestGitRepo(t)
+	cacheDir := filepath.Join(t.TempDir(), "cache", "test-source")
+
+	src := &GitSource{
+		name:     "test-source",
+		url:      repoDir,
+		cacheDir: cacheDir,
+	}
+
+	if err := src.Ensure(); err != nil {
+		t.Fatalf("Ensure: %v", err)
+	}
+
+	sha := src.HeadSHA()
+	if sha == "" {
+		t.Fatal("HeadSHA should be populated after Ensure")
+	}
+
+	// SHA should be a 40-character hex string
+	if len(sha) != 40 {
+		t.Errorf("HeadSHA length: got %d, want 40", len(sha))
+	}
+	for _, c := range sha {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			t.Errorf("HeadSHA contains non-hex character: %c", c)
+			break
+		}
+	}
+}
+
+func TestGitSourceHeadSHAMatchesRepo(t *testing.T) {
+	repoDir := setupTestGitRepo(t)
+	cacheDir := filepath.Join(t.TempDir(), "cache", "test-source")
+
+	src := &GitSource{
+		name:     "test-source",
+		url:      repoDir,
+		cacheDir: cacheDir,
+	}
+
+	if err := src.Ensure(); err != nil {
+		t.Fatalf("Ensure: %v", err)
+	}
+
+	// Get the expected SHA directly from the source repo
+	cmd := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD: %v", err)
+	}
+	expectedSHA := strings.TrimSpace(string(out))
+
+	if src.HeadSHA() != expectedSHA {
+		t.Errorf("HeadSHA: got %q, want %q", src.HeadSHA(), expectedSHA)
+	}
+}
+
+func TestGitSourceURLAccessor(t *testing.T) {
+	src := NewGitSourceWithDir("test", "https://example.com/repo.git", t.TempDir())
+
+	if got := src.URL(); got != "https://example.com/repo.git" {
+		t.Errorf("URL: got %q, want %q", got, "https://example.com/repo.git")
+	}
+}
+
 func TestNewGitSource(t *testing.T) {
 	src, err := NewGitSource(SourceConfig{
 		Name: "my-team",

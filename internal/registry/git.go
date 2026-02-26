@@ -22,6 +22,7 @@ type GitSource struct {
 	url      string
 	cacheDir string
 	embedded *EmbeddedSource // delegates all FS operations
+	headSHA  string          // commit SHA after Ensure(); used by lockfile
 }
 
 // NewGitSource creates a Git-based source from a config entry.
@@ -96,6 +97,13 @@ func (s *GitSource) Name() string { return s.name }
 // Type returns "git".
 func (s *GitSource) Type() string { return "git" }
 
+// URL returns the source URL.
+func (s *GitSource) URL() string { return s.url }
+
+// HeadSHA returns the commit SHA of the cloned/pulled repository.
+// Returns "" if Ensure() has not been called yet.
+func (s *GitSource) HeadSHA() string { return s.headSHA }
+
 // Ensure clones the repo if not cached, or pulls if already cached.
 // After this call, s.embedded is ready for use.
 // Ensure is safe for concurrent use.
@@ -126,6 +134,11 @@ func (s *GitSource) Ensure() error {
 		if err := gitClone(s.url, s.cacheDir); err != nil {
 			return fmt.Errorf("failed to clone source %q from %s: %w", s.name, s.url, err)
 		}
+	}
+
+	// Capture the commit SHA for lockfile pinning.
+	if sha, err := gitRevParseHEAD(s.cacheDir); err == nil {
+		s.headSHA = sha
 	}
 
 	// Verify the cloned repo has a packages/ directory
@@ -245,6 +258,16 @@ func gitClone(url, dest string) error {
 		return fmt.Errorf("git clone failed: %s", outStr)
 	}
 	return nil
+}
+
+// gitRevParseHEAD returns the full commit SHA of HEAD in the given repo.
+func gitRevParseHEAD(dir string) (string, error) {
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse HEAD: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // gitPull performs a fast-forward pull in an existing repo.
