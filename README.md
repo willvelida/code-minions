@@ -641,12 +641,12 @@ When you run `code-minions install` or `code-minions update`, a `code-minions.lo
 | Scenario | Behavior |
 |---|---|
 | First install | Lockfile is created automatically |
-| Subsequent install | If lockfile is fresh (matches manifest), uses locked versions |
+| Subsequent install | If lockfile is fresh (matches manifest), records are preserved |
 | Manifest changed | Staleness warning; use `--force` to regenerate |
 | Selective update (`--package X`) | Only X is re-resolved; other entries are preserved |
 | `--dry-run` | Lockfile is not written; a message is printed instead |
 
-**Commit your lockfile to version control.** This ensures every team member and CI environment installs the same package versions. If merge conflicts arise in the lockfile, run `code-minions install --force` to regenerate it.
+**Commit your lockfile to version control.** This ensures every team member and CI environment can verify that packages haven't changed since the lockfile was generated (via integrity hashes for embedded packages and recorded commit SHAs for git sources). If merge conflicts arise in the lockfile, run `code-minions install --force` to regenerate it.
 
 ## Contributing
 
