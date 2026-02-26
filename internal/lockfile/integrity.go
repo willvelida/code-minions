@@ -84,19 +84,34 @@ func hashFile(fsys fs.FS, path string) ([]byte, error) {
 
 // VerifyIntegrity checks that a package's current content matches
 // the recorded integrity hash. Returns true if the hashes match.
+// Returns (false, nil) if the recorded value is empty or malformed
+// (missing "sha256:" prefix, wrong hex length, or invalid hex).
 func VerifyIntegrity(content fs.FS, recorded string) (bool, error) {
 	if recorded == "" {
 		return false, nil
 	}
 
-	// Strip the "sha256:" prefix for comparison.
-	recorded = strings.TrimPrefix(recorded, checksumPrefix)
+	// Enforce the expected "sha256:<hex>" format on the recorded value.
+	if !strings.HasPrefix(recorded, checksumPrefix) {
+		// Malformed or unsupported integrity format; treat as non-match.
+		return false, nil
+	}
+	recordedHex := strings.TrimPrefix(recorded, checksumPrefix)
+
+	// SHA-256 hashes are 32 bytes, i.e. 64 hex characters.
+	if len(recordedHex) != sha256.Size*2 {
+		return false, nil
+	}
+	if _, err := hex.DecodeString(recordedHex); err != nil {
+		// Not valid hex; treat as non-match.
+		return false, nil
+	}
 
 	current, err := ComputePackageIntegrity(content)
 	if err != nil {
 		return false, err
 	}
 
-	current = strings.TrimPrefix(current, checksumPrefix)
-	return current == recorded, nil
+	currentHex := strings.TrimPrefix(current, checksumPrefix)
+	return currentHex == recordedHex, nil
 }
