@@ -145,7 +145,12 @@ preview changes without writing any files.`,
 			lfPath := lockfile.DefaultPath(target)
 			existingLF, lfLoadErr := lockfile.Load(lfPath)
 			if lfLoadErr != nil {
-				cmd.PrintErrf("Warning: failed to load lockfile %s: %v\n", lfPath, lfLoadErr)
+				// Load returns (nil, nil) for missing files, so any error here
+				// means the lockfile exists but can't be parsed (e.g. future
+				// version, corrupt YAML). Warn the user — we'll also skip
+				// overwriting the lockfile later to avoid destroying data
+				// only a newer CLI version understands.
+				cmd.PrintErrf("Warning: failed to load lockfile %s: %v (lockfile will not be updated)\n", lfPath, lfLoadErr)
 			}
 			if existingLF != nil && !force {
 				var manifestPkgNames []string
@@ -462,12 +467,17 @@ preview changes without writing any files.`,
 			}
 
 			// --- Generate and save lockfile ---
-			lf, lfErr := generateLockfile(depTree)
-			if lfErr != nil {
-				combinedResult.Errors = append(combinedResult.Errors,
-					fmt.Sprintf("lockfile: %v", lfErr))
-			} else {
-				saveLockfile(cmd, target, lf, dryRun, mode)
+			// Skip lockfile generation if we couldn't load the existing one
+			// (e.g. future version, corrupt YAML) to avoid overwriting data
+			// that only a newer CLI version understands.
+			if lfLoadErr == nil {
+				lf, lfErr := generateLockfile(depTree)
+				if lfErr != nil {
+					combinedResult.Errors = append(combinedResult.Errors,
+						fmt.Sprintf("lockfile: %v", lfErr))
+				} else {
+					saveLockfile(cmd, target, lf, dryRun, mode)
+				}
 			}
 
 			// JSON output

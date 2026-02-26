@@ -186,10 +186,14 @@ AGENTS.md is not modified during updates.`,
 						lfPath := lockfile.DefaultPath(target)
 						existingLF, lfLoadErr := lockfile.Load(lfPath)
 						if lfLoadErr != nil {
+							// Load returns (nil, nil) for missing files, so any
+							// error here means the lockfile exists but can't be
+							// parsed (e.g. future version, corrupt YAML). Do NOT
+							// overwrite it — that would destroy data only a newer
+							// CLI version understands.
 							combinedResult.Errors = append(combinedResult.Errors,
-								fmt.Sprintf("lockfile: failed to load existing lockfile: %v", lfLoadErr))
-						}
-						if existingLF != nil {
+								fmt.Sprintf("lockfile: failed to load existing lockfile: %v (lockfile not updated)", lfLoadErr))
+						} else if existingLF != nil {
 							// Always merge into the existing lockfile so that
 							// entries from other sources (e.g. remote/git) are
 							// preserved. For selective updates (--package X),
