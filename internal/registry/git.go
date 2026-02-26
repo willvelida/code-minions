@@ -22,6 +22,7 @@ type GitSource struct {
 	url      string
 	cacheDir string
 	embedded *EmbeddedSource // delegates all FS operations
+	headSHA  string          // commit SHA after Ensure(); used by lockfile
 }
 
 // NewGitSource creates a Git-based source from a config entry.
@@ -96,6 +97,23 @@ func (s *GitSource) Name() string { return s.name }
 // Type returns "git".
 func (s *GitSource) Type() string { return "git" }
 
+// URL returns the source URL.
+// Safe for concurrent use.
+func (s *GitSource) URL() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.url
+}
+
+// HeadSHA returns the commit SHA of the cloned/pulled repository.
+// Returns "" if Ensure() has not been called yet.
+// Safe for concurrent use.
+func (s *GitSource) HeadSHA() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.headSHA
+}
+
 // Ensure clones the repo if not cached, or pulls if already cached.
 // After this call, s.embedded is ready for use.
 // Ensure is safe for concurrent use.
@@ -126,6 +144,16 @@ func (s *GitSource) Ensure() error {
 		if err := gitClone(s.url, s.cacheDir); err != nil {
 			return fmt.Errorf("failed to clone source %q from %s: %w", s.name, s.url, err)
 		}
+	}
+
+	// Capture the commit SHA for lockfile pinning.
+	sha, err := gitRevParseHEAD(s.cacheDir)
+	if err != nil {
+		// Log but don't fail — the lockfile will record an empty SHA,
+		// which is less useful but not fatal.
+		fmt.Fprintf(os.Stderr, "warning: failed to read HEAD SHA for %q: %v\n", s.name, err)
+	} else {
+		s.headSHA = sha
 	}
 
 	// Verify the cloned repo has a packages/ directory
@@ -245,6 +273,20 @@ func gitClone(url, dest string) error {
 		return fmt.Errorf("git clone failed: %s", outStr)
 	}
 	return nil
+}
+
+// gitRevParseHEAD returns the full commit SHA of HEAD in the given repo.
+func gitRevParseHEAD(dir string) (string, error) {
+	cmd := exec.Command("git", "-C", dir, "rev-parse", "HEAD")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		outStr := strings.TrimSpace(string(out))
+		if outStr != "" {
+			return "", fmt.Errorf("git rev-parse HEAD: %s: %w", outStr, err)
+		}
+		return "", fmt.Errorf("git rev-parse HEAD: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // gitPull performs a fast-forward pull in an existing repo.

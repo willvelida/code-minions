@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/lockfile"
 	"github.com/willvelida/code-minions/internal/manifest"
 	"github.com/willvelida/code-minions/internal/mcp"
 	"github.com/willvelida/code-minions/internal/registry"
@@ -136,6 +137,29 @@ preview changes without writing any files.`,
 			packageDirs, err := buildPackageList(content, packageFlag, target)
 			if err != nil {
 				return err
+			}
+
+			// --- Lockfile staleness check ---
+			// Only valid for manifest-driven installs; when --package is
+			// used, packageDirs is a filtered selection and no longer
+			// represents the full manifest package list.
+			lfPath := lockfile.DefaultPath(target)
+			existingLF, lfLoadErr := lockfile.Load(lfPath)
+			if lfLoadErr != nil {
+				// Load returns (nil, nil) for missing files, so any error here
+				// means the lockfile exists but can't be parsed (e.g. future
+				// version, corrupt YAML). Warn the user — we'll also skip
+				// overwriting the lockfile later to avoid destroying data
+				// only a newer CLI version understands.
+				cmd.PrintErrf("Warning: failed to load lockfile %s: %v (lockfile will not be updated)\n", lfPath, lfLoadErr)
+			}
+			if existingLF != nil && !force && packageFlag == "" {
+				var manifestPkgNames []string
+				for _, dir := range packageDirs {
+					manifestPkgNames = append(manifestPkgNames, strings.TrimPrefix(dir, "packages/"))
+				}
+				staleness := lockfile.CheckStaleness(existingLF, manifestPkgNames)
+				printStalenessWarning(cmd, staleness, mode)
 			}
 
 			// --- Resolve transitive dependencies for embedded packages ---
@@ -440,6 +464,20 @@ preview changes without writing any files.`,
 					} else {
 						verbosePrintf(cmd, mode, "updated %s\n", manifest.FileName)
 					}
+				}
+			}
+
+			// --- Generate and save lockfile ---
+			// Skip lockfile generation if we couldn't load the existing one
+			// (e.g. future version, corrupt YAML) to avoid overwriting data
+			// that only a newer CLI version understands.
+			if lfLoadErr == nil {
+				lf, lfErr := generateLockfile(depTree)
+				if lfErr != nil {
+					combinedResult.Errors = append(combinedResult.Errors,
+						fmt.Sprintf("lockfile: %v", lfErr))
+				} else {
+					saveLockfile(cmd, target, lf, dryRun, mode)
 				}
 			}
 
@@ -840,6 +878,14 @@ func runPersonaInstall(
 	result, err := pi.Install()
 	if err != nil {
 		return fmt.Errorf("persona installation failed: %w", err)
+	}
+
+	// --- Step 2b: Generate and save lockfile ---
+	lf, lfErr := generateLockfile(depTree)
+	if lfErr != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("lockfile: %v", lfErr))
+	} else {
+		saveLockfile(cmd, target, lf, dryRun, mode)
 	}
 
 	// --- Step 3: Format output ---
@@ -1274,7 +1320,16 @@ func installFromSource(
 		}
 	}
 
-	// 11. Output results
+	// 11. Generate and save lockfile
+	lf, lfErr := generateLockfile(tree)
+	if lfErr != nil {
+		combinedResult.Errors = append(combinedResult.Errors,
+			fmt.Sprintf("lockfile: %v", lfErr))
+	} else {
+		saveLockfile(cmd, target, lf, dryRun, mode)
+	}
+
+	// 12. Output results
 	return formatInstallResult(cmd, mode, combinedResult, mcpResults, dryRun)
 }
 
@@ -1464,4 +1519,69 @@ func discoverTopDirs(pkgFS fs.FS) ([]string, error) {
 		}
 	}
 	return dirs, nil
+}
+
+// --- Lockfile helpers ---
+
+// generateLockfile creates a new LockFile from a resolved dependency tree.
+// Returns nil when tree is nil (no packages resolved).
+func generateLockfile(tree *registry.ResolvedTree) (*lockfile.LockFile, error) {
+	if tree == nil {
+		return nil, nil
+	}
+	return lockfile.FromResolvedTree(tree, getVersion())
+}
+
+// saveLockfile writes the lockfile atomically. Skipped during dry-run.
+// When dryRun is true and mode is normal/verbose, a message is printed
+// instead.
+func saveLockfile(
+	cmd *cobra.Command,
+	target string,
+	lf *lockfile.LockFile,
+	dryRun bool,
+	mode OutputMode,
+) {
+	if lf == nil {
+		return
+	}
+	lfPath := lockfile.DefaultPath(target)
+
+	if dryRun {
+		verbosePrintf(cmd, mode, "[dry-run] Would generate %s (%d packages)\n",
+			lockfile.FileName, len(lf.Packages))
+		return
+	}
+
+	if err := lockfile.Save(lfPath, lf); err != nil {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to write %s: %v\n",
+			lockfile.FileName, err)
+		return
+	}
+	verbosePrintf(cmd, mode, "updated %s (%d packages)\n",
+		lockfile.FileName, len(lf.Packages))
+}
+
+// printStalenessWarning prints a warning if the lockfile is out of sync
+// with the manifest packages. Respects quiet and JSON modes.
+func printStalenessWarning(
+	cmd *cobra.Command,
+	staleness *lockfile.StalenessResult,
+	mode OutputMode,
+) {
+	if staleness == nil || staleness.Fresh {
+		return
+	}
+	if mode == OutputJSON || mode == OutputQuiet {
+		return
+	}
+	yellow := color.New(color.FgYellow)
+	_, _ = yellow.Fprintf(cmd.ErrOrStderr(), "⚠ Lockfile is out of sync with %s:\n", manifest.FileName)
+	for _, name := range staleness.Added {
+		_, _ = yellow.Fprintf(cmd.ErrOrStderr(), "  + %s (added to manifest, not in lockfile)\n", name)
+	}
+	for _, name := range staleness.Removed {
+		_, _ = yellow.Fprintf(cmd.ErrOrStderr(), "  - %s (in lockfile, removed from manifest)\n", name)
+	}
+	_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Resolving...")
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/willvelida/code-minions/internal/assistant"
 	"github.com/willvelida/code-minions/internal/installer"
+	"github.com/willvelida/code-minions/internal/lockfile"
 	"github.com/willvelida/code-minions/internal/registry"
 )
 
@@ -145,6 +146,67 @@ AGENTS.md is not modified during updates.`,
 					}
 					if err := installer.SaveManifest(target, manifest); err != nil {
 						combinedResult.Errors = append(combinedResult.Errors, fmt.Sprintf("manifest: %v", err))
+					}
+				}
+			}
+
+			// --- Generate and save lockfile ---
+			// Resolve dependencies for the updated packages so the lockfile
+			// captures the current state. For embedded packages, this is
+			// lightweight; for remote packages it reuses the cloned repo.
+			embeddedSrc := registry.NewEmbeddedSource(content)
+			embeddedReg := registry.NewRegistry(embeddedSrc)
+
+			var updateRoots []registry.ResolvedPackage
+			for _, dir := range packageDirs {
+				pkgName := strings.TrimPrefix(dir, "packages/")
+				pkg, src, resolveErr := embeddedReg.ResolvePackage(pkgName)
+				if resolveErr == nil {
+					updateRoots = append(updateRoots, registry.ResolvedPackage{
+						Package: *pkg,
+						Source:  src,
+					})
+				}
+			}
+
+			if len(updateRoots) > 0 {
+				depResolver := registry.NewDependencyResolver(embeddedReg)
+				updateTree, resolveErr := depResolver.Resolve(updateRoots)
+				if resolveErr != nil {
+					combinedResult.Errors = append(combinedResult.Errors,
+						fmt.Sprintf("lockfile resolution: %v", resolveErr))
+				} else {
+					newLF, lfErr := generateLockfile(updateTree)
+					if lfErr != nil {
+						combinedResult.Errors = append(combinedResult.Errors,
+							fmt.Sprintf("lockfile: %v", lfErr))
+					} else if newLF != nil {
+						// Merge into existing lockfile for selective updates
+						// (--package X only re-resolves X, preserving others).
+						lfPath := lockfile.DefaultPath(target)
+						existingLF, lfLoadErr := lockfile.Load(lfPath)
+						if lfLoadErr != nil {
+							// Load returns (nil, nil) for missing files, so any
+							// error here means the lockfile exists but can't be
+							// parsed (e.g. future version, corrupt YAML). Do NOT
+							// overwrite it — that would destroy data only a newer
+							// CLI version understands.
+							combinedResult.Errors = append(combinedResult.Errors,
+								fmt.Sprintf("lockfile: failed to load existing lockfile: %v (lockfile not updated)", lfLoadErr))
+						} else if existingLF != nil {
+							// Always merge into the existing lockfile so that
+							// entries from other sources (e.g. remote/git) are
+							// preserved. For selective updates (--package X),
+							// also preserve global metadata (GeneratedAt, CLIVersion).
+							existingLF.Merge(newLF.Packages)
+							if packageFlag == "" {
+								existingLF.GeneratedAt = newLF.GeneratedAt
+								existingLF.CLIVersion = newLF.CLIVersion
+							}
+							saveLockfile(cmd, target, existingLF, dryRun, mode)
+						} else {
+							saveLockfile(cmd, target, newLF, dryRun, mode)
+						}
 					}
 				}
 			}

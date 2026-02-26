@@ -53,7 +53,7 @@ winget:
   - name: code-minions
     publisher: willvelida
     short_description: "CLI tool for installing AI-assisted development agents and skills into your repositories"
-    license: mit
+    license: Apache-2.0
     publisher_url: https://github.com/willvelida
     publisher_support_url: https://github.com/willvelida/code-minions/issues/new
     package_identifier: willvelida.code-minions
