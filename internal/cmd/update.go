@@ -184,7 +184,11 @@ AGENTS.md is not modified during updates.`,
 						// Merge into existing lockfile for selective updates
 						// (--package X only re-resolves X, preserving others).
 						lfPath := lockfile.DefaultPath(target)
-						existingLF, _ := lockfile.Load(lfPath)
+						existingLF, lfLoadErr := lockfile.Load(lfPath)
+						if lfLoadErr != nil {
+							combinedResult.Errors = append(combinedResult.Errors,
+								fmt.Sprintf("lockfile: failed to load existing lockfile: %v", lfLoadErr))
+						}
 						if existingLF != nil && packageFlag != "" {
 							// For selective updates, only merge updated packages and
 							// preserve the existing global metadata (GeneratedAt, CLIVersion).

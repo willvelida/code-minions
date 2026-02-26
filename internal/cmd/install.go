@@ -143,7 +143,10 @@ preview changes without writing any files.`,
 			// Load the existing lockfile and check if it's in sync with
 			// the manifest. If stale, we'll regenerate after resolution.
 			lfPath := lockfile.DefaultPath(target)
-			existingLF, _ := lockfile.Load(lfPath)
+			existingLF, lfLoadErr := lockfile.Load(lfPath)
+			if lfLoadErr != nil {
+				cmd.PrintErrf("Warning: failed to load lockfile %s: %v\n", lfPath, lfLoadErr)
+			}
 			if existingLF != nil && !force {
 				var manifestPkgNames []string
 				for _, dir := range packageDirs {

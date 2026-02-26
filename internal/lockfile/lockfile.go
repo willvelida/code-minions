@@ -48,8 +48,9 @@ type LockFile struct {
 	// CLIVersion is the version of the CLI that generated this lockfile.
 	CLIVersion string `yaml:"cli_version"`
 
-	// Packages maps package identifiers to their resolved state.
-	// Keys are package names for builtins, source URLs for remotes.
+	// Packages maps package names to their resolved state.
+	// Keys are always the package name (e.g. "threat-modelling"),
+	// regardless of whether the package is builtin or remote.
 	Packages map[string]LockedPackage `yaml:"packages"`
 }
 
@@ -178,6 +179,7 @@ func Save(path string, lf *LockFile) error {
 	// On Windows, os.Rename fails if the destination already exists.
 	// Use a backup-and-restore strategy to avoid data loss.
 	backupPath := path + ".bak"
+	_ = os.Remove(backupPath) // Remove stale backup from prior interrupted writes.
 	hadBackup := false
 	if err := os.Rename(path, backupPath); err != nil {
 		if !os.IsNotExist(err) {
